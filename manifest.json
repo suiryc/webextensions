@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "Links Catcher",
+  "version": "0.1",
+
+  "description": "Catches links in selected zone.",
+
+  "permissions": [],
+
+  "icons": {
+    "48": "src/icon.svg",
+    "96": "src/icon.svg"
+  },
+
+  "content_scripts": [{
+    "matches": [ "<all_urls>" ],
+    "run_at": "document_start",
+    "js": [
+      "src/util.js",
+      "src/LinksCatcher.js",
+      "src/LinkHandler.js",
+      "src/content-script.js"
+     ],
+    "css": [ "src/content-script.css" ]
+  }]
+}

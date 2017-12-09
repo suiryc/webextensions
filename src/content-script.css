@@ -1,0 +1,88 @@
+/* Catch zone.
+ * Needs to be on top of page, and must not change its layout.
+ */
+.linksCatcher_catchZone {
+  position: absolute;
+  z-index: 2147483646;
+  top: 0px;
+  left: 0px;
+  height: 0px;
+  width: 0px;
+  margin: 0px;
+  padding: 0px;
+  overflow: visible;
+  /* Set border inside element.
+   * See: https://stackoverflow.com/questions/9601357/placing-border-inside-of-div-and-not-on-its-edge
+   */
+  box-sizing: border-box;
+  border: 2px dashed rgba(0, 200, 200, 1);
+  background-color: rgba(0, 200, 200, 0.03);
+}
+
+/* Caught links counter box.
+ */
+.linksCatcher_linksCount {
+  position: absolute;
+  z-index: 2147483647;
+  top: 0px;
+  left: 0px;
+  margin: 0px;
+  padding: 2px;
+  overflow: visible;
+  outline: 1px solid rgba(0, 0, 0, 1);
+  color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(255, 255, 255, 0.8);
+  font-family: monospace;
+  font-style: normal;
+}
+
+/* Link highlighting.
+ * Also done on top of page, to be visible whatever the situation and without
+ * altering the layout.
+ */
+.linksCatcher_highlight {
+  position: absolute;
+  z-index: 2147483645;
+  top: 0px;
+  left: 0px;
+  height: 0px;
+  width: 0px;
+  margin: 0px;
+  padding: 0px;
+  overflow: visible;
+  display: block;
+  /* Some dashed outline, to match the catch zone. */
+  outline: 2px dashed rgba(0, 200, 200, 0.4);
+  /* Some gradient for easier visual hinting of the zone. */
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(0, 200, 200, 0.1),
+    rgba(0, 200, 200, 0.1) 10px,
+    rgba(0, 200, 200, 0.2) 10px,
+    rgba(0, 200, 200, 0.2) 20px
+  );
+}
+
+/* Disable selection by left mouse button.
+ * See: https://stackoverflow.com/questions/16805684/javascript-disable-text-select
+ */
+body.linksCatcher_noUserSelect {
+  user-select: none;
+}
+
+/* Hide the text input used to interact with clipboard.
+ * We cannot set the element invisible (display: none) because we could not use
+ * it to select its content.
+ */
+.linksCatcher_clipboard {
+  position: absolute;
+  z-index: -2147483648;
+  top: 0px;
+  left: 0px;
+  height: 0px;
+  width: 0px;
+  margin: 0px;
+  padding: 0px;
+  overflow: visible;
+  opacity: 0;
+}
