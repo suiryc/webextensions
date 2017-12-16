@@ -3,6 +3,26 @@
 function LinksCatcher() {
   var self = this;
 
+  // Don't initialize us before being needed
+  document.addEventListener('mousedown', function handler(ev) {
+    if (settings.debug.enabled) {
+      debugSample(ev.type)('[LinksCatcher] Event =', ev);
+    }
+    self.handleMouseDown(ev);
+    if (self.catchZone !== undefined) {
+      // We are now initialized, 'mousedown' is properly handled
+      document.removeEventListener('mousedown', handler);
+    }
+  });
+}
+
+// Initializes the catcher
+LinksCatcher.prototype.init = function() {
+  var self = this;
+
+  if (this.catchZone !== undefined) return;
+  debug('[LinksCatcher] Initializing');
+
   // Cleanup previous nodes if any (useful when reloading extension)
   for (var node of document.querySelectorAll('.linksCatcher_catchZone, .linksCatcher_linksCount')) {
     document.body.removeChild(node);
@@ -66,7 +86,7 @@ function LinksCatcher() {
 
   // Listen to mouse events
   ['mousedown', 'mouseup'].forEach(this.listenEvent.bind(this));
-}
+};
 
 // Resets caught links
 LinksCatcher.prototype.resetLinks = function() {
@@ -312,6 +332,7 @@ LinksCatcher.prototype.handleMouseDown = function(ev) {
   if ((ev.buttons != MOUSE_BUTTON_LEFT) || !ev.shiftKey) {
     return;
   }
+  this.init();
   this.skipContextMenu = (ev.buttons == MOUSE_BUTTON_RIGHT);
   // When using left button, disabling selection does not work well if there is
   // already some selected elements. Resetting the selection fixes it.
