@@ -1,0 +1,7 @@
+{
+  "name": "suiryc.webext.native",
+  "description": "WebExtension native application",
+  "path": "run.bat",
+  "type": "stdio",
+  "allowed_extensions": ["native-messaging@suiryc"]
+}
