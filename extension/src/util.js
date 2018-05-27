@@ -1,3 +1,6 @@
+'use strict';
+
+
 function getTimestamp() {
   return (new Date()).getTime();
 }
@@ -35,6 +38,8 @@ function uuidv4() {
   )
 }
 
+// Simple Deferred implementation.
+// Exposes a Promise resolve/reject callbacks for external completion.
 class Deferred {
 
   constructor() {
@@ -59,16 +64,17 @@ class Deferred {
 
 }
 
+// Creates a Promise that fails after the given time (ms)
 function timeoutPromise(ms) {
   var d = new Deferred();
   var p = d.promise;
   p.timeoutId = setTimeout(() => {
-    d.reject('Timeout (' + ms + ') reached');
+    d.reject(`Timeout (${ms}) reached`);
   }, ms);
   return p;
 }
 
-// Enqueue function to call after promise is resolved
+// Enqueues function to call after promise is resolved
 function promiseThen(p, f) {
   return p.then(r => {
     f();
@@ -79,13 +85,13 @@ function promiseThen(p, f) {
   });
 }
 
+// Creates a promise that is completed from another one or after a given timeout
 function promiseOrTimeout(p, ms) {
   var timeout = timeoutPromise(ms);
   var timeoutId = timeout.timeoutId;
   // Race for promise/timeout and clear timeout before caller can chain code.
   return promiseThen(Promise.race([p, timeout]), () => {
-    // TODO
-    //clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
   });
 }
 

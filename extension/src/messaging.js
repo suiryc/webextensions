@@ -1,3 +1,6 @@
+'use strict';
+
+// Extension messages handler.
 class WebExtension {
 
   constructor(onMessage) {
@@ -26,6 +29,7 @@ class WebExtension {
 
 }
 
+// Native application messages handler.
 class NativeApplication {
 
   constructor(appId, handlers) {
@@ -89,6 +93,10 @@ class NativeApplication {
     console.warn('Native application %s disconnected: %o', nativeApp.appId, this.cnx.error);
     this.cnx = undefined;
     this.fragments = {};
+    for (var promise of Object.values(this.requests)) {
+      promise.reject('Native application disconnected');
+    }
+    this.requests = {};
     if (this.handlers.onDisconnect !== undefined) {
       defer.then(() => this.handlers.onDisconnect(this));
     }
@@ -105,6 +113,7 @@ class NativeApplication {
         if (promise !== undefined) {
           // Note: request will be automatically removed upon resolving the
           // associated promise.
+          delete(msg.correlationId);
           promise.resolve(msg);
           callback = false;
         }

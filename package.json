@@ -1,0 +1,8 @@
+{
+  "name": "webext-native-messaging",
+  "version": "0.0.1",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "gulp": "^4.0.0"
+  }
+}

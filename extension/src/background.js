@@ -1,12 +1,22 @@
-// Handles extension messages.
-// 'async' so that we don't block and process the code asynchronously.
+'use strict';
+
+
+// Logs unhandled received extension messages.
+function unhandledMessage(msg, sender) {
+  console.warn('Received unhandled message %o from %o', msg, sender);
+}
+
+// Handles received extension messages.
+// Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  // TODO: debug
-  console.debug('Received message', msg, 'from', sender);
   if (sender.tab === undefined) return;
   switch (msg.feature) {
     case FEATURE_TIDDLYWIKI:
       return tw_onMessage(extension, msg, sender);
+      break;
+
+    default:
+      unhandledMessage(msg, sender);
       break;
   }
 }
@@ -21,9 +31,14 @@ function tw_onMessage(extension, msg, sender) {
     case KIND_SAVE:
       return tw_save(msg);
       break;
+
+    default:
+      unhandledMessage(msg, sender);
+      break;
   }
 }
 
+// Checks whether TiddlyWiki file (URL) is open in more than one tab/window.
 function tw_checkConcurrent(msg) {
   // Get tabs with the target URL, and trigger warning if there are more than one.
   browser.tabs.query({url: msg.url}).then(tabs => {
@@ -38,18 +53,67 @@ function tw_checkConcurrent(msg) {
   });
 }
 
+// Saves TiddlyWiki document.
 function tw_save(msg) {
+  // Request native application to do the saving, as WebExtensions have no right to properly do it.
   return nativeApp.postRequest(msg, TW_SAVE_TIMEOUT);
 }
 
-function onNativeMessage(app, msg) {
-  console.debug('Received native application %s message: %o', app.appId, msg);
+// Logs unhandled received native application messages.
+function unhandledNativeMessage(app, msg) {
+  console.warn('Received unhandled native application %s message %o', app.appId, msg);
 }
 
-var extension = new WebExtension(onMessage);
-var nativeApp = new NativeApplication('suiryc.webext.native', { onMessage: onNativeMessage });
-nativeApp.connect();
-console.info('Native application %s started', nativeApp.appId);
+// Handles received native application messages.
+function onNativeMessage(app, msg) {
+  switch (msg.feature) {
+    case FEATURE_APP:
+      return app_onNativeMessage(app, msg);
+      break;
 
-// TODO: console.log log messages from native application
-// TODO: notification for NOTICE, WARNING, ERROR log messages
+    default:
+      unhandledNativeMessage(app, msg);
+      break;
+  }
+}
+
+// Handles generic application messages.
+function app_onNativeMessage(app, msg) {
+  switch (msg.kind) {
+    case KIND_CONSOLE:
+      return app_console(app, msg);
+      break;
+
+    default:
+      unhandledNativeMessage(app, msg);
+      break;
+  }
+}
+
+// Logs native application log message.
+function app_console(app, msg) {
+  var level = msg.level || 'info';
+  if (!(level in console)) level = 'info';
+  var args = ('args' in msg) ? msg.args : [ msg.content ];
+  args.unshift('[' + app.appId + ']');
+  console[level].apply(console, args);
+}
+
+
+// Extension handler
+var extension = new WebExtension(onMessage);
+// Native application handler
+var nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
+
+// Start native application and request its specs
+// TODO: wait until it is needed ? (and close after idle period ?)
+nativeApp.connect();
+console.info('Native application %s starting', nativeApp.appId);
+nativeApp.postRequest({
+  feature: FEATURE_APP,
+  kind: KIND_SPECS
+}).then(specs => {
+  console.log('Native application %s started: %o', nativeApp.appId, specs);
+}).catch(err => {
+  console.log('Native application %s failed to start: %o', nativeApp.appId, err);
+});
