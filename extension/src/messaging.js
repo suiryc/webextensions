@@ -38,6 +38,7 @@ class NativeApplication {
     this.handlers = handlers;
     this.requests = {};
     this.fragments = {};
+    this.idleId = undefined;
     this.lastJanitoring = getTimestamp();
     if (handlers.onMessage === undefined) {
       throw Error('Native application client must have an onMessage handler');
@@ -54,6 +55,8 @@ class NativeApplication {
     }
     this.cnx.onDisconnect.addListener(this.onDisconnect.bind(this));
     this.cnx.onMessage.addListener(this.onMessage.bind(this));
+    this.lastActivity = getTimestamp();
+    this.scheduleIdleCheck();
   }
 
   disconnect() {
@@ -65,6 +68,7 @@ class NativeApplication {
   postMessage(msg) {
     this.connect();
     this.cnx.postMessage(msg);
+    this.lastActivity = getTimestamp();
   }
 
   postRequest(msg, timeout) {
@@ -89,8 +93,13 @@ class NativeApplication {
   }
 
   onDisconnect(cnx) {
-    // 'cnx' is given back, but is the same as ours (this.cnx).
-    console.warn('Native application %s disconnected: %o', nativeApp.appId, this.cnx.error);
+    if ((this.cnx !== undefined) && (cnx !== this.cnx)) {
+      // This is not our connection; should not happen
+      console.warn('Received unknown native application %s connection disconnection: %o', nativeApp.appId, cnx.error);
+      return;
+    }
+    if (this.cnx !== undefined) console.warn('Native application %s disconnected: %o', nativeApp.appId, cnx.error);
+    // else: we asked to disconnect
     this.cnx = undefined;
     this.fragments = {};
     for (var promise of Object.values(this.requests)) {
@@ -103,6 +112,7 @@ class NativeApplication {
   }
 
   onMessage(msg) {
+    this.lastActivity = getTimestamp();
     if (msg.fragment !== undefined) {
       this.addFragment(msg);
     } else {
@@ -160,6 +170,25 @@ class NativeApplication {
       this.onMessage(JSON.parse(previousFragment.content));
     }
     // else: fragment continuation already processed
+  }
+
+  idleCheck() {
+    this.idleId = undefined;
+    // Re-schedule if idle not yet reached
+    var remaining = IDLE_TIMEOUT - (getTimestamp() - this.lastActivity);
+    if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
+    // Then get rid of old fragments if any
+    if (this.fragments.length > 0) janitoring();
+    // Re-schedule if there are pending requests/fragments
+    if ((this.fragments.length > 0) || (this.requests.length > 0)) return this.scheduleIdleCheck(1000);
+    console.log('Extension %s idle timeout', EXTENSION_ID);
+    this.disconnect();
+  }
+
+  scheduleIdleCheck(delay) {
+    if (this.idleId !== undefined) return;
+    if (delay === undefined) delay = IDLE_TIMEOUT + 1000;
+    this.idleId = setTimeout(this.idleCheck.bind(this), delay);
   }
 
   janitoring() {

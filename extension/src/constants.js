@@ -7,8 +7,10 @@ const EXTENSION_ID = 'native-messaging@suiryc';
 // The associated native application id
 const APPLICATION_ID = 'suiryc.webext.native';
 
-// Timeout (ms) when watiing for any native app response
-const NATIVE_RESPONSE_TIMEOUT = 30 * 1000;
+// Idle timeout (ms)
+const IDLE_TIMEOUT = 30 * 1000;
+// Timeout (ms) when waiting for any native app response
+const NATIVE_RESPONSE_TIMEOUT = 20 * 1000;
 // Timeout (ms) when waiting for TiddlyWiki saving action to end
 const TW_SAVE_TIMEOUT = 10 * 1000;
 
@@ -18,9 +20,9 @@ const FRAGMENT_KIND_CONT = 'cont';
 const FRAGMENT_KIND_END = 'end';
 
 // Minimum period (ms) between messages janitoring
-const JANITORING_PERIOD = 30 * 1000;
+const JANITORING_PERIOD = 10 * 1000;
 // TTL of received native message fragments
-const FRAGMENTS_TTL = 60 * 1000;
+const FRAGMENTS_TTL = 10 * 1000;
 
 // Message known 'feature' field values
 const FEATURE_APP = 'app';

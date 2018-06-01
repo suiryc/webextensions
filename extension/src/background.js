@@ -106,7 +106,6 @@ var extension = new WebExtension(onMessage);
 var nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
 
 // Start native application and request its specs
-// TODO: wait until it is needed ? (and close after idle period ?)
 nativeApp.connect();
 console.info('Native application %s starting', nativeApp.appId);
 nativeApp.postRequest({

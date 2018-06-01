@@ -16,11 +16,18 @@ gulp.task('watch', watch);
 
 var appSettings = {
   installScript: 'app/src/install.js',
-  paths: ['app/src/*.js'],
-  installPath: path.join(process.env.HOME, 'progs', 'webext-native-messaging')
+  paths: ['app/src/*.js']
 };
 
-if (os.platform() == 'win32') appSettings.installPath = 'C:\\Progs\\webext-native-messaging';
+switch (os.platform()) {
+  case 'win32':
+    appSettings.installPath = 'C:\\Progs\\webext-native-messaging';
+    break;
+
+  default:
+    appSettings.installPath = path.join(process.env.HOME, 'progs', 'webext-native-messaging')
+    break;
+}
 
 function deployApp() {
   return gulp.src(appSettings.paths)

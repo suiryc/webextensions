@@ -27,7 +27,12 @@ function formatObject(obj) {
   }
 
   var s = '' + obj;
-  if (s == '[object Object]') console.warn('Cannot describe object %o', obj);
+  if (s == '[object Object]') {
+    s = 'Object';
+    for (var f of Object.keys(obj)) {
+      s = s + ` ${f}=<${formatObject(obj[f])}>`;
+    }
+  }
   return s;
 }
 
