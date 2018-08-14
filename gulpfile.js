@@ -25,7 +25,8 @@ switch (os.platform()) {
     break;
 
   default:
-    appSettings.installPath = path.join(process.env.HOME, 'progs', 'webext-native-messaging')
+    // See: https://stackoverflow.com/a/9081436
+    appSettings.installPath = path.join(os.homedir(), 'progs', 'webext-native-messaging')
     break;
 }
 
