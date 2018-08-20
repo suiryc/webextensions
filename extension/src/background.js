@@ -24,6 +24,10 @@ async function onMessage(extension, msg, sender) {
 // Handles TW feature message.
 function tw_onMessage(extension, msg, sender) {
   switch (msg.kind) {
+    case KIND_CHECK_NATIVE_APP:
+      return tw_checkNativeApp(msg);
+      break;
+
     case KIND_CHECK_CONCURRENT:
       tw_checkConcurrent(msg);
       break;
@@ -36,6 +40,11 @@ function tw_onMessage(extension, msg, sender) {
       unhandledMessage(msg, sender);
       break;
   }
+}
+
+// Checks whether native application is ok.
+function tw_checkNativeApp(msg) {
+  return nativeApp.postRequest({});
 }
 
 // Checks whether TiddlyWiki file (URL) is open in more than one tab/window.

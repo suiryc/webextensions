@@ -69,10 +69,12 @@ if (document.body !== null) {
 // Really starts extension
 function startExtension() {
   // Enable TiddlyWiki handling when applicable.
+  var ready = false;
   if (isTW5()) {
     try {
       tw_injectMessageBox();
       tw_checkConcurrent();
+      ready = true;
     } catch (error) {
       displayModal('Failed to initialize TiddlyWiki handling', {
         body: `Plugin '${EXTENSION_ID}' cannot handle TiddlyWiki saving action`,
@@ -80,6 +82,21 @@ function startExtension() {
       });
       console.error('Failed to initialize TiddlyWiki handling: %o', error);
     }
+  }
+
+  if (ready) {
+    extension.sendMessage({
+      feature: FEATURE_TIDDLYWIKI,
+      kind: KIND_CHECK_NATIVE_APP
+    }).then(r => {
+      if (r.error) {
+        displayModal('Native application is not working', {
+          body: `Native application '${APPLICATION_ID}' checking returned an error:\n${formatObject(r.error)}`,
+          kind: 'error'
+        });
+        console.error('Native application is not working: %o', r.error);
+      }
+    });
   }
 }
 

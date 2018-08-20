@@ -34,7 +34,10 @@ function handleMessage(app, msg) {
       break;
 
     default:
-      unhandledMessage(msg);
+      // Special case: empty message is a PING.
+      var props = Object.getOwnPropertyNames(msg);
+      if ((props.length == 1) && msg.hasOwnProperty('correlationId')) return {};
+      else unhandledMessage(msg);
       break;
   }
 }
