@@ -10,6 +10,13 @@ const uuidv4 = require('uuid/v4');
 // UINT32 size in bytes.
 const UINT32_SIZE = 4;
 
+// Notes:
+// See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
+// "The maximum size of a single message from the application is 1 MB."
+// "The maximum size of a message sent to the application is 4 GB."
+// For our usage, we thus receive messages as-is from the extension, and handle
+// possible fragments for what is sent to the extension.
+
 // Split size.
 // Max message size is supposed to be 1MB (raw). When splitting into fragments
 // we need to take into account extra space for fragment message and fragment

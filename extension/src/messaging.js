@@ -32,6 +32,13 @@ class WebExtension {
 // Native application messages handler.
 class NativeApplication {
 
+  // Notes:
+  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
+  // "The maximum size of a single message from the application is 1 MB."
+  // "The maximum size of a message sent to the application is 4 GB."
+  // For our usage, we thus post message as-is to the application, and handle
+  // possible fragments from what is received the application.
+
   constructor(appId, handlers) {
     this.appId = appId;
     this.cnx = undefined;
@@ -98,12 +105,18 @@ class NativeApplication {
       console.warn('Received unknown native application %s connection disconnection: %o', nativeApp.appId, cnx.error);
       return;
     }
-    if (this.cnx !== undefined) console.warn('Native application %s disconnected: %o', nativeApp.appId, cnx.error);
+    var error = undefined;
+    if (this.cnx !== undefined) {
+      error = cnx.error;
+      console.warn('Native application %s disconnected: %o', nativeApp.appId, cnx.error);
+    }
     // else: we asked to disconnect
     this.cnx = undefined;
     this.fragments = {};
     for (var promise of Object.values(this.requests)) {
-      promise.reject('Native application disconnected');
+      var msg = 'Native application disconnected';
+      if (error !== undefined) msg += ' with error: ' + formatObject(error);
+      promise.reject(msg);
     }
     this.requests = {};
     if (this.handlers.onDisconnect !== undefined) {

@@ -148,8 +148,8 @@ function isTW5() {
 function tw_checkConcurrent() {
   // Delegate checking to background script, which will notify concerned tabs.
   extension.sendMessage({
-    feature: 'tiddlywiki',
-    kind: 'checkConcurrent',
+    feature: FEATURE_TIDDLYWIKI,
+    kind: KIND_CHECK_CONCURRENT,
     url: document.URL
   });
 }

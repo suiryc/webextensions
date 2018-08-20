@@ -55,7 +55,7 @@ function app_onMessage(app, msg) {
 function app_specs(app, msg) {
   return {
     feature: constants.FEATURE_APP,
-    kind: constants.FEATURE_APP,
+    kind: constants.KIND_SPECS,
     //version: config.version,
     env: process.env,
     release: process.release,

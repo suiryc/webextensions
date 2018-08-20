@@ -95,7 +95,9 @@ function app_console(app, msg) {
   var level = msg.level || 'info';
   if (!(level in console)) level = 'info';
   var args = ('args' in msg) ? msg.args : [ msg.content ];
-  args.unshift('[' + app.appId + ']');
+  // Prepend the native application id to distinguish its logs from the
+  // webextension ones.
+  args[0] = '[' + app.appId + '] ' + args[0];
   console[level].apply(console, args);
 }
 
