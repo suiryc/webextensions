@@ -4,12 +4,13 @@
 class WebExtension {
 
   constructor(onMessage) {
+    var self = this;
     browser.runtime.onMessage.addListener((msg, sender) => {
       // When returning a promise, only success is expected; failed promise
       // is returned without the original error but a generic one.
       // So translate to response with error field which caller will have
       // to handle.
-      var r = onMessage(this, msg, sender);
+      var r = onMessage(self, msg, sender);
       if (r instanceof Promise) {
         r = r.catch(error => {
           return {error: error};
@@ -79,60 +80,63 @@ class NativeApplication {
   }
 
   postRequest(msg, timeout) {
+    var self = this;
     // Get a unique - non-used - id
     var correlationId;
     do {
       correlationId = uuidv4();
-    } while(this.requests[correlationId] !== undefined);
+    } while(self.requests[correlationId] !== undefined);
     msg.correlationId = correlationId;
 
     // Post message
-    this.postMessage(msg);
+    self.postMessage(msg);
 
     // Setup response handling
     if (timeout === undefined) timeout = NATIVE_RESPONSE_TIMEOUT;
     var promise = new Deferred().promise;
-    this.requests[correlationId] = promise;
+    self.requests[correlationId] = promise;
     return promiseThen(promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
-      delete(this.requests[correlationId]);
+      delete(self.requests[correlationId]);
     });
   }
 
   onDisconnect(cnx) {
-    if ((this.cnx !== undefined) && (cnx !== this.cnx)) {
+    var self = this;
+    if ((self.cnx !== undefined) && (cnx !== self.cnx)) {
       // This is not our connection; should not happen
       console.warn('Received unknown native application %s connection disconnection: %o', nativeApp.appId, cnx.error);
       return;
     }
     var error = undefined;
-    if (this.cnx !== undefined) {
+    if (self.cnx !== undefined) {
       error = cnx.error;
       console.warn('Native application %s disconnected: %o', nativeApp.appId, cnx.error);
     }
     // else: we asked to disconnect
-    this.cnx = undefined;
-    this.fragments = {};
-    for (var promise of Object.values(this.requests)) {
+    self.cnx = undefined;
+    self.fragments = {};
+    for (var promise of Object.values(self.requests)) {
       var msg = 'Native application disconnected';
       if (error !== undefined) msg += ' with error: ' + formatObject(error);
       promise.reject(msg);
     }
-    this.requests = {};
-    if (this.handlers.onDisconnect !== undefined) {
-      defer.then(() => this.handlers.onDisconnect(this));
+    self.requests = {};
+    if (self.handlers.onDisconnect !== undefined) {
+      defer.then(() => self.handlers.onDisconnect(self));
     }
   }
 
   onMessage(msg) {
-    this.lastActivity = getTimestamp();
+    var self = this;
+    self.lastActivity = getTimestamp();
     if (msg.fragment !== undefined) {
-      this.addFragment(msg);
+      self.addFragment(msg);
     } else {
       var correlationId = msg.correlationId;
       var callback = true;
       if (correlationId !== undefined) {
-        var promise = this.requests[correlationId];
+        var promise = self.requests[correlationId];
         if (promise !== undefined) {
           // Note: request will be automatically removed upon resolving the
           // associated promise.
@@ -142,10 +146,10 @@ class NativeApplication {
         }
       }
       if (callback) {
-        defer.then(() => this.handlers.onMessage(this, msg));
+        defer.then(() => self.handlers.onMessage(self, msg));
       }
     }
-    this.janitoring();
+    self.janitoring();
   }
 
   addFragment(msg) {

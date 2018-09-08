@@ -3,7 +3,7 @@
 const constants = require('./constants');
 const os = require('os');
 const stream = require('stream');
-const util = require('util');
+const util = require('./util');
 const uuidv4 = require('uuid/v4');
 
 
@@ -101,7 +101,46 @@ class NativeSink extends stream.Writable {
   }
 
   writeMessage(msg, noSplit) {
-    var json = JSON.stringify(msg);
+    var json;
+    // Some objects (and thus the message itself) may not be turned into a JSON
+    // string (or even a bare string).
+    // In this case, do our best and check each field:
+    //  - keep the valid fields
+    //  - remove the fields that cannot be serialized
+    //  - add error field (string) listing the problematic fields (and content)
+    //    that were removed
+    //    - in case the message had an 'error' field, use another field name
+    try {
+      json = JSON.stringify(msg);
+    } catch (unused) {
+      var error = 'Could not JSON.stringify message';
+      Object.keys(msg).forEach(key => {
+        var value = msg[key];
+        try {
+          JSON.stringify(value);
+        } catch (unused) {
+          // Belt and suspenders: in case formatObject fails too ...
+          try {
+            error += ` key=<${key}> value=<${util.formatObject(value)}>`;
+          } catch (error) {
+            error += ` key=<${key}> value=<(failed to stringify)>`;
+          }
+          delete(msg[key]);
+        }
+      });
+      // Do not overwrite pre-existing 'error' field.
+      if (msg.error === undefined) msg.error = error;
+      else msg.jsonError = error;
+      // Belt and suspenders: in case cleaned message still fails ...
+      try {
+        json = JSON.stringify(msg);
+      } catch(unused) {
+        json = JSON.stringify({
+          correlationId: msg.correlationId,
+          error: 'Could not JSON.stringify message, nor clean it'
+        });
+      }
+    }
 
     if (!noSplit && (json.length > MSG_SPLIT_SIZE)) {
       try {
@@ -157,7 +196,8 @@ class NativeHandler extends stream.Writable {
   }
 
   _write(msg, encoding, done) {
-    var r = this.handler(this.app, msg);
+    var self = this;
+    var r = self.handler(self.app, msg);
     if (r instanceof Promise) {
       var response = {
         feature: msg.feature,
@@ -166,10 +206,10 @@ class NativeHandler extends stream.Writable {
       };
       r.then(v => {
         if (typeof(v) !== 'object') return;
-        this.app.postMessage(Object.assign(response, v));
+        self.app.postMessage(Object.assign(response, v));
       }).catch(error => {
-        this.app.postMessage(Object.assign(response, {error: error}));
-      })
+        self.app.postMessage(Object.assign(response, {error: error}));
+      });
     }
     done();
   }

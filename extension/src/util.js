@@ -1,16 +1,52 @@
 'use strict';
 
 
+// Gets current timestamp (epoch in milliseconds).
 function getTimestamp() {
   return (new Date()).getTime();
 }
 
-function formatObject(obj) {
-  if (typeof(obj) != 'object') return '' + obj;
+// Formats object to string.
+function formatObject(obj, processed, recursiveLoop) {
+  // Handle recursion:
+  // Remember the current object in order to prevent infinite loops (object
+  // which directly - field - or indirectly - child field - points back to
+  // itself).
+  // Re-use formatting code to at least get the object kind.
+  var recurse = function(child) {
+    processed = processed || new Set();
+    processed.add(obj);
+    return processed.has(child)
+      ? `(recursive) ${formatObject(child, processed, true)}`
+      : formatObject(child, processed);
+  };
 
+  if (typeof(obj) == 'function') {
+    // Only keep the function name (not the code).
+    var name = obj.name;
+    return `function ${name.length ? name : '(anonymous)'}`;
+  }
+  if (Array.isArray(obj)) {
+    // Recursively handle arrays.
+    if (recursiveLoop) return `Array(${obj.length})`;
+    s = '[';
+    var idx = 0;
+    obj.forEach(v => {
+      s += (idx++ ? ', ' : ' ') + recurse(v);
+    })
+    s += ' ]';
+    return s;
+  }
+  // Quote strings.
+  if (typeof(obj) == 'string') return `"${obj}"`;
+  // Get raw value for non-objects (and null).
+  if ((typeof(obj) != 'object') || (obj === null)) return '' + obj;
+
+  // Handle errors.
   if (obj instanceof Error) {
     return obj.name + ' message=<' + obj.message + '>';
   }
+  // Handle requests.
   if ((obj instanceof XMLHttpRequest) || (('status' in obj) && ('statusText' in obj))) {
     if (!obj.status && !obj.statusText.length) return 'XHR failed';
     if (obj.status == 200) return 'XHR succeeded';
@@ -18,20 +54,39 @@ function formatObject(obj) {
   }
 
   function append(p, o) {
-    var s = formatObject(o);
+    var s = recurse(o);
     return (s === undefined) ? p : (p + '; ' + s);
   }
 
+  // Handle events.
   if ((obj instanceof Event) || (('type' in obj) && ('target' in obj))) {
     return append('Event type=<' + obj.type + '>', obj.target);
   }
 
-  var s = '' + obj;
-  if (s == '[object Object]') {
-    s = 'Object';
-    for (var f of Object.keys(obj)) {
-      s = s + ` ${f}=<${formatObject(obj[f])}>`;
-    }
+  // If object has its own representation, use it. Otherwise get its name and
+  // content.
+  // Handle objects which fail to be stringified, and keep the error. We assume
+  // at least the error can be turned into a string.
+  // (e.g. 'TypeError: Cannot convert object to primitive value')
+  var s = '';
+  try {
+    s += obj;
+  } catch (error) {
+    s += `(failed to stringify) ${error}`;
+  }
+  if (s.startsWith('[object ')) {
+    var s = obj.constructor.name;
+    if (s.length == 0) s = 'Object';
+    if (recursiveLoop) return s;
+    var idx = 0;
+    Object.keys(obj).forEach(f => {
+      var v = obj[f];
+      // Don't include functions
+      if (typeof(v) == 'function') return;
+      s += ` ${f}=<${recurse(v)}>`;
+      idx++;
+    });
+    if (idx == 0) s += ' (empty)';
   }
   return s;
 }

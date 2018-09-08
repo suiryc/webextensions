@@ -101,12 +101,21 @@ function app_onNativeMessage(app, msg) {
 
 // Logs native application log message.
 function app_console(app, msg) {
+  if (msg.error !== undefined) {
+    // Application actually failed to properly send the log message.
+    console.error(`[${app.appId}] Log failure: ${msg.error}`);
+    return;
+  }
+
   var level = msg.level || 'info';
   if (!(level in console)) level = 'info';
   var args = ('args' in msg) ? msg.args : [ msg.content ];
   // Prepend the native application id to distinguish its logs from the
   // webextension ones.
-  args[0] = '[' + app.appId + '] ' + args[0];
+  // If first argument is a string, assume it can be a format, and thus prepend
+  // to the string itself. Otherwise preprend to the arguments array.
+  if (typeof(args[0]) == 'string') args[0] = `[${app.appId}] ${args[0]}`;
+  else args.unshift(`[${app.appId}]`);
   console[level].apply(console, args);
 }
 

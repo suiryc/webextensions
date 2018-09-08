@@ -15,6 +15,8 @@ async function onMessage(app, msg) {
     return handleMessage(app, msg);
   } catch (error) {
     console.error('Could not handle message %o: %o', msg, error);
+    // Propagate error to client if this was a request.
+    if (msg.correlationId !== undefined) return {error: error};
   }
 }
 
