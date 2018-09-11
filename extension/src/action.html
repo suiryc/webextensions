@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- "browser_style" enabled -->
+  <!-- See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Browser_styles -->
+  <!-- See: chrome://browser/content/extension.css -->
+</head>
+
+<body>
+  <div>
+    <div class="panel-section-formElements">
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="debug"><label for="debug">Debug</label></input></div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptRequests"><label for="interceptRequests">Intercept requests</label></input></div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptDownloads"><label for="interceptDownloads">Intercept downloads</label></input></div>
+      <div class="browser-style panel-formElements-item"><label for="interceptSize">Intercept minimum size:</label><br><input type="text" id="interceptSize"/></div>
+    </div>
+    <div class="panel-section-separator"></div>
+    <div class="panel-section-formElements">
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="notifyIntercept"><label for="notifyIntercept">Interception notification</label></input></div>
+      <div class="browser-style panel-formElements-item"><label for="notifyTtl">Notification TTL:</label><br><input type="text" id="notifyTtl"/></div>
+    </div>
+  </div>
+  <script src="settings.js"></script>
+  <script src="settings-ext.js"></script>
+  <script src="action.js"></script>
+</body>
+
+</html>

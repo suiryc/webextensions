@@ -120,19 +120,39 @@ function app_console(app, msg) {
 }
 
 
-// Extension handler
-var extension = new WebExtension(onMessage);
-// Native application handler
-var nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
+var extension;
+var nativeApp
+waitForSettings().then(() => {
+  // Extension handler
+  extension = new WebExtension(onMessage);
+  // Native application handler
+  nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
 
-// Start native application and request its specs
-nativeApp.connect();
-console.info('Native application %s starting', nativeApp.appId);
-nativeApp.postRequest({
-  feature: FEATURE_APP,
-  kind: KIND_SPECS
-}).then(specs => {
-  console.log('Native application %s started: %o', nativeApp.appId, specs);
-}).catch(err => {
-  console.log('Native application %s failed to start: %o', nativeApp.appId, err);
+  // Start native application and request its specs
+  nativeApp.connect();
+  console.info('Native application %s starting', nativeApp.appId);
+  nativeApp.postRequest({
+    feature: FEATURE_APP,
+    kind: KIND_SPECS
+  }).then(specs => {
+    console.log('Native application %s started: %o', nativeApp.appId, specs);
+  }).catch(err => {
+    console.log('Native application %s failed to start: %o', nativeApp.appId, err);
+  });
+
+
+  // Listen to requests and downloads
+  var requestsHandler = new RequestsHandler(nativeApp);
+
+  // Add context menu entry to download links (and video/audio elements).
+  // Restrict to links that apparently point to sites.
+  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns
+  browser.contextMenus.create({
+    id: 'dl-mngr',
+    title: 'dl-mngr',
+    icons: { '16': 'src/icon.svg' },
+    contexts: ['link', 'video', 'audio'],
+    targetUrlPatterns: ['*://*/*'],
+    onclick: requestsHandler.manageClick.bind(requestsHandler)
+  });
 });

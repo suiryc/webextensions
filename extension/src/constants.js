@@ -19,13 +19,16 @@ const FRAGMENT_KIND_START = 'start';
 const FRAGMENT_KIND_CONT = 'cont';
 const FRAGMENT_KIND_END = 'end';
 
-// Minimum period (ms) between messages janitoring
+// Minimum period (ms) between janitoring
 const JANITORING_PERIOD = 10 * 1000;
 // TTL of received native message fragments
 const FRAGMENTS_TTL = 10 * 1000;
+// TTL of pending requests
+const REQUESTS_TTL = 120 * 1000;
 
 // Message known 'feature' field values
 const FEATURE_APP = 'app';
+const FEATURE_DOWNLOAD = 'download';
 const FEATURE_TIDDLYWIKI = 'tiddlywiki';
 
 // Message known 'kind' field values

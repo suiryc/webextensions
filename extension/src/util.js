@@ -98,6 +98,21 @@ function uuidv4() {
   )
 }
 
+// Displays a browser notification and hide it after TTL (milliseconds).
+function browserNotification(notification, ttl) {
+  var id = uuidv4();
+  var p = browser.notifications.create(id, notification);
+  if (ttl) {
+    // We need to wait for the notification to be created in order to be able
+    // to clear it.
+    p.then(() => {
+      setTimeout(() => {
+        browser.notifications.clear(id);
+      }, ttl);
+    });
+  }
+}
+
 // Simple Deferred implementation.
 // Exposes a Promise resolve/reject callbacks for external completion.
 class Deferred {

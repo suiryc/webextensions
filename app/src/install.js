@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const { promisify } = require('util');
 const util = require('./util');
+const yargs = require('yargs');
 
 const accessAsync = promisify(fs.access);
 const chmodAsync = promisify(fs.chmod);
@@ -80,6 +81,7 @@ var manifestFolder = appFolder;
 var manifestFile = 'manifest-firefox.json';
 var manifestCommand;
 var nodeCommand = process.argv[0];
+var params = yargs.argv;
 var appCommand;
 
 var f = Promise.resolve();
@@ -104,8 +106,8 @@ switch (os.platform()) {
     break;
 
   case 'win32':
-    // HKCU\SOFTWARE\Mozilla\NativeMessagingHosts\${APPLICATION_ID} registry enttry points to manifest file
-    // (could be anywhere, with any name)
+    // HKCU\SOFTWARE\Mozilla\NativeMessagingHosts\${APPLICATION_ID} registry
+    // entry points to manifest file (could be anywhere, with any name).
     // We store it alongside the application script.
     manifestCommand = appCommand = 'run.cmd';
     console.log(`>>> Application: ${appCommand}`);
@@ -123,6 +125,17 @@ switch (os.platform()) {
 }
 
 f.then(() => {
+  console.log('');
+  console.log('>> Creating settings.js');
+  var settingsContent = `'use strict';
+
+module.exports = Object.freeze({
+  dlMngrInterpreter: ${JSON.stringify(params.dlMngrInterpreter)},
+  dlMngrPath: ${JSON.stringify(params.dlMngrPath)}
+});
+`;
+  return writeFileAsync('settings.js', settingsContent);
+}).then(() => {
   console.log('');
   console.log('>> Installing NPM modules');
   // Note: unless 'shell: true' is used, the actual command to execute npm is
