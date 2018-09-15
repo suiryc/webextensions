@@ -3,9 +3,9 @@
 // Constants
 
 // This extension id
-const EXTENSION_ID = 'native-messaging@suiryc';
+const EXTENSION_ID = '__EXTENSION_ID__';
 // The associated native application id
-const APPLICATION_ID = 'suiryc.webext.native';
+const APPLICATION_ID = '__APPLICATION_ID__';
 
 // Idle timeout (ms)
 const IDLE_TIMEOUT = 30 * 1000;

@@ -1,0 +1,11 @@
+{
+  "description": "Personal multi-purpose native application interacting with WebExtension.",
+  "repository": "github:suiryc/webext-native-messaging",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "yargs": "^12.0.2"
+  },
+  "dependencies": {
+    "uuid": "^3.3.2"
+  }
+}

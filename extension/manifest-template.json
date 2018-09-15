@@ -1,0 +1,89 @@
+{
+  "manifest_version": 2,
+  "name": "WebExtension native messaging",
+  "version": "0.2.0b9",
+
+  "description": "Personal multi-purpose WebExtension interacting with native application.",
+  // We delegate most actions to a native application:
+  //  - TiddlyWiki saving
+  //  - resource (file) downloading
+  // For this we need the nativeMessaging permission.
+  // For downloads, we use:
+  //  - contextMenus: add entry to download given link
+  //  - cookies: to get cookies for given URL
+  //  - downloads: to intercept created downloads
+  //  - notifications: to notify when a request/download/link was intercepted
+  //  - storage: to persist some settings
+  //  - tabs: to get a tab properties (title used as DL comment)
+  //  - webRequest/webRequestBlocking: to intercept requests
+  //  - <all_urls>: so that webRequest and cookies work for all URLs
+  // For TiddlyWiki we use:
+  //  - tabs: to get tabs properties (url is the local file to save to)
+  "permissions": [
+    "contextMenus",
+    "cookies",
+    "downloads",
+    "nativeMessaging",
+    "notifications",
+    "storage",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
+  ],
+
+  "icons": {
+    "48": "src/icon.svg",
+    "96": "src/icon.svg"
+  },
+
+  // Our id, to communicate with a native application
+  "applications": {
+    "gecko": {
+      "id": "__EXTENSION_ID__"
+    }
+  },
+
+  "background": {
+    "scripts": [
+      "src/util.js",
+      "src/constants.js",
+      "src/settings.js",
+      "src/settings-ext.js",
+      "src/messaging.js",
+      "src/websocket.js",
+      "src/downloads.js",
+      "src/background.js"
+    ]
+  },
+
+  "browser_action": {
+    "default_icon": "src/icon.svg",
+    "default_popup": "src/action.html",
+    "browser_style": true
+  },
+
+  // We do the same in browser action and options
+  "options_ui": {
+    "page": "src/action.html",
+    "browser_style": true
+  },
+
+  // The content scripts only have to handle local TiddlyWiki pages
+  "content_scripts": [{
+    "matches": [
+      "file:///*.html",
+      "file:///*.htm"
+    ],
+    "run_at": "document_start",
+    "js": [
+      "src/util.js",
+      "src/constants.js",
+      "src/messaging.js",
+      "src/content-script.js"
+    ],
+    "css": [
+      "src/content-script.css"
+    ]
+  }]
+}

@@ -14,10 +14,6 @@ const chmodAsync = promisify(fs.chmod);
 const mkdirAsync = promisify(fs.mkdir);
 const writeFileAsync = promisify(fs.writeFile);
 
-const APPLICATION_ID = 'suiryc.webext.native';
-const NPM_MODULES = ['uuid'];
-const EXTENSION_ID = 'native-messaging@suiryc';
-
 
 // Creates folder hierarchy
 function mkdir_p(dir, mode) {
@@ -67,11 +63,11 @@ function createManifest(dir, filename, command) {
   console.log('>>> Command: %s', command);
   return mkdir_p(dir).then(() => {
     writeFileAsync(manifestPath, `{
-  "name": "${APPLICATION_ID}",
+  "name": "${params.applicationId}",
   "description": "WebExtension native application",
   "path": "${command}",
   "type": "stdio",
-  "allowed_extensions": ["${EXTENSION_ID}"]
+  "allowed_extensions": ["${params.extensionId}"]
 }`);
   });
 }
@@ -84,6 +80,31 @@ var nodeCommand = process.argv[0];
 var params = yargs.argv;
 var appCommand;
 
+// We expect the following CLI parameters:
+//  --application-id: the native application id
+//  --extension-id: the (authorized) WebExtension id
+//  --dl-mngr-interpreter: the binary to execute dl-mngr script
+//  --dl-mngr-path: the dl-mngr script
+function nonEmpty(s) {
+  return (typeof(s) == 'string') && s.trim().length;
+}
+if (!nonEmpty(params.applicationId)) {
+  console.error('Missing --application-id CLI option');
+  process.exit(1);
+}
+if (!nonEmpty(params.extensionId)) {
+  console.error('Missing --extension-id CLI option');
+  process.exit(1);
+}
+if (!nonEmpty(params.dlMngrInterpreter)) {
+  console.error('Missing --dl-mngr-interpreter CLI option');
+  process.exit(1);
+}
+if (!nonEmpty(params.dlMngrPath)) {
+  console.error('Missing --dl-mngr-path CLI option');
+  process.exit(1);
+}
+
 var f = Promise.resolve();
 console.log('');
 console.log('>> Creating application');
@@ -91,10 +112,10 @@ console.log(`>>> Nodejs command: ${nodeCommand}`);
 // See: https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Native_manifests#Manifest_location
 switch (os.platform()) {
   case 'linux':
-    // Manifest files are stored in ${HOME}/.mozilla/native-messaging-hosts and named ${APPLICATION_ID}.json
+    // Manifest files are stored in ${HOME}/.mozilla/native-messaging-hosts and named ${params.applicationId}.json
     // We point to the actual application script outside this folder by absolute path.
     manifestFolder = path.join(process.env.HOME, '.mozilla/native-messaging-hosts');
-    manifestFile = `${APPLICATION_ID}.json`;
+    manifestFile = `${params.applicationId}.json`;
     appCommand = 'run.sh';
     manifestCommand = path.join(appFolder, appCommand);
     console.log(`>>> Application: ${appCommand}`);
@@ -106,7 +127,7 @@ switch (os.platform()) {
     break;
 
   case 'win32':
-    // HKCU\SOFTWARE\Mozilla\NativeMessagingHosts\${APPLICATION_ID} registry
+    // HKCU\SOFTWARE\Mozilla\NativeMessagingHosts\${params.applicationId} registry
     // entry points to manifest file (could be anywhere, with any name).
     // We store it alongside the application script.
     manifestCommand = appCommand = 'run.cmd';
@@ -115,7 +136,7 @@ switch (os.platform()) {
     f = writeFileAsync(appCommand, appCommandContent).then(() => {
       console.log('');
       console.log('>> Creating Firefox registry entry');
-      return util.spawn('REG', ['ADD', `HKCU\\SOFTWARE\\Mozilla\\NativeMessagingHosts\\${APPLICATION_ID}`, '/ve', '/t', 'REG_SZ', '/d', `${appFolder}\\${manifestFile}`, '/f']);
+      return util.spawn('REG', ['ADD', `HKCU\\SOFTWARE\\Mozilla\\NativeMessagingHosts\\${params.applicationId}`, '/ve', '/t', 'REG_SZ', '/d', `${appFolder}\\${manifestFile}`, '/f']);
     });
     break;
 
@@ -135,13 +156,6 @@ module.exports = Object.freeze({
 });
 `;
   return writeFileAsync('settings.js', settingsContent);
-}).then(() => {
-  console.log('');
-  console.log('>> Installing NPM modules');
-  // Note: unless 'shell: true' is used, the actual command to execute npm is
-  // 'npm.cmd' in windows.
-  // See: https://stackoverflow.com/a/43285131
-  return util.spawn('npm', ['install'].concat(NPM_MODULES));
 }).then(() => {
   return createManifest(manifestFolder, manifestFile, manifestCommand)
 }).then(() => {
