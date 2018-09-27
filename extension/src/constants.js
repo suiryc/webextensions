@@ -13,6 +13,8 @@ const IDLE_TIMEOUT = 30 * 1000;
 const NATIVE_RESPONSE_TIMEOUT = 20 * 1000;
 // Timeout (ms) when waiting for TiddlyWiki saving action to end
 const TW_SAVE_TIMEOUT = 10 * 1000;
+// Timeout (ms) when waiting for WebSocket response
+const WEBSOCKET_RESPONSE_TIMEOUT = 10 * 1000;
 
 // Kind of native message embedding fragments
 const FRAGMENT_KIND_START = 'start';

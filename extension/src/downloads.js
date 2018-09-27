@@ -124,6 +124,43 @@ class RequestsHandler {
     self.setupInterception();
   }
 
+  wsRequest(msg) {
+    var self = this;
+
+    function postNative() {
+      return self.nativeApp.postRequest(msg).then(r => {
+        // Remember WebSocket port for next request.
+        if (r.wsPort) self.wsPort = r.wsPort;
+        return r;
+      });
+    }
+
+    // Post native request if we don't know the WebSocket port yet.
+    if (!self.wsPort) return postNative();
+
+    // Otherwise try WebSocket, and fallback to native request upon issue.
+    var wsClient = new WebSocketClient(`ws://127.0.0.1:${self.wsPort}/`);
+    return wsClient.connect().then(() => {
+      return wsClient.postRequest(msg);
+    }).then(r => {
+      // If WebSocket returns non-0 code, log it. It is useless to fallback to
+      // the native application, since the same should happen (except we don't
+      // wait for its return code). Better return a proper error.
+      if (r.code !== 0) {
+        var message = (r.output !== undefined) ? r.output : 'WebSocket returned non-0 response code';
+        console.error(message);
+        r.error = message;
+      }
+      return r;
+    }).catch(error => {
+      console.log('WebSocket request=<%o> failed=<%o>: fallback to native app', msg, error);
+      return postNative();
+    }).finally(() => {
+      // Disconnect WebSocket once done.
+      wsClient.disconnect();
+    });
+  }
+
   setupInterception() {
     // Check whether we now need to intercept anything
     this.interceptRequests = settings.interceptRequests;
@@ -421,7 +458,7 @@ class RequestsHandler {
     }).then(title => {
       var comment = title;
       if (requestDetails.filename !== undefined) comment = `${requestDetails.filename}\n${comment}`;
-      return self.nativeApp.postRequest({
+      return self.wsRequest({
         feature: FEATURE_DOWNLOAD,
         kind: KIND_SAVE,
         url: requestDetails.received.url,
@@ -556,7 +593,7 @@ class RequestsHandler {
         }, settings.notifyTtl);
       }
 
-      return self.nativeApp.postRequest({
+      return self.wsRequest({
         feature: FEATURE_DOWNLOAD,
         kind: KIND_SAVE,
         url: download.url,
@@ -607,7 +644,7 @@ class RequestsHandler {
       var comment = tab.title;
       if ((info.linkText !== undefined) && (info.linkText !== null) && (info.linkText != url)) comment = `${comment}\n${info.linkText}`;
 
-      return self.nativeApp.postRequest({
+      return self.wsRequest({
         feature: FEATURE_DOWNLOAD,
         kind: KIND_SAVE,
         url: url,

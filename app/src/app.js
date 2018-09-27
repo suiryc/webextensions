@@ -97,9 +97,13 @@ function dl_save(app, msg) {
   // of it, and usually when done all the attached processes are terminated.
   // To break out of the Job, the CREATE_BREAKAWAY_FROM_JOB CreateProcess
   // creation flag is needed, which seems possible in python but not nodejs.
-  var args = ['--url', msg.url];
+  var deferred = new util.Deferred();
+  // We always ask for the WebSocket port, so that next requests can be posted
+  // directly from the browser.
+  var args = ['--ws'];
   [
-    [msg.referrer, '--http-referrer']
+    [msg.url, '--url']
+    , [msg.referrer, '--http-referrer']
     , [msg.file, '--file']
     , [msg.size, '--size']
     , [msg.cookie, '--cookie']
@@ -109,14 +113,94 @@ function dl_save(app, msg) {
     if (opt[0] !== undefined) args.push(opt[1], opt[0]);
   });
   if (msg.auto) args.push('--auto');
-  child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--background', '--'].concat(args), {
+  var child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
     detached: true,
-    stdio: 'ignore'
-  }).unref();
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
 
-  return {
-    kind: constants.KIND_RESPONSE
+  // We need to:
+  //  - accumulate stdout/stderr data until done
+  //  - determine whether action succeeded or failed; which means getting return
+  //    code when possible
+  //  - not block indefinitely if actual application remains running: the first
+  //    instance will keep on running - in the background
+  // The actual application do close its output streams when done (even if it
+  // keeps on running). We could wait for stdout and stderr to be closed, but:
+  //  - it happens before the application exits (when it does not keep on
+  //    running): to determine a possible exit code, we would need to wait a bit
+  //    in case we get one in a reasonable (short) amount of time
+  //  - we actually spawn a - python - script that does this for us
+  // Note: in some cases (e.g. when spawning a Python 2 script, at least on
+  // Windows) EOF is not properly received when stream is closed or even process
+  // exits. This happens e.g. when nodejs spawns a python script which spawns a
+  // JVM: even though the python script properly received EOF after the JVM
+  // closes its streams, and exits, nodejs does not trigger any end/close event.
+  // As a workaround, we could send a nul byte.
+  // There is no such issue with Python 3 though.
+  //
+  // So we 'simply' wait for the process to exit or fail.
+  var stdout = {
+    data: Buffer.allocUnsafe(0)
   };
+  var stderr = {
+    data: Buffer.allocUnsafe(0)
+  };
+
+  // Concats data buffer for given stream.
+  function streamConcat(s, data) {
+    s.data = Buffer.concat([s.data, data]);
+  }
+
+  // Return response.
+  // Note: we must properly handle being called more than once because 'error'
+  // and 'exit' events may be triggered both; only the first call matters then.
+  var done = false;
+  function onDone(details) {
+    if (done) return;
+    done = true;
+    // Upon 'exit', code or signal will be null; normalize for easier handling.
+    if (details.code === null) delete details.code;
+    if (details.code === undefined) details.code = 0;
+    if (details.signal === null) delete details.signal;
+    var response = {
+      kind: constants.KIND_RESPONSE
+    };
+    // We consider the action failed if either:
+    //  - the application wrote on stderr: (belt and suspenders) we actually
+    //    only expect this to happen with a non-0 return code
+    //  - return code is non-0
+    //  - application was interrupted by a signal
+    //  - an error happened for the child process itself
+    if (stderr.data.length) response.error = `Application failed with message=<${stderr.data}>`;
+    else if (details.code != 0) response.error = `Application failed with return code=<${details.code}>`;
+    else if (details.signal !== undefined) response.error = `Application failed with signal=<${details.signal}>`;
+    else if (details.error !== undefined) response.error = `Application failed with error: ${util.formatObject(details.error)}`;
+    else if (stdout.data.length) response.wsPort = Number(stdout.data.toString());
+    deferred.resolve(response);
+    // While not strictly necessary, cleanup by destroying streams ...
+    child.stdout.destroy();
+    child.stderr.destroy();
+    // ... and explicitly letting go of the subprocess.
+    child.unref();
+  }
+
+  child.on('exit', (code, signal) => {
+    onDone({
+      code: code,
+      signal: signal
+    });
+  });
+  child.on('error', error => {
+    onDone({error: error});
+  });
+  child.stdout.on('data', data => {
+    streamConcat(stdout, data);
+  });
+  child.stderr.on('data', data => {
+    streamConcat(stderr, data);
+  });
+
+  return deferred.promise;
 }
 
 // Handles TW feature message.
