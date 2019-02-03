@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "name": "Tab successor",
+  "version": "0.1",
+
+  "description": "Manages tab successor to activate the right tab when active one is closed.",
+
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+
+  "icons": {
+    "48": "src/icon.svg",
+    "96": "src/icon.svg"
+  },
+
+  "background": {
+    "scripts": [
+      "src/settings.js",
+      "src/settings-ext.js",
+      "src/background.js"
+    ]
+  },
+
+  "options_ui": {
+    "page": "src/options.html",
+    "browser_style": true
+  }
+}
