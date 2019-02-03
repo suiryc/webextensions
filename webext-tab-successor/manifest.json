@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Tab successor",
-  "version": "0.1",
+  "version": "0.2",
 
   "description": "Manages tab successor to activate the right tab when active one is closed.",
 

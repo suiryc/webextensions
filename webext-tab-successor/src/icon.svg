@@ -1,10 +1,10 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg" style="background-color: rgb(255, 255, 255);" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48" width="48px" height="48px" version="1.1">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 48 48" width="48px" height="48px" version="1.1">
   <g>
     <!-- 'background' tab -->
-    <path stroke="black" fill="#bbbbbb" stroke-width="2" fill-opacity="1" d="M 6 1 h 25 a 5 5 0 0 1 5 5 a 5 5 0 0 0 5 5 H 42 a 5 5 0 0 1 5 5 V 42 a 5 5 0 0 1 -5 5 H 6 a 5 5 0 0 1 -5 -5 V 6 a 5 5 0 0 1 5 -5 z"/>
+    <path stroke="#333333" fill="#bbbbbb" stroke-width="2" fill-opacity="1" d="M 6 1 h 25 a 5 5 0 0 1 5 5 a 5 5 0 0 0 5 5 H 42 a 5 5 0 0 1 5 5 V 42 a 5 5 0 0 1 -5 5 H 6 a 5 5 0 0 1 -5 -5 V 6 a 5 5 0 0 1 5 -5 z"/>
     <!-- 'foreground' tab -->
-    <path stroke="black" fill="#777777" stroke-width="2" fill-opacity="1" d="M 6 1 h 10 a 5 5 0 0 1 5 5 a 5 5 0 0 0 5 5 H 42 a 5 5 0 0 1 5 5 V 42 a 5 5 0 0 1 -5 5 H 6 a 5 5 0 0 1 -5 -5 V 6 a 5 5 0 0 1 5 -5 z"/>
+    <path stroke="#333333" fill="#777777" stroke-width="2" fill-opacity="1" d="M 6 1 h 10 a 5 5 0 0 1 5 5 a 5 5 0 0 0 5 5 H 42 a 5 5 0 0 1 5 5 V 42 a 5 5 0 0 1 -5 5 H 6 a 5 5 0 0 1 -5 -5 V 6 a 5 5 0 0 1 5 -5 z"/>
 
     <!-- circled 'X' close mark -->
     <circle stroke="black" stroke-width="2" cx="24" cy="29" r="12" fill="#ffffff"/>
