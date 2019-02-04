@@ -5,6 +5,12 @@
 
   "description": "Manages tab successor to activate the right tab when active one is closed.",
 
+  "browser_specific_settings": {
+    "gecko": {
+      "strict_min_version": "65.0"
+    }
+  },
+
   "permissions": [
     "storage",
     "tabs"
