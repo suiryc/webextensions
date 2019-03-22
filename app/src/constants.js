@@ -8,6 +8,7 @@ module.exports = Object.freeze({
   FEATURE_TIDDLYWIKI: 'tiddlywiki',
 
   KIND_CONSOLE: 'console',
+  KIND_NOTIFICATION: 'notification',
   KIND_RESPONSE: 'response',
   KIND_SAVE: 'save',
   KIND_SPECS: 'specs'

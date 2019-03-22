@@ -127,11 +127,33 @@ class RequestsHandler {
   wsRequest(msg) {
     var self = this;
 
+    function handleError(r) {
+      if (r.error) {
+        var url = msg.url;
+        var filename = msg.file;
+        notification(EXTENSION_ID, {
+          title: 'Failed to download',
+          level: 'error',
+          message: `${getFilename(url, filename)}\n${url}`,
+          error: r.error
+        });
+      }
+      return r;
+    }
+
     function postNative() {
       return self.nativeApp.postRequest(msg).then(r => {
         // Remember WebSocket port for next request.
         if (r.wsPort) self.wsPort = r.wsPort;
         return r;
+      }).catch(error => {
+        // Wrap error to handle it properly (as an error coming from the remote
+        // applicaton).
+        return {
+          error: error
+        };
+      }).then(r => {
+        return handleError(r);
       });
     }
 
@@ -147,12 +169,14 @@ class RequestsHandler {
       // the native application, since the same should happen (except we don't
       // wait for its return code). Better return a proper error.
       if (r.code !== 0) {
-        var message = (r.output !== undefined) ? r.output : 'WebSocket returned non-0 response code';
-        console.error(message);
-        r.error = message;
+        // Note: error will be notified and logged.
+        r.error = (r.output !== undefined) ? r.output : 'WebSocket returned non-0 response code';
       }
-      return r;
+      return handleError(r);
     }).catch(error => {
+      // Note: this is not an error message returned through WebSocket, but
+      // a pure WebSocket error.
+      // This may happen if the remote application is not running anymore.
       console.log('WebSocket request=<%o> failed=<%o>: fallback to native app', msg, error);
       return postNative();
     }).finally(() => {
@@ -433,21 +457,12 @@ class RequestsHandler {
     delete(requestDetails.remember);
     console.info('Intercepting request %o: %s', requestDetails, reason);
 
+    var url = requestDetails.received.url;
     if (settings.notifyIntercept) {
-      var url = requestDetails.received.url;
-      var filename = requestDetails.filename;
-      // Deduce filename from URL when necessary.
-      if (filename === undefined) {
-        filename = url.split('#').shift().split('?').shift().split('/').pop();
-        try {
-          filename = decodeURIComponent(filename);
-        } catch (error) {
-        }
-      }
       browserNotification({
         'type': 'basic',
         'title': 'Intercepted request',
-        'message': `${filename}\n${url}`
+        'message': `${getFilename(url, requestDetails.filename)}\n${url}`
       }, settings.notifyTtl);
     }
 
@@ -461,7 +476,7 @@ class RequestsHandler {
       return self.wsRequest({
         feature: FEATURE_DOWNLOAD,
         kind: KIND_SAVE,
-        url: requestDetails.received.url,
+        url: url,
         referrer: findHeader(requestDetails.sent.requestHeaders, 'Referer'),
         cookie: findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
         userAgent: findHeader(requestDetails.sent.requestHeaders, 'User-Agent'),

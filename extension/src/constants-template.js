@@ -36,7 +36,10 @@ const FEATURE_TIDDLYWIKI = 'tiddlywiki';
 // Message known 'kind' field values
 const KIND_CHECK_CONCURRENT = 'checkConcurrent';
 const KIND_CHECK_NATIVE_APP = 'checkNativeApp';
+const KIND_CLEAR_MESSAGES = 'clearMessages';
 const KIND_CONSOLE = 'console';
+const KIND_GET_MESSAGES = 'getMessages';
+const KIND_NOTIFICATION = 'notification';
 const KIND_SAVE = 'save';
 const KIND_SPECS = 'specs';
 const KIND_WARN_CONCURRENT = 'warnConcurrent';

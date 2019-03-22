@@ -9,10 +9,17 @@ function unhandledMessage(msg, sender) {
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  if (sender.tab === undefined) return;
   switch (msg.feature) {
     case FEATURE_TIDDLYWIKI:
+      if (sender.tab === undefined) {
+        unhandledMessage(msg, sender);
+        return;
+      }
       return tw_onMessage(extension, msg, sender);
+      break;
+
+    case FEATURE_APP:
+      return app_onMessage(extension, msg, sender);
       break;
 
     default:
@@ -68,6 +75,35 @@ function tw_save(msg) {
   return nativeApp.postRequest(msg, TW_SAVE_TIMEOUT);
 }
 
+// Handles application feature message.
+function app_onMessage(extension, msg, sender) {
+  switch (msg.kind) {
+    case KIND_CLEAR_MESSAGES:
+      return app_clearMessages();
+      break;
+
+    case KIND_GET_MESSAGES:
+      return app_getMessages(msg);
+      break;
+
+    default:
+      unhandledMessage(msg, sender);
+      break;
+  }
+}
+
+// Clears application messages.
+function app_clearMessages() {
+  applicationMessages = [];
+  browser.browserAction.setBadgeText({text: null});
+  browser.browserAction.setBadgeBackgroundColor({color: null});
+}
+
+// Gets application messages to display.
+function app_getMessages(msg) {
+  return applicationMessages;
+}
+
 // Logs unhandled received native application messages.
 function unhandledNativeMessage(app, msg) {
   console.warn('Received unhandled native application %s message %o', app.appId, msg);
@@ -91,6 +127,10 @@ function app_onNativeMessage(app, msg) {
   switch (msg.kind) {
     case KIND_CONSOLE:
       return app_console(app, msg);
+      break;
+
+    case KIND_NOTIFICATION:
+      return app_notification(app, msg);
       break;
 
     default:
@@ -119,9 +159,66 @@ function app_console(app, msg) {
   console[level].apply(console, args);
 }
 
+// Notifies native application message.
+function app_notification(app, msg) {
+  var details = msg.details || {};
+  notification(app.appId, details);
+}
+
+function notification(label, details) {
+  if (details.level == 'warning') details.level = 'warn';
+  var level = details.level || 'info';
+  var title = details.title;
+  var message = details.message;
+  var error = details.error;
+
+  // Standard notification
+  var msg = formatApplicationMessage(details);
+  browserNotification({
+    'type': 'basic',
+    'title': `[${label}] ${title}`,
+    'message': msg
+  }, settings.notifyTtl);
+
+  addApplicationMessage(details);
+
+  // Also log details.
+  if (!(level in console)) level = 'info';
+  msg = `[${label}] ${title}`;
+  var args = [];
+  if (message !== undefined) {
+    msg = `${msg}: %s`;
+    args.push(message);
+  }
+  if (error !== undefined) args.push(error);
+  args.unshift(msg);
+  console[level].apply(console, args);
+}
+
+function addApplicationMessage(details) {
+  var level = '';
+  applicationMessages.push(details);
+
+  // Messages are kept until dismissed, and we set a visual hint.
+  for (details of applicationMessages) {
+    if (details.level == 'error') {
+      level = details.level;
+      break;
+    }
+    if (details.level == 'warn') {
+      level = details.level;
+      continue;
+    }
+  }
+
+  browser.browserAction.setBadgeText({text: (level === '') ? 'i' : '!'});
+  browser.browserAction.setBadgeBackgroundColor({color: (level === 'error') ? 'red' : 'yellow'});
+}
+
 
 var extension;
-var nativeApp
+var nativeApp;
+var applicationMessages = [];
 waitForSettings().then(() => {
   // Extension handler
   extension = new WebExtension(onMessage);

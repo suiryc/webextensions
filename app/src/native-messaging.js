@@ -12,8 +12,11 @@ const UINT32_SIZE = 4;
 
 // Notes:
 // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
-// "The maximum size of a single message from the application is 1 MB."
-// "The maximum size of a message sent to the application is 4 GB."
+// Each message is serialized using JSON, UTF-8 encoded and is preceded with a
+// 32-bit value containing the message length in native byte order.
+// The maximum size of a single message from the application is 1 MB.
+// The maximum size of a message sent to the application is 4 GB.
+//
 // For our usage, we thus receive messages as-is from the extension, and handle
 // possible fragments for what is sent to the extension.
 
@@ -34,6 +37,7 @@ class NativeSource extends stream.Transform {
   // We receive raw messages (from stdin):
   //  - uint32 (native order): message size
   //  - UTF-8 JSON message
+  // JSON is decoded into an object and pushed to the next stage.
 
   constructor() {
     // We convert bytes to objects
@@ -86,12 +90,21 @@ class NativeSource extends stream.Transform {
 // Transform objects into native messages output (bytes)
 class NativeSink extends stream.Writable {
 
+  // We receive application objects. Each object is converted to JSON and
+  // written (on stdout) as a raw message:
+  //  - uint32 (native order): message size
+  //  - UTF-8 JSON message
+  // If the JSON exceeds the (native message) size limit, it is split into
+  // smaller parts, embedded into smaller objects (marked as fragments and
+  // linked with a correlation id) then sent as native messages.
+
   constructor(app) {
     // We receive objects
     super({
       objectMode: true
     });
     this.stdout_write = app.stdout_write;
+    // endian-dependant Buffer uint32 write function
     this.writeUInt32 = Buffer.prototype['writeUInt32' + os.endianness()];
   }
 
@@ -142,6 +155,7 @@ class NativeSink extends stream.Writable {
       }
     }
 
+    // When applicable, split JSON into multiple fragments to send.
     if (!noSplit && (json.length > MSG_SPLIT_SIZE)) {
       try {
         this.writeFragments(msg, json);
@@ -151,23 +165,25 @@ class NativeSink extends stream.Writable {
       return;
     }
 
-    var len = Buffer.alloc(4);
+    // Prepare to send the message (uint32 size and JSON content).
     var buf = Buffer.from(json);
-
+    var len = Buffer.alloc(UINT32_SIZE);
     this.writeUInt32.call(len, buf.length, 0);
-
+    // Send the native message (size then content).
     this.stdout_write(len);
     this.stdout_write(buf);
   }
 
   writeFragments(msg, json) {
     var length = json.length;
+    // We will send 'fragments' linked by a correlation id.
     var fragment = {
       feature: msg.feature,
       kind: msg.kind,
       correlationId: uuidv4()
     };
 
+    // Prepare and send each fragment.
     for (var offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
       fragment.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
       fragment.fragment = (offset == 0
@@ -185,6 +201,13 @@ class NativeSink extends stream.Writable {
 
 // Handles application messages
 class NativeHandler extends stream.Writable {
+
+  // We receive objects to handle by the application.
+  // The application may return an asynchronous response, in which case we
+  // automatically propagate the incoming message information: feature, kind
+  // and correlation id if any.
+  // If the application response is not an object, it is ignored.
+  // Errors are propagated.
 
   constructor(handler, app) {
     // We receive objects
@@ -219,20 +242,16 @@ class NativeHandler extends stream.Writable {
 // Native application (plumbing)
 class NativeApplication {
 
-  // Notes:
-  // We could react on process 'uncaughtException' to generate a proper message
-  // before exiting. But the default behaviour (log on stderr) is enough.
-  // See: https://nodejs.org/api/process.html#process_event_uncaughtexception
-
   constructor(handler) {
+    var self = this;
     // Wrap stdout/stderr to transform it into (log) native messages
-    this.stdout_write = process.stdout.write.bind(process.stdout);
-    this.wrapOutput(process.stdout, 'info');
-    this.wrapOutput(process.stderr, 'error');
+    self.stdout_write = process.stdout.write.bind(process.stdout);
+    self.wrapOutput(process.stdout, 'info');
+    self.wrapOutput(process.stderr, 'error');
 
-    // Wrap console logging to transform is into (log) native messages
+    // Wrap console logging to transform it into (log) native messages
     for (var level of ['log', 'debug', 'info', 'warn', 'error']) {
-      this.wrapConsole(level);
+      self.wrapConsole(level);
     }
 
     // Native messaging:
@@ -241,17 +260,54 @@ class NativeApplication {
     // Process stdin to decode incoming native messages and process them.
     // (output messages are written to sink when needed)
 
-    //process.stdin.resume();
-    // Once EOS is reached, it is time to stop.
-    process.stdin.on('end', () => this.terminate());
-
-    this.sink = new NativeSink(this);
+    self.sink = new NativeSink(self);
     process.stdin
       .pipe(new NativeSource())
-      .pipe(new NativeHandler(handler, this));
+      .pipe(new NativeHandler(handler, self));
+
+    // Once EOS is reached (input or output), it is time to stop.
+    process.stdin.once('end', () => self.exit());
+    self.sink.once('close', () => self.exit());
+    // (makes sure we close the sink upon ending it)
+    self.sink.once('finish', () => self.sink.destroy());
+
+    // See: https://nodejs.org/api/process.html#process_event_uncaughtexception
+    // Uncaught exceptions should be written on stderr. we push stderr lines
+    // as log messages to send, but the application may exit before those are
+    // fully processed.
+    // So handle uncaught exceptions to make sure pending messages are fully
+    // sent before exiting. Also mark the message for user notification.
+    process.on('uncaughtException', (error) => {
+      // Notify this issue (trash any problem doing so).
+      try {
+        self.notify({
+          level: 'error',
+          title: 'Uncaught exception',
+          error: error
+        });
+      } catch { }
+      // End the stream before exiting with the nominal value.
+      self.shutdown(1);
+    });
   }
 
-  terminate(code) {
+  shutdown(code) {
+    var self = this;
+    if (self.sink !== undefined) {
+      // Belt and suspenders: force exit after timeout.
+      if (code !== undefined) process.exitCode = code;
+      setTimeout(() => {
+        self.exit();
+      }, 10000);
+      // Flush output before exiting.
+      self.sink.end();
+    } else {
+      // There is no output, exit right now.
+      self.exit(code);
+    }
+  }
+
+  exit(code) {
     process.exit(code);
   }
 
@@ -282,6 +338,14 @@ class NativeApplication {
         args: args
       });
     }
+  }
+
+  notify(details) {
+    this.postMessage({
+      feature: constants.FEATURE_APP,
+      kind: constants.KIND_NOTIFICATION,
+      details: details
+    });
   }
 
 }

@@ -113,6 +113,34 @@ function browserNotification(notification, ttl) {
   }
 }
 
+// Formats application message (optional content/error).
+function formatApplicationMessage(details) {
+  var message = details.message;
+  var error = details.error;
+
+  var msg = '';
+  if (message !== undefined) msg = message;
+  if (error !== undefined) {
+    if (msg.length > 0) msg = `${msg}\n`;
+    msg = `${msg}Error: ${formatObject(error)}`;
+  }
+
+  return msg;
+}
+
+// Gets filename, dediced from URL when necessary.
+function getFilename(url, filename) {
+  // Deduce filename from URL when necessary.
+  if (filename === undefined) {
+    filename = url.split('#').shift().split('?').shift().split('/').pop();
+    try {
+      filename = decodeURIComponent(filename);
+    } catch (error) {
+    }
+  }
+  return filename;
+}
+
 // Simple Deferred implementation.
 // Exposes a Promise resolve/reject callbacks for external completion.
 class Deferred {

@@ -1,0 +1,112 @@
+:root {
+  --color-neutral: #555555;
+  --color-warning: #E09040;
+  --color-failure: #E04040;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Fix SVG icons size. */
+.icon svg {
+  width: 20px;
+}
+
+/* Default SVG icon color. */
+.icon svg path {
+  fill: var(--color-neutral);
+}
+
+/* Error SVG icon color. */
+.error svg path {
+  fill: var(--color-failure);
+}
+
+/* Warning SVG icon color. */
+.warning svg path {
+  fill: var(--color-warning);
+}
+
+/* Based on Firefox browser style header/foote buttons. */
+#messages .header {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  color: #1a1a1a;
+  display: flex;
+  flex-direction: row;
+  margin-top: -1px;
+  padding: 0;
+}
+
+#messages .header button {
+  flex: 1 1 auto;
+  height: 100%;
+  margin: 0 0px;
+  padding: 8px;
+  text-align: center;
+
+  color: inherit;
+  background-color: unset;
+  font: inherit;
+  text-shadow: inherit;
+  appearance: none;
+  border: none;
+}
+
+#messages .header button:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+#messages .header button:hover:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+#messages .header button.default {
+  background-color: #0996f8;
+  box-shadow: 0 1px 0 #0670cc inset;
+  color: #fff;
+}
+
+#messages .header button.default:hover {
+  background-color: #0670cc;
+  box-shadow: 0 1px 0 #005bab inset;
+}
+
+#messages .header button.default:hover:active {
+  background-color: #005bab;
+  box-shadow: 0 1px 0 #004480 inset;
+}
+
+/* Based on Firefox browser style 'panel-list-item'.
+ * We don't fix the height, and compensate 'hover' border with equivalent
+ * padding when not hovered. Also change horizontal padding to have more space
+ * between icon and content.
+ */
+.message {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  padding: 3px 10px 3px 0px;
+}
+
+.message:hover {
+  background-color: rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 2px 10px 2px 0px;
+}
+
+.message .icon {
+  flex-grow: 0;
+  flex-shrink: 0;
+  padding: 0px 10px;
+}
+
+.message .text {
+  flex-grow: 10;
+}
+
+.message .title {
+  font-weight: bold;
+}
