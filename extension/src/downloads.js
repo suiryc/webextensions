@@ -38,6 +38,60 @@ function parseContentDisposition(requestDetails) {
   requestDetails.contentDisposition.params = parser.parseParameters(true);
 }
 
+// Gets filename, deduced from URL when necessary.
+// Returns filename or empty value if unknown.
+function getFilename(url, filename) {
+  // Deduce filename from URL when necessary.
+  if (filename === undefined) {
+    filename = url.split('#').shift().split('?').shift().split('/').pop();
+    try {
+      filename = decodeURIComponent(filename);
+    } catch (error) {
+    }
+    // Normalize: undefined if null.
+    if (filename === null) filename = undefined;
+  }
+  // Normalize: empty value if undefined.
+  if (filename === undefined) filename = '';
+  return filename;
+}
+
+// Known page extensions.
+const pageContentExtensions = new Set(['htm', 'html', 'php', 'asp', 'aspx', 'asx', 'jsp', 'jspx', 'do', 'py', 'cgi']);
+
+// Determine whether the URL *may* point to a page content (as opposed to a
+// content we may download).
+// Caller is expected to have excluded what is considered as explicit downloads:
+// attachment or content with filename.
+// Returns the reason it may be a page content (for debugging), or undefined.
+function maybePageContent(url) {
+  // We want to know whether the URL *may* just point to a page content (and not
+  // a real content we would download). This includes standard pages with static
+  // or generated content: those are not to download, at best if the content is
+  // dynamic (e.g. javascript/php/...) it may trigger another request that would
+  // be a real content to download.
+  // We first get the leaf path name.
+  var pathname = getFilename(url);
+  // If it's empty (that is the URL ends with a slash '/'), we assume the URL is
+  // *not* for a content to download; most likely it's the 'index' page of the
+  // site or one of its paths.
+  if (pathname.length == 0) return 'empty leaf path';
+  // Otherwise we get the 'extension' (considering path as a filename).
+  var split = pathname.split(/\./);
+  var extension = (split.length > 1) ? split.pop().toLowerCase() : '';
+  // We assume we got the name of a page to display, and not the name of a file
+  // to download, it either:
+  //  - there is no extension
+  //  - the extension length is too big to be considered a real extension: there
+  //    there are many valid 4-letters extensions (webm/webp etc.), almost none
+  //    with 5-letters, so set the limit accordingly
+  if (extension.length == 0) return 'path has no file extension';
+  if (extension.length > 5) return 'path does not appear to be a file with extension';
+  // Finally, take into account known static/dynamic page extensions.
+  if (pageContentExtensions.has(extension)) return 'path matches known page extensions';
+  return undefined;
+}
+
 // Gets cookie for given URL.
 function getCookie(url) {
   var search = {url: url};
@@ -403,11 +457,13 @@ class RequestsHandler {
 
     requestDetails.contentLength = findHeader(response.responseHeaders, 'Content-Length');
     requestDetails.contentLength = (requestDetails.contentLength === undefined) ? undefined : Number(requestDetails.contentLength);
-    // Don't intercept empty content
-    if (requestDetails.contentLength === 0) return this.manageRequest(requestDetails, false, 'Empty content');
-    // Don't intercept 'too small' download
-    if ((requestDetails.contentLength >= 0) && (requestDetails.contentLength < settings.interceptSize)) return this.manageRequest(requestDetails, false, 'Content length below limit');
+    // Normalize: negative length means size is unknown.
+    if (requestDetails.contentLength < 0) requestDetails.contentLength = undefined;
+    // Don't intercept 'too small' content
+    if (requestDetails.contentLength < settings.interceptSize) return this.manageRequest(requestDetails, false, 'Content length below limit');
+    // From this point onward, content is either unknown or big enough.
 
+    // Get content type and disposition.
     requestDetails.contentType = findHeader(response.responseHeaders, 'Content-Type');
     parseContentType(requestDetails);
     requestDetails.contentDisposition = findHeader(response.responseHeaders, 'Content-Disposition');
@@ -422,28 +478,41 @@ class RequestsHandler {
       // And guess mime type when necessary.
       requestDetails.contentType.guess(requestDetails.filename, false);
     }
+    // Note: we don't guess filename from URL because we wish to know - for
+    // later conditions testing - there was no explicit filename.
+    // The external download application will do it anyway.
 
     // Don't intercept 'inline' content (displayed inside the browser).
     if (requestDetails.contentDisposition.kind === 'inline') return this.manageRequest(requestDetails, false, 'Inline content');
 
-    // Intercept unknown type.
-    // Note: for finer control, it may be needed to guess the mime type from the
-    // filename (given or guessed from URL).
-    if (requestDetails.contentType.mainType === undefined) return this.manageRequest(requestDetails, true, 'Undefined type, may be binary');
+    // Intercept 'attachment' content (expected to trigger download anyway).
+    if (requestDetails.contentDisposition.kind === 'attachment') return this.manageRequest(requestDetails, true, 'Attachment content');
+
+    // Intercept if content is big enough since it's not explicitly 'inline'.
+    if (requestDetails.contentLength !== undefined) return this.manageRequest(requestDetails, true, 'Content length beyond minimum size');
+    // From this point onward, content length is unknown.
 
     // Don't intercept text or images if size is unknown.
     // Note: e.g. searching on google returns text/html without size.
-    if (requestDetails.contentLength === undefined) {
-      if (requestDetails.contentType.maybeText()) return this.manageRequest(requestDetails, false, 'Text with unknown size');
-      if (requestDetails.contentType.isImage()) return this.manageRequest(requestDetails, false, 'Image with unknown size');
+    if (requestDetails.contentType.maybeText()) return this.manageRequest(requestDetails, false, 'Text with unknown size');
+    if (requestDetails.contentType.isImage()) return this.manageRequest(requestDetails, false, 'Image with unknown size');
+
+    // Don't intercept what we consider *maybe* page content (to display as
+    // opposed to download). Since we really wish to download what we need,
+    // and only exclude possible page content, we must match all conditions:
+    //  - content is not an explicit attachment
+    //  - size is unknown
+    //  - content is not text nor image
+    //  - content has no explicit filename (non-explicit attachment ?)
+    //  - URL path is compatible with a page content (name/extension)
+    if (requestDetails.filename === undefined) {
+      var reason = maybePageContent(requestDetails.received.url);
+      if (reason !== undefined) return this.manageRequest(requestDetails, false, `Maybe page content; ${reason}`);
     }
 
-    // Intercept 'attachment' content.
-    //if (requestDetails.contentDisposition.kind === 'attachment') return this.manageRequest(requestDetails, true, 'Attachment');
-    // Intercept 'application' types.
-    //if (requestDetails.contentType.mainType === 'application') return this.manageRequest(requestDetails, true, '\'application\' content type');
-
-    // Intercept everything else.
+    // Intercept everything else. Size is unknown, but it's not supposed to be
+    // content to display: either it's not inlined, text, image nor page, or it
+    // has an explicit filename (non-explicit attachment ?).
     return this.manageRequest(requestDetails, true, 'Default interception');
   }
 

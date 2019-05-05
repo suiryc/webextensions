@@ -128,19 +128,6 @@ function formatApplicationMessage(details) {
   return msg;
 }
 
-// Gets filename, dediced from URL when necessary.
-function getFilename(url, filename) {
-  // Deduce filename from URL when necessary.
-  if (filename === undefined) {
-    filename = url.split('#').shift().split('?').shift().split('/').pop();
-    try {
-      filename = decodeURIComponent(filename);
-    } catch (error) {
-    }
-  }
-  return filename;
-}
-
 // Simple Deferred implementation.
 // Exposes a Promise resolve/reject callbacks for external completion.
 class Deferred {
