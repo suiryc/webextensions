@@ -309,7 +309,7 @@ class RequestsHandler {
 
   addRequestDetails(base, requestDetails) {
     if ((requestDetails === undefined) || (requestDetails === null)) return;
-    var key = requestDetails.received.url;
+    var key = requestDetails.url;
     var entries = base[key] || [];
     requestDetails.timestamp = getTimestamp();
     entries.push(requestDetails);
@@ -403,117 +403,9 @@ class RequestsHandler {
   }
 
   onResponse(response) {
-    var requestDetails = {
-      received: response,
-      remember: false
-    };
-    if (!canDownload(response.url)) return this.manageRequest(requestDetails, false, 'URL not handled');
-
-    // Special case: upon redirections (status code 3xx), we receive a first
-    // response but the browser keeps on using the same 'request' to access
-    // the actual target URL (the 'request' is not 'completed' yet, actually a
-    // a new HTTP request is done, re-using the same requestId).
-    // e.g. (in the same 'request'): a 'request' is triggered to perform a 'GET'
-    // which receives a 302 that triggers another 'GET' on the new URL, which
-    // ends with a 200, and *then* the 'request' is completed.
-    // So ignore response for such codes (and wait for the real response), and
-    // *do not* remember as 'unintercepted'.
-    // Note: the requestId being re-used, the new HTTP request will replace the
-    // original one in our 'requests'.
-    var statusCode = response.statusCode;
-    if (Math.floor(statusCode / 100) == 3) return this.manageRequest(requestDetails, false, `Skip intermediate response code=<${statusCode}>`);
-
-    // This request shall be remembered if not intercepted.
-    requestDetails.remember = true;
-
-    // Find the corresponding request.
-    requestDetails.sent = this.requests[response.requestId];
-    if (requestDetails.sent === undefined) return this.manageRequest(requestDetails, false, 'No matching request');
-    delete(this.requests[response.requestId]);
-
-    // Special case (Firefox):
-    // Response comes from cache if either:
-    //  - fromCache is true (Firefox 62, does not exist in Firefox 56)
-    //  - ip is not present (Firefox 56) or null (Firefox 62)
-    // We don't want/need to intercept download if data has already been fetched
-    // by the browser.
-    var fromCache = (response.fromCache === true) || (!('ip' in response) || (response.ip === null) || (response.ip === undefined));
-    if (fromCache) return this.manageRequest(requestDetails, false, 'Response cached');
-
-    // Only process standard success code. This filters out errors, redirects,
-    // and non-standard successes (like range requests).
-    if ((statusCode != 200) && (statusCode != 206)) return this.manageRequest(requestDetails, false, `Response code=<${statusCode}> not managed`);
-    // Special case (Firefox):
-    // If content has been partially downloaded (cache) and the server supports
-    // ranges, the request we saw is somehow fake (does not contain the 'Range'
-    // header) and we will see two responses:
-    //  - first one '206' - Partial content - with 'Content-Range' corresponding
-    //    to the actual sent request 'Range', and 'fromCache=false'
-    //  - second one '200' (faked) with full content, and 'fromCache=true'
-    // In this case, still check if we would intercept from the first response
-    // (indicates remaining size). As a side effect the second response will not
-    // be intercepted due to missing matching request (we consume it here).
-    if ((statusCode == 206) && (findHeader(requestDetails.sent.requestHeaders, 'Range') !== undefined)) return this.manageRequest(requestDetails, false, 'Skip partial content request');
-
-    requestDetails.contentLength = findHeader(response.responseHeaders, 'Content-Length');
-    requestDetails.contentLength = (requestDetails.contentLength === undefined) ? undefined : Number(requestDetails.contentLength);
-    // Normalize: negative length means size is unknown.
-    if (requestDetails.contentLength < 0) requestDetails.contentLength = undefined;
-    // Don't intercept 'too small' content
-    if (requestDetails.contentLength < settings.interceptSize) return this.manageRequest(requestDetails, false, 'Content length below limit');
-    // From this point onward, content is either unknown or big enough.
-
-    // Get content type and disposition.
-    requestDetails.contentType = findHeader(response.responseHeaders, 'Content-Type');
-    parseContentType(requestDetails);
-    requestDetails.contentDisposition = findHeader(response.responseHeaders, 'Content-Disposition');
-    parseContentDisposition(requestDetails);
-    // Content-Disposition 'filename' is preferred over Content-Type 'name'
-    requestDetails.filename = undefined;
-    requestDetails.filename = requestDetails.contentDisposition.params.filename;
-    if (requestDetails.filename === undefined) requestDetails.filename = requestDetails.contentType.params.name;
-    // Make sure to only keep filename (and no useless folder hierarchy).
-    if (requestDetails.filename !== undefined) {
-      requestDetails.filename = requestDetails.filename.split(/\/|\\/).pop();
-      // And guess mime type when necessary.
-      requestDetails.contentType.guess(requestDetails.filename, false);
-    }
-    // Note: we don't guess filename from URL because we wish to know - for
-    // later conditions testing - there was no explicit filename.
-    // The external download application will do it anyway.
-
-    // Don't intercept 'inline' content (displayed inside the browser).
-    if (requestDetails.contentDisposition.kind === 'inline') return this.manageRequest(requestDetails, false, 'Inline content');
-
-    // Intercept 'attachment' content (expected to trigger download anyway).
-    if (requestDetails.contentDisposition.kind === 'attachment') return this.manageRequest(requestDetails, true, 'Attachment content');
-
-    // Intercept if content is big enough since it's not explicitly 'inline'.
-    if (requestDetails.contentLength !== undefined) return this.manageRequest(requestDetails, true, 'Content length beyond minimum size');
-    // From this point onward, content length is unknown.
-
-    // Don't intercept text or images if size is unknown.
-    // Note: e.g. searching on google returns text/html without size.
-    if (requestDetails.contentType.maybeText()) return this.manageRequest(requestDetails, false, 'Text with unknown size');
-    if (requestDetails.contentType.isImage()) return this.manageRequest(requestDetails, false, 'Image with unknown size');
-
-    // Don't intercept what we consider *maybe* page content (to display as
-    // opposed to download). Since we really wish to download what we need,
-    // and only exclude possible page content, we must match all conditions:
-    //  - content is not an explicit attachment
-    //  - size is unknown
-    //  - content is not text nor image
-    //  - content has no explicit filename (non-explicit attachment ?)
-    //  - URL path is compatible with a page content (name/extension)
-    if (requestDetails.filename === undefined) {
-      var reason = maybePageContent(requestDetails.received.url);
-      if (reason !== undefined) return this.manageRequest(requestDetails, false, `Maybe page content; ${reason}`);
-    }
-
-    // Intercept everything else. Size is unknown, but it's not supposed to be
-    // content to display: either it's not inlined, text, image nor page, or it
-    // has an explicit filename (non-explicit attachment ?).
-    return this.manageRequest(requestDetails, true, 'Default interception');
+    var requestDetails = new RequestDetails(response);
+    // Delegate decision to dedicated class.
+    return requestDetails.manage(this);
   }
 
   manageRequest(requestDetails, intercept, reason) {
@@ -526,7 +418,7 @@ class RequestsHandler {
     delete(requestDetails.remember);
     console.info('Intercepting request %o: %s', requestDetails, reason);
 
-    var url = requestDetails.received.url;
+    var url = requestDetails.url;
     if (settings.notifyIntercept) {
       browserNotification({
         'type': 'basic',
@@ -541,7 +433,7 @@ class RequestsHandler {
       return undefined;
     }).then(title => {
       var comment = title;
-      if (requestDetails.filename !== undefined) comment = `${requestDetails.filename}\n${comment}`;
+      if (requestDetails.hasFilename()) comment = `${requestDetails.filename}\n${comment}`;
       return self.wsRequest({
         feature: FEATURE_DOWNLOAD,
         kind: KIND_SAVE,
@@ -751,6 +643,137 @@ class RequestsHandler {
     this.cleanupUnintercepted();
     this.cleanupCompletedRequests();
     this.lastJanitoring = getTimestamp();
+  }
+
+}
+
+
+class RequestDetails {
+
+  constructor(response) {
+    this.received = response;
+    this.url = response.url;
+    // Whether to remember the request if unintercepted.
+    this.remember = false;
+  }
+
+  hasSize() {
+    return (this.contentLength !== undefined);
+  }
+
+  hasFilename() {
+    return (this.filename !== undefined);
+  }
+
+  manage(handler) {
+    const response = this.received;
+    if (!canDownload(response.url)) return handler.manageRequest(this, false, 'URL not handled');
+
+    // Special case: upon redirections (status code 3xx), we receive a first
+    // response but the browser keeps on using the same 'request' to access
+    // the actual target URL (the 'request' is not 'completed' yet, actually a
+    // a new HTTP request is done, re-using the same requestId).
+    // e.g. (in the same 'request'): a 'request' is triggered to perform a 'GET'
+    // which receives a 302 that triggers another 'GET' on the new URL, which
+    // ends with a 200, and *then* the 'request' is completed.
+    // So ignore response for such codes (and wait for the real response), and
+    // *do not* remember as 'unintercepted'.
+    // Note: the requestId being re-used, the new HTTP request will replace the
+    // original one in our 'requests'.
+    var statusCode = response.statusCode;
+    if (Math.floor(statusCode / 100) == 3) return handler.manageRequest(this, false, `Skip intermediate response code=<${statusCode}>`);
+
+    // This request shall be remembered if not intercepted.
+    this.remember = true;
+
+    // Find the corresponding request.
+    this.sent = handler.requests[response.requestId];
+    if (this.sent === undefined) return handler.manageRequest(this, false, 'No matching request');
+    delete(handler.requests[response.requestId]);
+
+    // Special case (Firefox):
+    // Response comes from cache if either:
+    //  - fromCache is true (Firefox 62, does not exist in Firefox 56)
+    //  - ip is not present (Firefox 56) or null (Firefox 62)
+    // We don't want/need to intercept download if data has already been fetched
+    // by the browser.
+    var fromCache = (response.fromCache === true) || (!('ip' in response) || (response.ip === null) || (response.ip === undefined));
+    if (fromCache) return handler.manageRequest(this, false, 'Response cached');
+
+    // Only process standard success code. This filters out errors, redirects,
+    // and non-standard successes (like range requests).
+    if ((statusCode != 200) && (statusCode != 206)) return handler.manageRequest(this, false, `Response code=<${statusCode}> not managed`);
+    // Special case (Firefox):
+    // If content has been partially downloaded (cache) and the server supports
+    // ranges, the request we saw is somehow fake (does not contain the 'Range'
+    // header) and we will see two responses:
+    //  - first one '206' - Partial content - with 'Content-Range' corresponding
+    //    to the actual sent request 'Range', and 'fromCache=false'
+    //  - second one '200' (faked) with full content, and 'fromCache=true'
+    // In this case, still check if we would intercept from the first response
+    // (indicates remaining size). As a side effect the second response will not
+    // be intercepted due to missing matching request (we consume it here).
+    if ((statusCode == 206) && (findHeader(this.sent.requestHeaders, 'Range') !== undefined)) return handler.manageRequest(this, false, 'Skip partial content request');
+
+    // Get content length. Use undefined if unknown.
+    this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
+    if (this.hasSize()) this.contentLength = Number(this.contentLength);
+    // Normalize: negative length means size is unknown.
+    if (this.contentLength < 0) this.contentLength = undefined;
+    // Don't intercept 'too small' content
+    if (this.contentLength < settings.interceptSize) return handler.manageRequest(this, false, 'Content length below limit');
+    // From this point onward, content is either unknown or big enough.
+
+    // Get content type and disposition.
+    this.contentType = findHeader(response.responseHeaders, 'Content-Type');
+    parseContentType(this);
+    this.contentDisposition = findHeader(response.responseHeaders, 'Content-Disposition');
+    parseContentDisposition(this);
+    // Content-Disposition 'filename' is preferred over Content-Type 'name'
+    this.filename = this.contentDisposition.params.filename;
+    if (!this.hasFilename()) this.filename = this.contentType.params.name;
+    // Make sure to only keep filename (and no useless folder hierarchy).
+    if (this.hasFilename()) {
+      this.filename = this.filename.split(/\/|\\/).pop();
+      // And guess mime type when necessary.
+      this.contentType.guess(this.filename, false);
+    }
+    // Note: we don't guess filename from URL because we wish to know - for
+    // later conditions testing - there was no explicit filename.
+    // The external download application will do it anyway.
+
+    // Don't intercept 'inline' content (displayed inside the browser).
+    if (this.contentDisposition.kind === 'inline') return handler.manageRequest(this, false, 'Inline content');
+
+    // Intercept 'attachment' content (expected to trigger download anyway).
+    if (this.contentDisposition.kind === 'attachment') return handler.manageRequest(this, true, 'Attachment content');
+
+    // Intercept if content is big enough since it's not explicitly 'inline'.
+    if (this.hasSize()) return handler.manageRequest(this, true, 'Content length beyond minimum size');
+    // From this point onward, content length is unknown.
+
+    // Don't intercept text or images if size is unknown.
+    // Note: e.g. searching on google returns text/html without size.
+    if (this.contentType.maybeText()) return handler.manageRequest(this, false, 'Text with unknown size');
+    if (this.contentType.isImage()) return handler.manageRequest(this, false, 'Image with unknown size');
+
+    // Don't intercept what we consider *maybe* page content (to display as
+    // opposed to download). Since we really wish to download what we need,
+    // and only exclude possible page content, we must match all conditions:
+    //  - content is not an explicit attachment
+    //  - size is unknown
+    //  - content is not text nor image
+    //  - content has no explicit filename (non-explicit attachment ?)
+    //  - URL path is compatible with a page content (name/extension)
+    if (!this.hasFilename()) {
+      var reason = maybePageContent(this.url);
+      if (reason !== undefined) return handler.manageRequest(this, false, `Maybe page content; ${reason}`);
+    }
+
+    // Intercept everything else. Size is unknown, but it's not supposed to be
+    // content to display: either it's not inlined, text, image nor page, or it
+    // has an explicit filename (non-explicit attachment ?).
+    return handler.manageRequest(this, true, 'Default interception');
   }
 
 }
