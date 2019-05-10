@@ -11,7 +11,8 @@
   // For downloads, we use:
   //  - contextMenus: add entry to download given link
   //  - cookies: to get cookies for given URL
-  //  - downloads: to intercept created downloads
+  //  - downloads: to intercept and access created downloads
+  //  - history: to remove downloads from history
   //  - notifications: to notify when a request/download/link was intercepted
   //  - storage: to persist some settings
   //  - tabs: to get a tab properties (title used as DL comment)
@@ -23,6 +24,7 @@
     "contextMenus",
     "cookies",
     "downloads",
+    "history",
     "nativeMessaging",
     "notifications",
     "storage",

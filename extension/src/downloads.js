@@ -535,29 +535,45 @@ class RequestsHandler {
     }
     console.info('Intercepting download %o', download);
 
-    // Note: when cancelling an incomplete download, the file is removed too.
-
     // First cancel this download.
     // We better wait for this to be done before handing over the download to
     // the external application: then we are sure the browser has no more cnx
-    // for this URL.
+    // for this URL (and the target file has been deleted by browser).
     browser.downloads.cancel(download.id).catch(error => {
       console.error('Failed to cancel download %o: %o', download, error);
-    //}).then(() => {
-    //  // Then remove it from the disk.
-    //  // Note: must be done *before* removing from list.
-    //  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/downloads/removeFile
-    //  return browser.downloads.removeFile(download.id).catch(error => {
-    //    console.error('Failed to remove download %o file: %o', download, error);
-    //  });
     }).then(() => {
       // Then remove it from the list.
-      // We don't need to wait for this to be done before handing over the
-      // download.
-      browser.downloads.erase({id: download.id}).catch(error => {
-        console.error('Failed to erase download %o: %o', download, error);
+      // Notes:
+      // Usually we would remove the created file from disk through 'removeFile'
+      // before handing over the download and before erasing it from list, but
+      // it is done automatically when cancelling an incomplete download (which
+      // is our case since we don't intercept completed downloads).
+      // We don't need to wait for erasing to be done before handing over the
+      // download. However some extensions appear to rely on the 'downloads'
+      // entry to still exist in order to properly handle events such as
+      // cancellation. Thus if we erase it too fast, those extensions will fail
+      // to detect the download has been cancelled. As a workaround, wait a bit
+      // before doing so: 2s appears to be enough (1s works in most cases).
+      delayPromise(2000).then(() => {
+        browser.downloads.erase({id: download.id}).catch(error => {
+          console.error('Failed to erase download %o: %o', download, error);
+        });
+      }).then(() => {
+        // If requested, clear downloads history.
+        // Notes:
+        // 'browser.downloads.erase' removes the entry from downloads, but an
+        // entry remains in the downloads history.
+        // 'browser.browsingData.removeDownloads' may be able to cleanup that
+        // entry, but in Firefox v66 it does not help, maybe because erasing
+        // ('originTypes') 'extension' data is not supported.
+        // Fortunately, 'browser.history.deleteUrl' does the trick.
+        if (settings.clearDownloads) return browser.history.deleteUrl({url: download.url});
+      }).catch(error => {
+        console.error('Failed to delete url for download %o: %o', error);
       });
-      // Get the cookie for the download URL.
+
+      // While entry is being erased from list and history, we can hand over the
+      // download. First we need to get the cookie for the download URL.
       return getCookie(download.url);
     }).then(cookie => {
       // Finally really do manage the download.

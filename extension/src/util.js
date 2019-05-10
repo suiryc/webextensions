@@ -164,6 +164,16 @@ function timeoutPromise(ms) {
   return p;
 }
 
+// Creates a Promise that is resolved after the given time (ms)
+function delayPromise(ms) {
+  var d = new Deferred();
+  var p = d.promise;
+  p.timeoutId = setTimeout(() => {
+    d.resolve();
+  }, ms);
+  return p;
+}
+
 // Enqueues function to call after promise is resolved
 function promiseThen(p, f) {
   return p.then(r => {
