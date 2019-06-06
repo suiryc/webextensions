@@ -110,6 +110,8 @@ function dl_save(app, msg) {
     , [msg.userAgent, '--user-agent']
     , [msg.comment, '--comment']
   ].forEach(opt => {
+    // Only keep defined (and non-null) values.
+    if (opt[0] == null) opt[0] = undefined;
     if (opt[0] !== undefined) args.push(opt[1], opt[0]);
   });
   if (msg.auto) args.push('--auto');

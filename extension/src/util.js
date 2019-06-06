@@ -98,6 +98,15 @@ function uuidv4() {
   )
 }
 
+// Remove undefined and null fields.
+function cleanupFields(obj) {
+  for (var f in obj) {
+    var v = obj[f];
+    if (v == null) v = undefined;
+    if (v === undefined) delete(obj[f]);
+  }
+}
+
 // Displays a browser notification and hide it after TTL (milliseconds).
 function browserNotification(notification, ttl) {
   var id = uuidv4();

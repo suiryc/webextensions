@@ -181,6 +181,9 @@ class RequestsHandler {
   wsRequest(msg) {
     var self = this;
 
+    // Drop undefined (or null) fields.
+    cleanupFields(msg);
+
     function handleError(r) {
       if (r.error) {
         var url = msg.url;
