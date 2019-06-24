@@ -12,6 +12,16 @@ function unhandledMessage(msg, sender) {
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
+  try {
+    return handleMessage(extension, msg, sender);
+  } catch (error) {
+    console.error('Could not handle sender %o message %o: %o', sender, msg, error);
+    // Propagate error.
+    throw error;
+  }
+}
+
+function handleMessage(extension, msg, sender) {
   switch (msg.feature) {
     default:
       unhandledMessage(msg, sender);
