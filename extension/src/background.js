@@ -207,6 +207,11 @@ function notification(label, details) {
 
 function addApplicationMessage(details) {
   var level = '';
+  extension.sendMessage({
+    feature: FEATURE_APP,
+    kind: KIND_ADD_MESSAGE,
+    details: details
+  });
   applicationMessages.push(details);
 
   // Messages are kept until dismissed, and we set a visual hint.

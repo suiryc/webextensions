@@ -34,6 +34,7 @@ const FEATURE_DOWNLOAD = 'download';
 const FEATURE_TIDDLYWIKI = 'tiddlywiki';
 
 // Message known 'kind' field values
+const KIND_ADD_MESSAGE = 'addMessage';
 const KIND_CHECK_CONCURRENT = 'checkConcurrent';
 const KIND_CHECK_NATIVE_APP = 'checkNativeApp';
 const KIND_CLEAR_MESSAGES = 'clearMessages';

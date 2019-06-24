@@ -23,10 +23,32 @@ async function onMessage(extension, msg, sender) {
 
 function handleMessage(extension, msg, sender) {
   switch (msg.feature) {
+    case FEATURE_APP:
+      return app_onMessage(extension, msg, sender);
+      break;
+
     default:
       unhandledMessage(msg, sender);
       break;
   }
+}
+
+// Handles application feature message.
+function app_onMessage(extension, msg, sender) {
+  switch (msg.kind) {
+    case KIND_ADD_MESSAGE:
+      return app_addMessage(msg);
+      break;
+
+    default:
+      unhandledMessage(msg, sender);
+      break;
+  }
+}
+
+// Adds message to display.
+function app_addMessage(msg) {
+  addMessage(msg.details);
 }
 
 // Extension handler
@@ -69,6 +91,7 @@ function addMessage(details) {
   node.querySelector('.content').innerHTML = message;
 
   messagesNode.appendChild(node);
+  messagesNode.classList.remove('hidden');
 }
 
 // Clear messages when requested.
@@ -88,7 +111,6 @@ extension.sendMessage({
 }).then(r => {
   if ((r === undefined) || !Array.isArray(r) || !r.length) return;
 
-  messagesNode.classList.remove('hidden');
   for (var details of r) {
     addMessage(details);
   }
