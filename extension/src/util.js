@@ -110,6 +110,11 @@ function cleanupFields(obj) {
 // Displays a browser notification and hide it after TTL (milliseconds).
 function browserNotification(notification, ttl) {
   var id = uuidv4();
+  // Add our icon if necessary.
+  // Note: with Firefox on Windows 10 the notification icon will be inserted in
+  // a 80px square and SVG will be scaled to fit inside, similarly to what is
+  // done for the pages (e.g options and browser action) icons.
+  if (!('iconUrl' in notification)) notification['iconUrl'] = browser.extension.getURL('src/icon.svg');
   var p = browser.notifications.create(id, notification);
   if (ttl) {
     // We need to wait for the notification to be created in order to be able
