@@ -310,6 +310,63 @@ class RequestsHandler {
     }
   }
 
+  ignoreNext(ttl) {
+    var self = this;
+    if (ttl === undefined) ttl = IGNORE_NEXT_TTL;
+    // Cancel if requested (non-positive TTL).
+    if (ttl <= 0) {
+      self.cancelIgnoreNext();
+      return;
+    }
+    // Nothing to do if we already are ignoring.
+    if (self.ignoringNext !== undefined) return;
+    console.log('Ignoring next interception with ttl=<%s>', ttl);
+    var ttlStep = 1000;
+    // Start TTL ('+ ttlStep' to reuse the function to decrement the TTL).
+    self.ignoringNext = {
+      ttl: ttl + ttlStep
+    };
+    function decrement() {
+      // Stop if we are not ignoring anymore.
+      if (self.ignoringNext === undefined) return;
+      // Decrement and cancel if TTL is reached.
+      self.ignoringNext.ttl -= ttlStep;
+      if (self.ignoringNext.ttl <= 0) {
+        self.cancelIgnoreNext();
+        return;
+      }
+      // Otherwise update displayed TTL and loop.
+      extension.sendMessage({
+        target: TARGET_BROWSER_ACTION,
+        feature: FEATURE_APP,
+        kind: KIND_IGNORE_NEXT,
+        ttl: self.ignoringNext.ttl
+      });
+      self.ignoringNext.timeout = setTimeout(decrement, ttlStep);
+    }
+    // Prime the pump.
+    decrement();
+  }
+
+  cancelIgnoreNext() {
+    // Nothing to do it we are not ignoring.
+    if (this.ignoringNext === undefined) return;
+    if (this.ignoringNext.timeout !== undefined) clearTimeout(this.ignoringNext.timeout);
+    extension.sendMessage({
+      target: TARGET_BROWSER_ACTION,
+      feature: FEATURE_APP,
+      kind: KIND_IGNORE_NEXT,
+      ttl: 0
+    });
+    delete(this.ignoringNext);
+  }
+
+  checkIgnoreNext() {
+    if (this.ignoringNext === undefined) return false;
+    this.cancelIgnoreNext();
+    return true;
+  }
+
   addRequestDetails(base, requestDetails) {
     if ((requestDetails === undefined) || (requestDetails === null)) return;
     var key = requestDetails.url;
@@ -413,6 +470,10 @@ class RequestsHandler {
 
   manageRequest(requestDetails, intercept, reason) {
     var self = this;
+    if (intercept && self.checkIgnoreNext()) {
+      intercept = false;
+      reason = `ignoring (initial interception reason: ${reason})`;
+    }
     if (!intercept) {
       if (settings.debug) console.debug('Not intercepting request %o: %s', requestDetails, reason);
       if (requestDetails.remember) self.addUnintercepted(requestDetails);
@@ -532,6 +593,10 @@ class RequestsHandler {
 
   manageDownload(download, intercept, reason) {
     var self = this;
+    if (intercept && self.checkIgnoreNext()) {
+      intercept = false;
+      reason = `ignoring (initial interception reason: ${reason})`;
+    }
     if (!intercept) {
       if (settings.debug) console.debug('Not intercepting download %o: %s', download, reason);
       return;

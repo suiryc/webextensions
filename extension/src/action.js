@@ -36,6 +36,10 @@ function handleMessage(extension, msg, sender) {
 // Handles application feature message.
 function app_onMessage(extension, msg, sender) {
   switch (msg.kind) {
+    case KIND_IGNORE_NEXT:
+      return app_ignoreNext(msg);
+      break;
+
     case KIND_ADD_MESSAGE:
       return app_addMessage(msg);
       break;
@@ -46,6 +50,15 @@ function app_onMessage(extension, msg, sender) {
   }
 }
 
+// Next interception is being ignored.
+function app_ignoreNext(msg) {
+  var ttl = msg.ttl / 1000;
+  ignoringNext = (ttl > 0);
+  // Update displayed button text: append remaining TTL if any.
+  if (ignoringNext) ignoreNextButton.textContent = `${ignoreNextText} (${ttl}s)`;
+  else ignoreNextButton.textContent = ignoreNextText;
+}
+
 // Adds message to display.
 function app_addMessage(msg) {
   addMessage(msg.details);
@@ -54,6 +67,9 @@ function app_addMessage(msg) {
 // Extension handler
 var extension = new WebExtension({ target: TARGET_BROWSER_ACTION, onMessage: onMessage });
 
+var ignoreNextButton = document.querySelector('#ignoreNext');
+var ignoreNextText = ignoreNextButton.textContent;
+var ignoringNext = false;
 var clearMessagesButton = document.querySelector('#clearMessages');
 var messagesNode = document.querySelector('#messages');
 var iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
@@ -93,6 +109,17 @@ function addMessage(details) {
   messagesNode.appendChild(node);
   messagesNode.classList.remove('hidden');
 }
+
+// Ignore next interception when requested.
+ignoreNextButton.addEventListener('click', () => {
+  // Cancel if we are already igoring.
+  extension.sendMessage({
+    target: TARGET_BACKGROUND_PAGE,
+    feature: FEATURE_APP,
+    kind: KIND_IGNORE_NEXT,
+    ttl: ignoringNext ? 0 : undefined
+  });
+});
 
 // Clear messages when requested.
 clearMessagesButton.addEventListener('click', () => {

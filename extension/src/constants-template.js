@@ -16,6 +16,9 @@ const TW_SAVE_TIMEOUT = 10 * 1000;
 // Timeout (ms) when waiting for WebSocket response
 const WEBSOCKET_RESPONSE_TIMEOUT = 10 * 1000;
 
+// Maximum time to wait for next interception to ignore
+const IGNORE_NEXT_TTL = 20 * 1000;
+
 // Kind of native message embedding fragments
 const FRAGMENT_KIND_START = 'start';
 const FRAGMENT_KIND_CONT = 'cont';
@@ -48,6 +51,7 @@ const KIND_CHECK_NATIVE_APP = 'checkNativeApp';
 const KIND_CLEAR_MESSAGES = 'clearMessages';
 const KIND_CONSOLE = 'console';
 const KIND_GET_MESSAGES = 'getMessages';
+const KIND_IGNORE_NEXT = 'ignoreNext';
 const KIND_NOTIFICATION = 'notification';
 const KIND_SAVE = 'save';
 const KIND_SPECS = 'specs';

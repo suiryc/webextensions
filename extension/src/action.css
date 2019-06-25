@@ -28,8 +28,8 @@
   fill: var(--color-warning);
 }
 
-/* Based on Firefox browser style header/foote buttons. */
-#messages .header {
+/* Based on Firefox browser style header/footer buttons. */
+.header {
   background-color: rgba(0, 0, 0, 0.06);
   border-bottom: 1px solid rgba(0, 0, 0, 0.15);
   color: #1a1a1a;
@@ -39,7 +39,7 @@
   padding: 0;
 }
 
-#messages .header button {
+.header button {
   flex: 1 1 auto;
   height: 100%;
   margin: 0 0px;
@@ -54,26 +54,26 @@
   border: none;
 }
 
-#messages .header button:hover {
+.header button:hover {
   background-color: rgba(0, 0, 0, 0.06);
 }
 
-#messages .header button:hover:active {
+.header button:hover:active {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-#messages .header button.default {
+.header button.default {
   background-color: #0996f8;
   box-shadow: 0 1px 0 #0670cc inset;
   color: #fff;
 }
 
-#messages .header button.default:hover {
+.header button.default:hover {
   background-color: #0670cc;
   box-shadow: 0 1px 0 #005bab inset;
 }
 
-#messages .header button.default:hover:active {
+.header button.default:hover:active {
   background-color: #005bab;
   box-shadow: 0 1px 0 #004480 inset;
 }

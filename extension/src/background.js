@@ -88,6 +88,10 @@ function tw_save(msg) {
 // Handles application feature message.
 function app_onMessage(extension, msg, sender) {
   switch (msg.kind) {
+    case KIND_IGNORE_NEXT:
+      return app_ignoreNext(msg);
+      break;
+
     case KIND_CLEAR_MESSAGES:
       return app_clearMessages();
       break;
@@ -100,6 +104,11 @@ function app_onMessage(extension, msg, sender) {
       unhandledMessage(msg, sender);
       break;
   }
+}
+
+// Ignore next interception.
+function app_ignoreNext(msg) {
+  requestsHandler.ignoreNext(msg.ttl);
 }
 
 // Clears application messages.
@@ -233,6 +242,7 @@ function addApplicationMessage(details) {
 
 
 var extension;
+var requestsHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings().then(() => {
@@ -255,7 +265,7 @@ waitForSettings().then(() => {
 
 
   // Listen to requests and downloads
-  var requestsHandler = new RequestsHandler(nativeApp);
+  requestsHandler = new RequestsHandler(nativeApp);
 
   // Add context menu entry to download links (and video/audio elements).
   // Restrict to links that apparently point to sites.
