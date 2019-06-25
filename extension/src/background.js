@@ -208,6 +208,7 @@ function notification(label, details) {
 function addApplicationMessage(details) {
   var level = '';
   extension.sendMessage({
+    target: TARGET_BROWSER_ACTION,
     feature: FEATURE_APP,
     kind: KIND_ADD_MESSAGE,
     details: details
@@ -236,7 +237,7 @@ var nativeApp;
 var applicationMessages = [];
 waitForSettings().then(() => {
   // Extension handler
-  extension = new WebExtension(onMessage);
+  extension = new WebExtension({ target: TARGET_BACKGROUND_PAGE, onMessage: onMessage });
   // Native application handler
   nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
 

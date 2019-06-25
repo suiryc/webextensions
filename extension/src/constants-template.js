@@ -28,6 +28,14 @@ const FRAGMENTS_TTL = 10 * 1000;
 // TTL of pending requests
 const REQUESTS_TTL = 120 * 1000;
 
+// Message known 'target' field values
+const TARGET_BACKGROUND_PAGE = 'background page';
+const TARGET_BROWSER_ACTION = 'browser action';
+const TARGET_CONTENT_SCRIPT = 'content script';
+// Notes:
+// We handle 'options page' with the same code than 'browser action'.
+// We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
+
 // Message known 'feature' field values
 const FEATURE_APP = 'app';
 const FEATURE_DOWNLOAD = 'download';

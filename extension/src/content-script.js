@@ -63,7 +63,7 @@ function tw_warnConcurrent(msg) {
 }
 
 // Extension handler
-var extension = new WebExtension(onMessage);
+var extension = new WebExtension({ target: TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
 // We want to wait for 'document.body' to exist.
 // The simplest way is to wait for 'DOMContentLoaded' which happens when the
@@ -96,6 +96,7 @@ function startExtension() {
 
   if (ready) {
     extension.sendMessage({
+      target: TARGET_BACKGROUND_PAGE,
       feature: FEATURE_TIDDLYWIKI,
       kind: KIND_CHECK_NATIVE_APP
     }).then(r => {
@@ -175,6 +176,7 @@ function isTW5() {
 function tw_checkConcurrent() {
   // Delegate checking to background script, which will notify concerned tabs.
   extension.sendMessage({
+    target: TARGET_BACKGROUND_PAGE,
     feature: FEATURE_TIDDLYWIKI,
     kind: KIND_CHECK_CONCURRENT,
     url: document.URL
@@ -230,6 +232,7 @@ function tw_injectMessageBox() {
 
     // Save the file
     extension.sendMessage({
+      target: TARGET_BACKGROUND_PAGE,
       feature: FEATURE_TIDDLYWIKI,
       kind: KIND_SAVE,
       path: path,

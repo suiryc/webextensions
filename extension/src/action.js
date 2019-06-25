@@ -52,7 +52,7 @@ function app_addMessage(msg) {
 }
 
 // Extension handler
-var extension = new WebExtension(onMessage);
+var extension = new WebExtension({ target: TARGET_BROWSER_ACTION, onMessage: onMessage });
 
 var clearMessagesButton = document.querySelector('#clearMessages');
 var messagesNode = document.querySelector('#messages');
@@ -97,6 +97,7 @@ function addMessage(details) {
 // Clear messages when requested.
 clearMessagesButton.addEventListener('click', () => {
   extension.sendMessage({
+    target: TARGET_BACKGROUND_PAGE,
     feature: FEATURE_APP,
     kind: KIND_CLEAR_MESSAGES
   }).then(() => {
@@ -106,6 +107,7 @@ clearMessagesButton.addEventListener('click', () => {
 
 // Get and add application messages.
 extension.sendMessage({
+  target: TARGET_BACKGROUND_PAGE,
   feature: FEATURE_APP,
   kind: KIND_GET_MESSAGES
 }).then(r => {

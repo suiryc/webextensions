@@ -3,14 +3,21 @@
 // Extension messages handler.
 class WebExtension {
 
-  constructor(onMessage) {
+  constructor(params) {
     var self = this;
+    if (params.target == null) delete(params.target);
+    self.params = params;
     browser.runtime.onMessage.addListener((msg, sender) => {
+      // Ignore message when applicable.
+      if (!self.isTarget(msg)) {
+        if (settings.debug) console.debug('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, self.params.target, msg.target);
+        return;
+      }
       // When returning a promise, only success is expected; failed promise
       // is returned without the original error but a generic one.
       // So translate to response with error field which caller will have
       // to handle.
-      var r = onMessage(self, msg, sender);
+      var r = self.params.onMessage(self, msg, sender);
       if (r instanceof Promise) {
         r = r.catch(error => {
           return {error: error};
@@ -18,6 +25,11 @@ class WebExtension {
       }
       return r;
     });
+  }
+
+  isTarget(msg) {
+    if (msg.target == null) delete(msg.target);
+    return (this.params.target === undefined) || (msg.target === undefined) || (msg.target == this.params.target);
   }
 
   sendMessage(msg) {
