@@ -1,0 +1,71 @@
+/* Simple HTML+CSS modal message.
+ * See: https://www.w3schools.com/howto/howto_css_modals.asp
+ */
+
+/* Modal background */
+.modal {
+  /* Hidden by default */
+  display: none;
+  /* Above everything */
+  position: fixed;
+  z-index: 2147483647;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  /* Transparent black. */
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Modal content */
+.modal-content {
+  /* Near the top of the view, taking most of the width, horizontally centered */
+  position: relative;
+  margin: auto;
+  margin-top: 100px;
+  padding: 0;
+  width: 80%;
+  /* White-ish background */
+  background-color: #fefefe;
+  /* Small grey-ish border, with a little shadow */
+  border: 1px solid #888;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+/* Modal header (title) */
+.modal-header {
+  padding: 2px 16px;
+  color: white;
+}
+
+/* Modal message kind: info */
+.modal-info {
+  /* Green-ish background */
+  background-color: #5cb85c;
+}
+
+/* Modal message kind: error */
+.modal-error {
+  /* Red-ish background */
+  background-color: #c94b4b;
+}
+
+/* Modal close button */
+.modal-close {
+  color: white;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.modal-close:hover, .modal-close:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Modal body (message) */
+.modal-body {
+  padding: 2px 16px;
+}
