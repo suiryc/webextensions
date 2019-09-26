@@ -175,11 +175,17 @@ function isTW5() {
 // Checks whether a same TiddlyWiki is open in other tabs/windows.
 function tw_checkConcurrent() {
   // Delegate checking to background script, which will notify concerned tabs.
+  // Remove fragment from URL so that querying tabs will work as expected: in
+  // Firefox 69, querying does not take into account the fragment part in tabs
+  // URL, but the queried URL is used as-is (with its fragment if present).
+  var url = new URL(document.URL);
+  url.hash = '';
+  url = url.href;
   extension.sendMessage({
     target: TARGET_BACKGROUND_PAGE,
     feature: FEATURE_TIDDLYWIKI,
     kind: KIND_CHECK_CONCURRENT,
-    url: document.URL
+    url: url
   });
 }
 
