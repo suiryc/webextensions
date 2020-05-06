@@ -172,7 +172,7 @@ function app_console(app, msg) {
   // Prepend the native application id to distinguish its logs from the
   // webextension ones.
   // If first argument is a string, assume it can be a format, and thus prepend
-  // to the string itself. Otherwise preprend to the arguments array.
+  // to the string itself. Otherwise prepend to the arguments array.
   if (typeof(args[0]) == 'string') args[0] = `[${app.appId}] ${args[0]}`;
   else args.unshift(`[${app.appId}]`);
   console[level].apply(console, args);
