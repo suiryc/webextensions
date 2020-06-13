@@ -107,6 +107,31 @@ export function cleanupFields(obj) {
   }
 }
 
+// Sets node HTML content.
+// See: https://stackoverflow.com/a/35385518
+// See: https://stackoverflow.com/a/42658543
+export function setHtml(node, html) {
+  // First remove all content.
+  while (node.hasChildNodes()) node.removeChild(node.lastChild);
+  // Then parse/sanitize the html string.
+  // For our usage, this should be enough. Alternatively we may use a real
+  // sanitizer/purifier like DOMPurify.
+  var dom = new DOMParser().parseFromString(`<template>${html}</template>`, 'text/html').head;
+  // Finally inject the content.
+  node.appendChild(dom.firstElementChild.content);
+}
+
+// Converts html text to real element.
+// See: https://stackoverflow.com/a/35385518
+// Notes:
+// When innerHTML is set on a 'template' node, content is populated.
+// When nodes are manipulated, childNodes/children is populated.
+export function htmlToElement(html) {
+  var template = document.createElement('template');
+  setHtml(template, html);
+  return template.firstChild;
+}
+
 // Displays a browser notification and hide it after TTL (milliseconds).
 export function browserNotification(notification, ttl) {
   var id = uuidv4();

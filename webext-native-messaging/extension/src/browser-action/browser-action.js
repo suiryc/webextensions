@@ -107,9 +107,9 @@ function addMessage(details) {
     icon = cloneNode(iconInfoCircle);
   }
   replaceNode(node.querySelector('.icon'), icon);
-  node.querySelector('.title').innerHTML = details.title;
+  util.setHtml(node.querySelector('.title'), details.title);
   message = message.replace(/\n/g, '<br>');
-  node.querySelector('.content').innerHTML = message;
+  util.setHtml(node.querySelector('.content'), message);
 
   messagesNode.appendChild(node);
   messagesNode.classList.remove('hidden');

@@ -115,20 +115,11 @@ function startExtension() {
   }
 }
 
-// Converts html text to real element.
-// See: https://stackoverflow.com/a/35385518
-function htmlToElement(html) {
-  var template = document.createElement('template');
-  html = html.trim();
-  template.innerHTML = html;
-  return template.content.firstChild;
-}
-
 // Displays a modal message.
 // See: https://www.w3schools.com/howto/howto_css_modals.asp
 function displayModal(title, params) {
   // The modal node
-  var modal = htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
+  var modal = util.htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
   var modalHeader = modal.getElementsByClassName('modal-header')[0];
   var modalClose = modal.getElementsByClassName('modal-close')[0];
   var modalBody = modal.getElementsByClassName('modal-body')[0];
