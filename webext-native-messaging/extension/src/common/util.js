@@ -2,12 +2,12 @@
 
 
 // Gets current timestamp (epoch in milliseconds).
-function getTimestamp() {
+export function getTimestamp() {
   return (new Date()).getTime();
 }
 
 // Formats object to string.
-function formatObject(obj, processed, recursiveLoop) {
+export function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:
   // Remember the current object in order to prevent infinite loops (object
   // which directly - field - or indirectly - child field - points back to
@@ -92,14 +92,14 @@ function formatObject(obj, processed, recursiveLoop) {
 }
 
 // See: https://gist.github.com/jed/982883
-function uuidv4() {
+export function uuidv4() {
   return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
     (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
   )
 }
 
 // Remove undefined and null fields.
-function cleanupFields(obj) {
+export function cleanupFields(obj) {
   for (var f in obj) {
     var v = obj[f];
     if (v == null) v = undefined;
@@ -108,13 +108,13 @@ function cleanupFields(obj) {
 }
 
 // Displays a browser notification and hide it after TTL (milliseconds).
-function browserNotification(notification, ttl) {
+export function browserNotification(notification, ttl) {
   var id = uuidv4();
   // Add our icon if necessary.
   // Note: with Firefox on Windows 10 the notification icon will be inserted in
   // a 80px square and SVG will be scaled to fit inside, similarly to what is
   // done for the pages (e.g options and browser action) icons.
-  if (!('iconUrl' in notification)) notification['iconUrl'] = browser.extension.getURL('src/icon.svg');
+  if (!('iconUrl' in notification)) notification['iconUrl'] = browser.extension.getURL('/resources/icon.svg');
   var p = browser.notifications.create(id, notification);
   if (ttl) {
     // We need to wait for the notification to be created in order to be able
@@ -128,7 +128,7 @@ function browserNotification(notification, ttl) {
 }
 
 // Formats application message (optional content/error).
-function formatApplicationMessage(details) {
+export function formatApplicationMessage(details) {
   var message = details.message;
   var error = details.error;
 
@@ -144,7 +144,7 @@ function formatApplicationMessage(details) {
 
 // Simple Deferred implementation.
 // Exposes a Promise resolve/reject callbacks for external completion.
-class Deferred {
+export class Deferred {
 
   constructor() {
     // Reminder: function given to Promise constructor is executed before the
@@ -169,7 +169,7 @@ class Deferred {
 }
 
 // Creates a Promise that fails after the given time (ms)
-function timeoutPromise(ms) {
+export function timeoutPromise(ms) {
   var d = new Deferred();
   var p = d.promise;
   p.timeoutId = setTimeout(() => {
@@ -179,7 +179,7 @@ function timeoutPromise(ms) {
 }
 
 // Creates a Promise that is resolved after the given time (ms)
-function delayPromise(ms) {
+export function delayPromise(ms) {
   var d = new Deferred();
   var p = d.promise;
   p.timeoutId = setTimeout(() => {
@@ -189,7 +189,7 @@ function delayPromise(ms) {
 }
 
 // Enqueues function to call after promise is resolved
-function promiseThen(p, f) {
+export function promiseThen(p, f) {
   return p.then(r => {
     f();
     return r;
@@ -200,7 +200,7 @@ function promiseThen(p, f) {
 }
 
 // Creates a promise that is completed from another one or after a given timeout
-function promiseOrTimeout(p, ms) {
+export function promiseOrTimeout(p, ms) {
   var timeout = timeoutPromise(ms);
   var timeoutId = timeout.timeoutId;
   // Race for promise/timeout and clear timeout before caller can chain code.
@@ -211,4 +211,4 @@ function promiseOrTimeout(p, ms) {
 
 // Shortcut to defer code for immediate execution:
 //  defer.then(() => ...);
-var defer = Promise.resolve();
+export var defer = Promise.resolve();

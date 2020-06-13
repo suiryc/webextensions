@@ -1,8 +1,10 @@
 {
   "license": "GPL-3.0",
   "devDependencies": {
+    "fs-extra": "^9.0.1",
     "gulp": "^4.0.2",
     "gulp-rename": "^1.4.0",
-    "gulp-replace": "^1.0.0"
+    "gulp-replace": "^1.0.0",
+    "webpack": "^4.43.0"
   }
 }

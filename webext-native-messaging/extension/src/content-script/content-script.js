@@ -1,5 +1,9 @@
 'use strict';
 
+import * as util from '../common/util.js';
+import * as constants from '../common/constants.js';
+import { WebExtension } from '../common/messaging.js';
+
 
 // Whether the 'concurrent' warning is displayed
 // (to only display it only once until discarded)
@@ -24,7 +28,7 @@ async function onMessage(extension, msg, sender) {
 
 function handleMessage(extension, msg, sender) {
   switch (msg.feature) {
-    case FEATURE_TIDDLYWIKI:
+    case constants.FEATURE_TIDDLYWIKI:
       tw_onMessage(extension, msg, sender);
       break;
 
@@ -37,7 +41,7 @@ function handleMessage(extension, msg, sender) {
 // Handles TW feature message.
 function tw_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case KIND_WARN_CONCURRENT:
+    case constants.KIND_WARN_CONCURRENT:
       tw_warnConcurrent(msg);
       break;
 
@@ -63,7 +67,7 @@ function tw_warnConcurrent(msg) {
 }
 
 // Extension handler
-var extension = new WebExtension({ target: TARGET_CONTENT_SCRIPT, onMessage: onMessage });
+var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
 // We want to wait for 'document.body' to exist.
 // The simplest way is to wait for 'DOMContentLoaded' which happens when the
@@ -87,7 +91,7 @@ function startExtension() {
       ready = true;
     } catch (error) {
       displayModal('Failed to initialize TiddlyWiki handling', {
-        body: `Plugin '${EXTENSION_ID}' cannot handle TiddlyWiki saving action`,
+        body: `Plugin '${constants.EXTENSION_ID}' cannot handle TiddlyWiki saving action`,
         kind: 'error'
       });
       console.error('Failed to initialize TiddlyWiki handling: %o', error);
@@ -95,14 +99,14 @@ function startExtension() {
   }
 
   if (ready) {
-    extension.sendMessage({
-      target: TARGET_BACKGROUND_PAGE,
-      feature: FEATURE_TIDDLYWIKI,
-      kind: KIND_CHECK_NATIVE_APP
+    webext.sendMessage({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      feature: constants.FEATURE_TIDDLYWIKI,
+      kind: constants.KIND_CHECK_NATIVE_APP
     }).then(r => {
       if (r.error) {
         displayModal('Native application is not working', {
-          body: `Native application '${APPLICATION_ID}' checking returned an error:\n${formatObject(r.error)}`,
+          body: `Native application '${constants.APPLICATION_ID}' checking returned an error:\n${util.formatObject(r.error)}`,
           kind: 'error'
         });
         console.error('Native application is not working: %o', r.error);
@@ -181,10 +185,10 @@ function tw_checkConcurrent() {
   var url = new URL(document.URL);
   url.hash = '';
   url = url.href;
-  extension.sendMessage({
-    target: TARGET_BACKGROUND_PAGE,
-    feature: FEATURE_TIDDLYWIKI,
-    kind: KIND_CHECK_CONCURRENT,
+  webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    feature: constants.FEATURE_TIDDLYWIKI,
+    kind: constants.KIND_CHECK_CONCURRENT,
     url: url
   });
 }
@@ -208,24 +212,24 @@ function tw_injectMessageBox() {
     var otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
     // Note: when developing and reloading extension, we may see our previous
     // injected element, so filter us.
-    if (otherExtension && (otherExtension != EXTENSION_ID)) {
+    if (otherExtension && (otherExtension != constants.EXTENSION_ID)) {
       // We are not alone.
       displayModal('TiddlyWiki save extension already running', {
         body: `Extension '${otherExtension}' is already taking care of saving files.\n` +
-          `Thus extension '${EXTENSION_ID}' will remain disabled to prevent any issue.`,
+          `Thus extension '${constants.EXTENSION_ID}' will remain disabled to prevent any issue.`,
         kind: 'error'
       });
       return;
     } else {
       // We may be alone (not all plugins/extensions do this).
-      messageBox.setAttribute('data-message-box-creator', EXTENSION_ID);
+      messageBox.setAttribute('data-message-box-creator', constants.EXTENSION_ID);
     }
   } else {
     // Create the node ourself.
     messageBox = document.createElement('div');
     messageBox.id = 'tiddlyfox-message-box';
     messageBox.style.display = 'none';
-    messageBox.setAttribute('data-message-box-creator', EXTENSION_ID);
+    messageBox.setAttribute('data-message-box-creator', constants.EXTENSION_ID);
     document.body.appendChild(messageBox);
   }
 
@@ -237,10 +241,10 @@ function tw_injectMessageBox() {
     var content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
-    extension.sendMessage({
-      target: TARGET_BACKGROUND_PAGE,
-      feature: FEATURE_TIDDLYWIKI,
-      kind: KIND_SAVE,
+    webext.sendMessage({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      feature: constants.FEATURE_TIDDLYWIKI,
+      kind: constants.KIND_SAVE,
       path: path,
       content: content
     }).then(r => {
@@ -257,7 +261,7 @@ function tw_injectMessageBox() {
       // Saving failed
       displayModal('Could not save TiddlyWiki', {
         body: 'Failed to save file.\n' +
-          formatObject(error),
+          util.formatObject(error),
         kind: 'error'
       });
       console.error('Failed to save TiddlyWiki: %o', error);

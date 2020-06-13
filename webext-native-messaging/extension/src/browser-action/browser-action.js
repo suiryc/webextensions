@@ -1,5 +1,10 @@
 'use strict';
 
+import * as constants from '../common/constants.js';
+import * as util from '../common/util.js';
+import { waitForSettings, trackFields } from '../common/settings.js';
+import { WebExtension } from '../common/messaging.js';
+
 
 // Wait for settings to be ready, then track fields changes (to persist settings).
 waitForSettings().then(() => trackFields());
@@ -23,7 +28,7 @@ async function onMessage(extension, msg, sender) {
 
 function handleMessage(extension, msg, sender) {
   switch (msg.feature) {
-    case FEATURE_APP:
+    case constants.FEATURE_APP:
       return app_onMessage(extension, msg, sender);
       break;
 
@@ -36,11 +41,11 @@ function handleMessage(extension, msg, sender) {
 // Handles application feature message.
 function app_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case KIND_IGNORE_NEXT:
+    case constants.KIND_IGNORE_NEXT:
       return app_ignoreNext(msg);
       break;
 
-    case KIND_ADD_MESSAGE:
+    case constants.KIND_ADD_MESSAGE:
       return app_addMessage(msg);
       break;
 
@@ -65,7 +70,7 @@ function app_addMessage(msg) {
 }
 
 // Extension handler
-var extension = new WebExtension({ target: TARGET_BROWSER_ACTION, onMessage: onMessage });
+var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage: onMessage });
 
 var ignoreNextButton = document.querySelector('#ignoreNext');
 var ignoreNextText = ignoreNextButton.textContent;
@@ -90,7 +95,7 @@ function addMessage(details) {
   var level = details.level;
   var node = cloneNode(messageNode);
   var icon;
-  var message = formatApplicationMessage(details);
+  var message = util.formatApplicationMessage(details);
 
   if (level == 'error') {
     icon = cloneNode(iconExclamationTriangle);
@@ -113,30 +118,30 @@ function addMessage(details) {
 // Ignore next interception when requested.
 ignoreNextButton.addEventListener('click', () => {
   // Cancel if we are already igoring.
-  extension.sendMessage({
-    target: TARGET_BACKGROUND_PAGE,
-    feature: FEATURE_APP,
-    kind: KIND_IGNORE_NEXT,
+  webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    feature: constants.FEATURE_APP,
+    kind: constants.KIND_IGNORE_NEXT,
     ttl: ignoringNext ? 0 : undefined
   });
 });
 
 // Clear messages when requested.
 clearMessagesButton.addEventListener('click', () => {
-  extension.sendMessage({
-    target: TARGET_BACKGROUND_PAGE,
-    feature: FEATURE_APP,
-    kind: KIND_CLEAR_MESSAGES
+  webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    feature: constants.FEATURE_APP,
+    kind: constants.KIND_CLEAR_MESSAGES
   }).then(() => {
     messagesNode.classList.add('hidden');
   });
 });
 
 // Get and add application messages.
-extension.sendMessage({
-  target: TARGET_BACKGROUND_PAGE,
-  feature: FEATURE_APP,
-  kind: KIND_GET_MESSAGES
+webext.sendMessage({
+  target: constants.TARGET_BACKGROUND_PAGE,
+  feature: constants.FEATURE_APP,
+  kind: constants.KIND_GET_MESSAGES
 }).then(r => {
   if ((r === undefined) || !Array.isArray(r) || !r.length) return;
 

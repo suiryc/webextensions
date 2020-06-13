@@ -1,5 +1,10 @@
 'use strict';
 
+import * as constants from '../common/constants.js';
+import * as util from '../common/util.js';
+import { WebSocketClient } from '../common/websocket.js';
+import { browserInfo, settings } from '../common/settings.js';
+
 
 // Checks whether an URL is considered downloadable.
 // Tests the scheme for http(s).
@@ -107,7 +112,7 @@ function getCookie(url) {
   });
 }
 
-class RequestsHandler {
+export class RequestsHandler {
 
   // When requested, monitors requests and downloads to intercept.
   //
@@ -162,13 +167,15 @@ class RequestsHandler {
   //  - it would be even less problematic since such downloads are expected to
   //    complete in a short time (due to the interception minimum size)
 
-  constructor(nativeApp) {
+  constructor(webext, nativeApp, notification) {
     var self = this;
+    self.webext = webext;
     self.nativeApp = nativeApp;
+    self.notification = notification;
     self.requests = {};
     self.unintercepted = {};
     self.requestsCompleted = {};
-    self.lastJanitoring = getTimestamp();
+    self.lastJanitoring = util.getTimestamp();
     // Listen changes in interception settings to apply them.
     [settings.inner.interceptRequests, settings.inner.interceptDownloads].forEach(setting => {
       setting.addListener((setting, oldValue, newValue) => {
@@ -182,13 +189,13 @@ class RequestsHandler {
     var self = this;
 
     // Drop undefined (or null) fields.
-    cleanupFields(msg);
+    util.cleanupFields(msg);
 
     function handleError(r) {
       if (r.error) {
         var url = msg.url;
         var filename = msg.file;
-        notification(EXTENSION_ID, {
+        self.notification(constants.EXTENSION_ID, {
           title: 'Failed to download',
           level: 'error',
           message: `${getFilename(url, filename)}\n${url}`,
@@ -265,6 +272,8 @@ class RequestsHandler {
     // Add/remove listeners as requested.
     if (this.interceptRequests && !interceptingRequests) {
       if (settings.debug) console.debug('Installing webRequest interception');
+      // Note: we only need to intercept frames requests (no need for media
+      // or websocket for example).
       var webRequestFilter = { urls: ['<all_urls>'], types: ['main_frame', 'sub_frame'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,
@@ -312,7 +321,7 @@ class RequestsHandler {
 
   ignoreNext(ttl) {
     var self = this;
-    if (ttl === undefined) ttl = IGNORE_NEXT_TTL;
+    if (ttl === undefined) ttl = constants.IGNORE_NEXT_TTL;
     // Cancel if requested (non-positive TTL).
     if (ttl <= 0) {
       self.cancelIgnoreNext();
@@ -336,10 +345,10 @@ class RequestsHandler {
         return;
       }
       // Otherwise update displayed TTL and loop.
-      extension.sendMessage({
-        target: TARGET_BROWSER_ACTION,
-        feature: FEATURE_APP,
-        kind: KIND_IGNORE_NEXT,
+      self.webext.sendMessage({
+        target: constants.TARGET_BROWSER_ACTION,
+        feature: constants.FEATURE_APP,
+        kind: constants.KIND_IGNORE_NEXT,
         ttl: self.ignoringNext.ttl
       });
       self.ignoringNext.timeout = setTimeout(decrement, ttlStep);
@@ -352,10 +361,10 @@ class RequestsHandler {
     // Nothing to do it we are not ignoring.
     if (this.ignoringNext === undefined) return;
     if (this.ignoringNext.timeout !== undefined) clearTimeout(this.ignoringNext.timeout);
-    extension.sendMessage({
-      target: TARGET_BROWSER_ACTION,
-      feature: FEATURE_APP,
-      kind: KIND_IGNORE_NEXT,
+    this.webext.sendMessage({
+      target: constants.TARGET_BROWSER_ACTION,
+      feature: constants.FEATURE_APP,
+      kind: constants.KIND_IGNORE_NEXT,
       ttl: 0
     });
     delete(this.ignoringNext);
@@ -371,7 +380,7 @@ class RequestsHandler {
     if ((requestDetails === undefined) || (requestDetails === null)) return;
     var key = requestDetails.url;
     var entries = base[key] || [];
-    requestDetails.timestamp = getTimestamp();
+    requestDetails.timestamp = util.getTimestamp();
     entries.push(requestDetails);
     base[key] = entries;
   }
@@ -397,7 +406,7 @@ class RequestsHandler {
 
   cleanupUnintercepted() {
     for (var [key, unintercepted] of Object.entries(this.unintercepted)) {
-      while ((unintercepted.length > 0) && (getTimestamp() - unintercepted[0].timestamp > REQUESTS_TTL)) {
+      while ((unintercepted.length > 0) && (util.getTimestamp() - unintercepted[0].timestamp > constants.REQUESTS_TTL)) {
         console.warn('Dropping incomplete unintercepted download %o: TTL reached', unintercepted[0]);
         this.removeUnintercepted(key);
         // Note: we share the array with removeUnintercepted.
@@ -417,7 +426,7 @@ class RequestsHandler {
 
   cleanupCompletedRequests() {
     for (var [key, completed] of Object.entries(this.requestsCompleted)) {
-      while ((completed.length > 0) && (getTimestamp() - completed[0].timestamp > REQUESTS_TTL)) {
+      while ((completed.length > 0) && (util.getTimestamp() - completed[0].timestamp > constants.REQUESTS_TTL)) {
         if (settings.debug) console.debug('Dropping completed request %o: TTL reached', completed[0]);
         this.removeCompletedRequest(key);
         // Note: we share the array with removeCompletedRequest.
@@ -484,7 +493,7 @@ class RequestsHandler {
 
     var url = requestDetails.url;
     if (settings.notifyIntercept) {
-      browserNotification({
+      util.browserNotification({
         'type': 'basic',
         'title': 'Intercepted request',
         'message': `${getFilename(url, requestDetails.filename)}\n${url}`
@@ -499,8 +508,8 @@ class RequestsHandler {
       var comment = title;
       if (requestDetails.hasFilename()) comment = `${requestDetails.filename}\n${comment}`;
       return self.wsRequest({
-        feature: FEATURE_DOWNLOAD,
-        kind: KIND_SAVE,
+        feature: constants.FEATURE_DOWNLOAD,
+        kind: constants.KIND_SAVE,
         url: url,
         referrer: findHeader(requestDetails.sent.requestHeaders, 'Referer'),
         cookie: findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
@@ -622,7 +631,7 @@ class RequestsHandler {
       // cancellation. Thus if we erase it too fast, those extensions will fail
       // to detect the download has been cancelled. As a workaround, wait a bit
       // before doing so: 2s appears to be enough (1s works in most cases).
-      delayPromise(2000).then(() => {
+      util.delayPromise(2000).then(() => {
         browser.downloads.erase({id: download.id}).catch(error => {
           console.error('Failed to erase download %o: %o', download, error);
         });
@@ -646,7 +655,7 @@ class RequestsHandler {
     }).then(cookie => {
       // Finally really do manage the download.
       if (settings.notifyIntercept) {
-        browserNotification({
+        util.browserNotification({
           'type': 'basic',
           'title': 'Intercepted download',
           'message': `${download.filename}\n${download.url}`
@@ -654,8 +663,8 @@ class RequestsHandler {
       }
 
       return self.wsRequest({
-        feature: FEATURE_DOWNLOAD,
-        kind: KIND_SAVE,
+        feature: constants.FEATURE_DOWNLOAD,
+        kind: constants.KIND_SAVE,
         url: download.url,
         referrer: download.referrer,
         cookie: cookie,
@@ -678,7 +687,7 @@ class RequestsHandler {
 
     if (!canDownload(url)) {
       if (settings.notifyIntercept) {
-        browserNotification({
+        util.browserNotification({
           'type': 'basic',
           'title': 'Cannot intercept link',
           'message': url
@@ -689,7 +698,7 @@ class RequestsHandler {
 
     getCookie(url).then(cookie => {
       if (settings.notifyIntercept) {
-        browserNotification({
+        util.browserNotification({
           'type': 'basic',
           'title': 'Intercepted link',
           'message': url
@@ -705,8 +714,8 @@ class RequestsHandler {
       if ((info.linkText !== undefined) && (info.linkText !== null) && (info.linkText != url)) comment = `${comment}\n${info.linkText}`;
 
       return self.wsRequest({
-        feature: FEATURE_DOWNLOAD,
-        kind: KIND_SAVE,
+        feature: constants.FEATURE_DOWNLOAD,
+        kind: constants.KIND_SAVE,
         url: url,
         referrer: referrer,
         cookie: cookie,
@@ -717,16 +726,16 @@ class RequestsHandler {
   }
 
   janitoring() {
-    if (getTimestamp() - this.lastJanitoring <= JANITORING_PERIOD) return;
+    if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return;
     for (var request of Object.values(this.requests)) {
-      if (getTimestamp() - request.timeStamp > REQUESTS_TTL) {
+      if (util.getTimestamp() - request.timeStamp > constants.REQUESTS_TTL) {
         console.warn('Dropping incomplete request %o: TTL reached', request);
         delete(this.requests[request.requestId]);
       }
     }
     this.cleanupUnintercepted();
     this.cleanupCompletedRequests();
-    this.lastJanitoring = getTimestamp();
+    this.lastJanitoring = util.getTimestamp();
   }
 
 }

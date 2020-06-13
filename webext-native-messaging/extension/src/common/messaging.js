@@ -1,7 +1,12 @@
 'use strict';
 
+import * as util from './util.js';
+import * as constants from './constants.js';
+import { settings } from '../common/settings.js';
+
+
 // Extension messages handler.
-class WebExtension {
+export class WebExtension {
 
   constructor(params) {
     var self = this;
@@ -33,6 +38,17 @@ class WebExtension {
   }
 
   sendMessage(msg) {
+    // Notes:
+    // Sends a message to all extensions pages currently listening, except the
+    // sender and content scripts.
+    // If no page is listening (e.g. if browser action or options pages are not
+    // running right now), an error is triggered:
+    //  Could not establish connection. Receiving end does not exist.
+    // In nominal cases, to prevent this we would need to detect when pages are
+    // running and not send message if no one is listening; we could even check
+    // if any msg.target is running.
+    // But since we don't use intensivel messaging in such cases, we can do with
+    // a few log errors for now.
     return browser.runtime.sendMessage(msg);
   }
 
@@ -43,7 +59,7 @@ class WebExtension {
 }
 
 // Native application messages handler.
-class NativeApplication {
+export class NativeApplication {
 
   // Notes:
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
@@ -59,7 +75,7 @@ class NativeApplication {
     this.requests = {};
     this.fragments = {};
     this.idleId = undefined;
-    this.lastJanitoring = getTimestamp();
+    this.lastJanitoring = util.getTimestamp();
     if (handlers.onMessage === undefined) {
       throw Error('Native application client must have an onMessage handler');
     }
@@ -75,7 +91,7 @@ class NativeApplication {
     }
     this.cnx.onDisconnect.addListener(this.onDisconnect.bind(this));
     this.cnx.onMessage.addListener(this.onMessage.bind(this));
-    this.lastActivity = getTimestamp();
+    this.lastActivity = util.getTimestamp();
     this.scheduleIdleCheck();
   }
 
@@ -88,7 +104,7 @@ class NativeApplication {
   postMessage(msg) {
     this.connect();
     this.cnx.postMessage(msg);
-    this.lastActivity = getTimestamp();
+    this.lastActivity = util.getTimestamp();
   }
 
   postRequest(msg, timeout) {
@@ -96,7 +112,7 @@ class NativeApplication {
     // Get a unique - non-used - id
     var correlationId;
     do {
-      correlationId = uuidv4();
+      correlationId = util.uuidv4();
     } while(self.requests[correlationId] !== undefined);
     msg.correlationId = correlationId;
 
@@ -104,10 +120,10 @@ class NativeApplication {
     self.postMessage(msg);
 
     // Setup response handling
-    if (timeout === undefined) timeout = NATIVE_RESPONSE_TIMEOUT;
-    var promise = new Deferred().promise;
+    if (timeout === undefined) timeout = constants.NATIVE_RESPONSE_TIMEOUT;
+    var promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
-    return promiseThen(promiseOrTimeout(promise, timeout), () => {
+    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
       delete(self.requests[correlationId]);
     });
@@ -130,18 +146,18 @@ class NativeApplication {
     self.fragments = {};
     for (var promise of Object.values(self.requests)) {
       var msg = 'Native application disconnected';
-      if (error !== undefined) msg += ' with error: ' + formatObject(error);
+      if (error !== undefined) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
     self.requests = {};
     if (self.handlers.onDisconnect !== undefined) {
-      defer.then(() => self.handlers.onDisconnect(self));
+      util.defer.then(() => self.handlers.onDisconnect(self));
     }
   }
 
   onMessage(msg) {
     var self = this;
-    self.lastActivity = getTimestamp();
+    self.lastActivity = util.getTimestamp();
     if (msg.fragment !== undefined) {
       self.addFragment(msg);
     } else {
@@ -158,7 +174,7 @@ class NativeApplication {
         }
       }
       if (callback) {
-        defer.then(() => self.handlers.onMessage(self, msg));
+        util.defer.then(() => self.handlers.onMessage(self, msg));
       }
     }
     self.janitoring();
@@ -175,9 +191,9 @@ class NativeApplication {
 
     var previousFragment = this.fragments[correlationId];
     if (previousFragment === undefined) {
-      if (fragmentKind === FRAGMENT_KIND_START) {
+      if (fragmentKind === constants.FRAGMENT_KIND_START) {
         // First fragment
-        msg.msgCreationTime = getTimestamp();
+        msg.msgCreationTime = util.getTimestamp();
         this.fragments[correlationId] = msg;
       } else {
         console.warn('Dropping message %o: missing fragment start', msg);
@@ -185,7 +201,7 @@ class NativeApplication {
       return;
     }
 
-    if (fragmentKind === FRAGMENT_KIND_START) {
+    if (fragmentKind === constants.FRAGMENT_KIND_START) {
       console.warn('Dropping incomplete message %o: received new fragment start', previousFragment);
       this.fragments[correlationId] = msg;
       return;
@@ -193,8 +209,10 @@ class NativeApplication {
 
     delete(previousFragment.fragment);
     previousFragment.content = (previousFragment.content || '') + (msg.content || '');
-    previousFragment.msgCreationTime = getTimestamp();
-    if (fragmentKind !== FRAGMENT_KIND_CONT) {
+    previousFragment.msgCreationTime = util.getTimestamp();
+    if (fragmentKind !== constants.FRAGMENT_KIND_CONT) {
+      // There is no need to enforce it: we suppose we received a
+      // FRAGMENT_KIND_END fragment, which is the last fragment.
       delete(this.fragments[correlationId]);
       this.onMessage(JSON.parse(previousFragment.content));
     }
@@ -204,31 +222,31 @@ class NativeApplication {
   idleCheck() {
     this.idleId = undefined;
     // Re-schedule if idle not yet reached
-    var remaining = IDLE_TIMEOUT - (getTimestamp() - this.lastActivity);
+    var remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
     if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
     // Then get rid of old fragments if any
     if (this.fragments.length > 0) this.janitoring();
     // Re-schedule if there are pending requests/fragments
     if ((this.fragments.length > 0) || (this.requests.length > 0)) return this.scheduleIdleCheck(1000);
-    console.log('Extension %s idle timeout', EXTENSION_ID);
+    console.log('Extension %s idle timeout', constants.EXTENSION_ID);
     this.disconnect();
   }
 
   scheduleIdleCheck(delay) {
     if (this.idleId !== undefined) return;
-    if (delay === undefined) delay = IDLE_TIMEOUT + 1000;
+    if (delay === undefined) delay = constants.IDLE_TIMEOUT + 1000;
     this.idleId = setTimeout(this.idleCheck.bind(this), delay);
   }
 
   janitoring() {
-    if (getTimestamp() - this.lastJanitoring <= JANITORING_PERIOD) return;
+    if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return;
     for (var msg of Object.values(this.fragments)) {
-      if (getTimestamp() - msg.msgCreationTime > FRAGMENTS_TTL) {
+      if (util.getTimestamp() - msg.msgCreationTime > constants.FRAGMENTS_TTL) {
         console.warn('Dropping incomplete message %o: TTL reached', msg);
         delete(this.fragments[msg.correlationId]);
       }
     }
-    this.lastJanitoring = getTimestamp();
+    this.lastJanitoring = util.getTimestamp();
   }
 
 }

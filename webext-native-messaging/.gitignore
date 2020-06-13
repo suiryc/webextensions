@@ -1,5 +1,7 @@
 extension/manifest.json
-extension/src/constants.js
+extension/dist/
+extension/src/common/constants.js
 node_modules/
 web-ext-artifacts/
 package-lock.json
+yarn.lock

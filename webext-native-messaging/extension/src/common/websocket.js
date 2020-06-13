@@ -1,7 +1,10 @@
 'use strict';
 
+import * as constants from './constants.js';
+import * as util from './util.js';
 
-class WebSocketClient {
+
+export class WebSocketClient {
 
   // Notes:
   // Beware that browsers usually forbid some ports to be used.
@@ -23,7 +26,7 @@ class WebSocketClient {
 
   connect() {
     this.disconnect();
-    this.wsConnected = new Deferred();
+    this.wsConnected = new util.Deferred();
     this.ws = new WebSocket(this.url);
     this.ws.addEventListener('open', this.onOpen.bind(this));
     this.ws.addEventListener('close', this.onClose.bind(this));
@@ -57,7 +60,7 @@ class WebSocketClient {
     // Get a unique - non-used - id
     var correlationId;
     do {
-      correlationId = uuidv4();
+      correlationId = util.uuidv4();
     } while(self.requests[correlationId] !== undefined);
     msg.correlationId = correlationId;
 
@@ -65,10 +68,10 @@ class WebSocketClient {
     self.postMessage(msg);
 
     // Setup response handling
-    if (timeout === undefined) timeout = WEBSOCKET_RESPONSE_TIMEOUT;
-    var promise = new Deferred().promise;
+    if (timeout === undefined) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
+    var promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
-    return promiseThen(promiseOrTimeout(promise, timeout), () => {
+    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
       delete(self.requests[correlationId]);
     });

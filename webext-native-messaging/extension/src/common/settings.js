@@ -70,10 +70,10 @@
 // This way we can directly get/set settings value with e.g. 'settings.debug'
 // instead of 'settings.debug.value'/'settings.debug.setValue' (read/write).
 
-var browserInfo = {};
+export var browserInfo = {};
 
 // Waits for settings to be ready (initialized).
-function waitForSettings() {
+export function waitForSettings() {
   var promises = [];
   Object.keys(settings.inner).forEach(key => {
     var setting = settings.inner[key];
@@ -85,6 +85,13 @@ function waitForSettings() {
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
   if (browser.runtime.getBrowserInfo !== undefined) {
     promises.push(browser.runtime.getBrowserInfo().then(info => {
+      // Note: replacing the variable, instead of altering its content, means
+      // caller really *must* wait for us to be ready *before* getting this
+      // exported variable.
+      // Retrieving it *before* we are done gives the empty initial object.
+      // If we did replace its content instead, caller would get it empty
+      // initially and later see the altered content.
+      // Anyway all callers are supposed to 'waitForSettings'.
       browserInfo = {
         raw: info,
         version: parseInt(info.version)
@@ -95,7 +102,7 @@ function waitForSettings() {
 }
 
 // Tracks all fields.
-function trackFields() {
+export function trackFields() {
   Object.keys(settings.inner).forEach(key => {
     var setting = settings.inner[key];
     if (!(setting instanceof ExtensionSetting)) return;
@@ -270,7 +277,7 @@ class ExtensionTextSetting extends ExtensionSetting {
 }
 
 // The settings.
-var settings = new Settings().proxy;
+export var settings = new Settings().proxy;
 
 // Track value changes in storage to update corresponding settings.
 browser.storage.onChanged.addListener((changes, area) => {
@@ -283,3 +290,12 @@ browser.storage.onChanged.addListener((changes, area) => {
     setting.notifyListeners(oldValue, newValue);
   }
 });
+
+// Create settings (auto-registered).
+new ExtensionBooleanSetting('clearDownloads', true);
+new ExtensionBooleanSetting('debug', false);
+new ExtensionBooleanSetting('interceptDownloads', true);
+new ExtensionBooleanSetting('interceptRequests', true);
+new ExtensionTextSetting('interceptSize', 10 * 1024 * 1024);
+new ExtensionBooleanSetting('notifyIntercept', true);
+new ExtensionTextSetting('notifyTtl', 4000);

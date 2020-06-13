@@ -2,57 +2,12 @@
 
 // TODO: also create 'uninstall.js'
 
-const fs = require('fs');
+const fse = require('fs-extra');
 const os = require('os');
 const path = require('path');
-const { promisify } = require('util');
 const util = require('./util');
 const yargs = require('yargs');
 
-const accessAsync = promisify(fs.access);
-const chmodAsync = promisify(fs.chmod);
-const mkdirAsync = promisify(fs.mkdir);
-const writeFileAsync = promisify(fs.writeFile);
-
-
-// Creates folder hierarchy
-function mkdir_p(dir, mode) {
-  mode = mode || 0o777;
-
-  // Check (and create) folder hierarchy from root to leaf
-  function loop(dir, parts) {
-    // Leave if we are done
-    if (!parts.length) return;
-    // Check next (sub-)folder
-    dir = path.join(dir, parts.shift());
-    return accessAsync(dir, fs.constants.F_OK).catch(err => {
-      if (err.code !== 'ENOENT') {
-        // Cannot access/create folder
-        throw err;
-      }
-      // Folder does not exist: create it
-      return mkdirAsync(dir, mode).then(() => {
-        // Folder created
-        return loop(dir, parts);
-      });
-    }).then(() => {
-      // Folder is accessible
-      return loop(dir, parts);
-    });
-  }
-
-  // Test whether folder exists, and create hierarchy otherwise
-  return accessAsync(dir, fs.constants.F_OK).catch(err => {
-    if (err.code !== 'ENOENT') {
-      // Cannot access/create folder
-      throw err;
-    }
-    // Folder does not exist: create it
-    var parts = dir.split(path.sep);
-    var root = parts.shift();
-    return loop(root + path.sep, parts);
-  });
-}
 
 // Creates manifest file
 function createManifest(dir, filename, command) {
@@ -61,8 +16,8 @@ function createManifest(dir, filename, command) {
   console.log('>> Creating manifest');
   console.log('>>> File: %s', manifestPath);
   console.log('>>> Command: %s', command);
-  return mkdir_p(dir).then(() => {
-    writeFileAsync(manifestPath, `{
+  return fse.mkdirp(dir).then(() => {
+    fse.writeFile(manifestPath, `{
   "name": "${params.applicationId}",
   "description": "WebExtension native application",
   "path": "${command}",
@@ -120,9 +75,9 @@ switch (os.platform()) {
     manifestCommand = path.join(appFolder, appCommand);
     console.log(`>>> Application: ${appCommand}`);
     var appCommandContent = `#!/bin/bash\n\n${nodeCommand} app.js\n`;
-    f = writeFileAsync(appCommand, appCommandContent).then(() => {
+    f = fse.writeFile(appCommand, appCommandContent).then(() => {
       // Script needs to be executable
-      return chmodAsync(appCommand, 0o755);
+      return fse.chmod(appCommand, 0o755);
     });
     break;
 
@@ -133,7 +88,7 @@ switch (os.platform()) {
     manifestCommand = appCommand = 'run.cmd';
     console.log(`>>> Application: ${appCommand}`);
     var appCommandContent = `@echo off\r\n\r\n"${nodeCommand}" "%~dp0app.js"\r\n`;
-    f = writeFileAsync(appCommand, appCommandContent).then(() => {
+    f = fse.writeFile(appCommand, appCommandContent).then(() => {
       console.log('');
       console.log('>> Creating Firefox registry entry');
       return util.spawn('REG', ['ADD', `HKCU\\SOFTWARE\\Mozilla\\NativeMessagingHosts\\${params.applicationId}`, '/ve', '/t', 'REG_SZ', '/d', `${appFolder}\\${manifestFile}`, '/f']);
@@ -155,7 +110,7 @@ module.exports = Object.freeze({
   dlMngrPath: ${JSON.stringify(params.dlMngrPath)}
 });
 `;
-  return writeFileAsync('settings.js', settingsContent);
+  return fse.writeFile('settings.js', settingsContent);
 }).then(() => {
   return createManifest(manifestFolder, manifestFile, manifestCommand)
 }).then(() => {

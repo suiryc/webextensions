@@ -35,8 +35,8 @@
   ],
 
   "icons": {
-    "48": "src/icon.svg",
-    "96": "src/icon.svg"
+    "48": "/resources/icon.svg",
+    "96": "/resources/icon.svg"
   },
 
   // Our id, to communicate with a native application
@@ -47,27 +47,18 @@
   },
 
   "background": {
-    "scripts": [
-      "src/util.js",
-      "src/constants.js",
-      "src/settings.js",
-      "src/settings-ext.js",
-      "src/messaging.js",
-      "src/websocket.js",
-      "src/downloads.js",
-      "src/background.js"
-    ]
+    "scripts": [ "/dist/background.bundle.js" ]
   },
 
   "browser_action": {
-    "default_icon": "src/icon.svg",
-    "default_popup": "src/action.html",
+    "default_icon": "/resources/icon.svg",
+    "default_popup": "/resources/browser-action.html",
     "browser_style": true
   },
 
   // We do the same in browser action and options
   "options_ui": {
-    "page": "src/action.html",
+    "page": "/resources/browser-action.html",
     "browser_style": true
   },
 
@@ -78,14 +69,7 @@
       "file:///*.htm"
     ],
     "run_at": "document_start",
-    "js": [
-      "src/util.js",
-      "src/constants.js",
-      "src/messaging.js",
-      "src/content-script.js"
-    ],
-    "css": [
-      "src/content-script.css"
-    ]
+    "js": [ "/dist/content-script.bundle.js" ],
+    "css": [ "/resources/content-script.css" ]
   }]
 }

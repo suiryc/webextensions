@@ -1,5 +1,11 @@
 'use strict';
 
+import * as constants from '../common/constants.js';
+import * as util from '../common/util.js';
+import { waitForSettings, settings } from '../common/settings.js';
+import { WebExtension, NativeApplication } from '../common/messaging.js';
+import { RequestsHandler } from './downloads.js';
+
 
 // Logs unhandled received extension messages.
 function unhandledMessage(msg, sender) {
@@ -20,7 +26,7 @@ async function onMessage(extension, msg, sender) {
 
 function handleMessage(extension, msg, sender) {
   switch (msg.feature) {
-    case FEATURE_TIDDLYWIKI:
+    case constants.FEATURE_TIDDLYWIKI:
       if (sender.tab === undefined) {
         unhandledMessage(msg, sender);
         return;
@@ -28,7 +34,7 @@ function handleMessage(extension, msg, sender) {
       return tw_onMessage(extension, msg, sender);
       break;
 
-    case FEATURE_APP:
+    case constants.FEATURE_APP:
       return app_onMessage(extension, msg, sender);
       break;
 
@@ -41,15 +47,15 @@ function handleMessage(extension, msg, sender) {
 // Handles TW feature message.
 function tw_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case KIND_CHECK_NATIVE_APP:
+    case constants.KIND_CHECK_NATIVE_APP:
       return tw_checkNativeApp(msg);
       break;
 
-    case KIND_CHECK_CONCURRENT:
+    case constants.KIND_CHECK_CONCURRENT:
       tw_checkConcurrent(msg);
       break;
 
-    case KIND_SAVE:
+    case constants.KIND_SAVE:
       return tw_save(msg);
       break;
 
@@ -70,9 +76,9 @@ function tw_checkConcurrent(msg) {
   browser.tabs.query({url: msg.url}).then(tabs => {
     if (tabs.length > 1) {
       for (var tab of tabs) {
-        extension.sendTabMessage(tab.id, {
-          feature: FEATURE_TIDDLYWIKI,
-          kind: KIND_WARN_CONCURRENT
+        webext.sendTabMessage(tab.id, {
+          feature: constants.FEATURE_TIDDLYWIKI,
+          kind: constants.KIND_WARN_CONCURRENT
         });
       }
     }
@@ -82,21 +88,21 @@ function tw_checkConcurrent(msg) {
 // Saves TiddlyWiki document.
 function tw_save(msg) {
   // Request native application to do the saving, as WebExtensions have no right to properly do it.
-  return nativeApp.postRequest(msg, TW_SAVE_TIMEOUT);
+  return nativeApp.postRequest(msg, constants.TW_SAVE_TIMEOUT);
 }
 
 // Handles application feature message.
 function app_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case KIND_IGNORE_NEXT:
+    case constants.KIND_IGNORE_NEXT:
       return app_ignoreNext(msg);
       break;
 
-    case KIND_CLEAR_MESSAGES:
+    case constants.KIND_CLEAR_MESSAGES:
       return app_clearMessages();
       break;
 
-    case KIND_GET_MESSAGES:
+    case constants.KIND_GET_MESSAGES:
       return app_getMessages(msg);
       break;
 
@@ -131,7 +137,7 @@ function unhandledNativeMessage(app, msg) {
 // Handles received native application messages.
 function onNativeMessage(app, msg) {
   switch (msg.feature) {
-    case FEATURE_APP:
+    case constants.FEATURE_APP:
       return app_onNativeMessage(app, msg);
       break;
 
@@ -144,11 +150,11 @@ function onNativeMessage(app, msg) {
 // Handles generic application messages.
 function app_onNativeMessage(app, msg) {
   switch (msg.kind) {
-    case KIND_CONSOLE:
+    case constants.KIND_CONSOLE:
       return app_console(app, msg);
       break;
 
-    case KIND_NOTIFICATION:
+    case constants.KIND_NOTIFICATION:
       return app_notification(app, msg);
       break;
 
@@ -192,8 +198,8 @@ function notification(label, details) {
   var error = details.error;
 
   // Standard notification
-  var msg = formatApplicationMessage(details);
-  browserNotification({
+  var msg = util.formatApplicationMessage(details);
+  util.browserNotification({
     'type': 'basic',
     'title': `[${label}] ${title}`,
     'message': msg
@@ -216,10 +222,10 @@ function notification(label, details) {
 
 function addApplicationMessage(details) {
   var level = '';
-  extension.sendMessage({
-    target: TARGET_BROWSER_ACTION,
-    feature: FEATURE_APP,
-    kind: KIND_ADD_MESSAGE,
+  webext.sendMessage({
+    target: constants.TARGET_BROWSER_ACTION,
+    feature: constants.FEATURE_APP,
+    kind: constants.KIND_ADD_MESSAGE,
     details: details
   });
   applicationMessages.push(details);
@@ -241,22 +247,22 @@ function addApplicationMessage(details) {
 }
 
 
-var extension;
+var webext;
 var requestsHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings().then(() => {
   // Extension handler
-  extension = new WebExtension({ target: TARGET_BACKGROUND_PAGE, onMessage: onMessage });
+  webext = new WebExtension({ target: constants.TARGET_BACKGROUND_PAGE, onMessage: onMessage });
   // Native application handler
-  nativeApp = new NativeApplication(APPLICATION_ID, { onMessage: onNativeMessage });
+  nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });
 
   // Start native application and request its specs
   nativeApp.connect();
   console.info('Native application %s starting', nativeApp.appId);
   nativeApp.postRequest({
-    feature: FEATURE_APP,
-    kind: KIND_SPECS
+    feature: constants.FEATURE_APP,
+    kind: constants.KIND_SPECS
   }).then(specs => {
     console.log('Native application %s started: %o', nativeApp.appId, specs);
   }).catch(err => {
@@ -265,7 +271,7 @@ waitForSettings().then(() => {
 
 
   // Listen to requests and downloads
-  requestsHandler = new RequestsHandler(nativeApp);
+  requestsHandler = new RequestsHandler(webext, nativeApp, notification);
 
   // Add context menu entry to download links (and video/audio elements).
   // Restrict to links that apparently point to sites.
@@ -273,7 +279,7 @@ waitForSettings().then(() => {
   browser.contextMenus.create({
     id: 'dl-mngr',
     title: 'dl-mngr',
-    icons: { '16': 'src/icon.svg' },
+    icons: { '16': '/resources/icon.svg' },
     contexts: ['link', 'video', 'audio'],
     targetUrlPatterns: ['*://*/*'],
     onclick: requestsHandler.manageClick.bind(requestsHandler)
