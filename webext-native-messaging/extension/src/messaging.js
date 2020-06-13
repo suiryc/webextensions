@@ -207,7 +207,7 @@ class NativeApplication {
     var remaining = IDLE_TIMEOUT - (getTimestamp() - this.lastActivity);
     if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
     // Then get rid of old fragments if any
-    if (this.fragments.length > 0) janitoring();
+    if (this.fragments.length > 0) this.janitoring();
     // Re-schedule if there are pending requests/fragments
     if ((this.fragments.length > 0) || (this.requests.length > 0)) return this.scheduleIdleCheck(1000);
     console.log('Extension %s idle timeout', EXTENSION_ID);
