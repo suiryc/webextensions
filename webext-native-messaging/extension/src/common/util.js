@@ -132,6 +132,12 @@ export function htmlToElement(html) {
   return template.firstChild;
 }
 
+export function htmlToText(html) {
+  var template = document.createElement('template');
+  setHtml(template, html);
+  return template.textContent;
+}
+
 // Displays a browser notification and hide it after TTL (milliseconds).
 export function browserNotification(notification, ttl) {
   var id = uuidv4();

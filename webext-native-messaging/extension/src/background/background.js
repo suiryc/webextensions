@@ -193,8 +193,8 @@ function app_notification(app, msg) {
 function notification(label, details) {
   if (details.level == 'warning') details.level = 'warn';
   var level = details.level || 'info';
-  var title = details.title;
-  var message = details.message;
+  var title = util.htmlToText(details.title);
+  var message = util.htmlToText(details.message);
   var error = details.error;
 
   // Standard notification
@@ -202,7 +202,7 @@ function notification(label, details) {
   util.browserNotification({
     'type': 'basic',
     'title': `[${label}] ${title}`,
-    'message': msg
+    'message': util.htmlToText(msg)
   }, settings.notifyTtl);
 
   addApplicationMessage(details);
