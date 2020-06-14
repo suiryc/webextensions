@@ -240,7 +240,10 @@ class ExtensionSetting {
   trackField() {
     var self = this;
     self.field = document.getElementById(self.key);
+    if (self.field === null) self.field = undefined;
+    if (self.field === undefined) return false;
     self.updateField();
+    return true;
   }
 
   // Initializes the setting value.
@@ -284,7 +287,7 @@ class ExtensionBooleanSetting extends ExtensionSetting {
 
   trackField() {
     var self = this;
-    super.trackField();
+    if (!super.trackField()) return;
     self.field.addEventListener('click', () => {
       self.setValue(self.field.checked);
     });
@@ -306,7 +309,7 @@ class ExtensionTextSetting extends ExtensionSetting {
 
   trackField() {
     var self = this;
-    super.trackField();
+    if (!super.trackField()) return;
     self.field.addEventListener('change', () => {
       self.setValue(self.field.value);
     });
