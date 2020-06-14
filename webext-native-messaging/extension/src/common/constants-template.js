@@ -64,6 +64,7 @@ export const constants = {
   KIND_CHECK_NATIVE_APP: 'checkNativeApp',
   KIND_CLEAR_MESSAGES: 'clearMessages',
   KIND_CONSOLE: 'console',
+  KIND_ECHO: 'echo',
   KIND_GET_MESSAGES: 'getMessages',
   KIND_IGNORE_NEXT: 'ignoreNext',
   KIND_NOTIFICATION: 'notification',

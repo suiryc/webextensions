@@ -106,6 +106,10 @@ function app_onMessage(extension, msg, sender) {
       return app_getMessages(msg);
       break;
 
+    case constants.KIND_ECHO:
+      return app_echo(msg, sender);
+      break;
+
     default:
       unhandledMessage(msg, sender);
       break;
@@ -127,6 +131,14 @@ function app_clearMessages() {
 // Gets application messages to display.
 function app_getMessages(msg) {
   return applicationMessages;
+}
+
+// Replies with original message and sender.
+function app_echo(msg, sender) {
+  return {
+    msg: msg,
+    sender: sender
+  };
 }
 
 // Logs unhandled received native application messages.
