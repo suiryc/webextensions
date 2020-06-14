@@ -54,7 +54,7 @@
 //  - 'v2' upon user change 2
 //  - ...
 //  - 'v1' when storage notifies us from change 1
-//  - 'v2' when storage notified us from change 2
+//  - 'v2' when storage notifies us from change 2
 // While not efficient, the final value is the correct one, and we don't expect
 // this to happen too often if at all. And if it happens we don't expect the
 // many value changes (until last) to have a too negative impact.
@@ -72,12 +72,19 @@
 
 export var browserInfo = {};
 
+// Loops over declared settings, passing each one to given callback.
+function forSettings(cb) {
+  Object.keys(settings.inner.perKey).forEach(key => {
+    var setting = settings.inner.perKey[key];
+    if (!(setting instanceof ExtensionSetting)) return;
+    cb(setting);
+  });
+}
+
 // Waits for settings to be ready (initialized).
 export function waitForSettings() {
   var promises = [];
-  Object.keys(settings.inner).forEach(key => {
-    var setting = settings.inner[key];
-    if (!(setting instanceof ExtensionSetting)) return;
+  forSettings(setting => {
     promises.push(setting.initValue());
   });
   // Knowing the browser is sometimes useful/necessary.
@@ -103,9 +110,7 @@ export function waitForSettings() {
 
 // Tracks all fields.
 export function trackFields() {
-  Object.keys(settings.inner).forEach(key => {
-    var setting = settings.inner[key];
-    if (!(setting instanceof ExtensionSetting)) return;
+  forSettings(setting => {
     setting.trackField();
   });
 }
@@ -121,6 +126,12 @@ class Settings {
   }
 
   proxy_get(target, property) {
+    // When accessing the special 'inner' property, point to the original
+    // object (the Settings instance). This lets us access the object itself
+    // by-passing the Proxy.
+    // As such internally we can directly deal with ExtensionSetting instances
+    // stored inside Settings, while externally the Proxy does hide those
+    // instances to give access to virtual primitive fields.
     if (property === 'inner') return target;
     var field = target[property];
     if (field instanceof ExtensionSetting) return field.value;
@@ -150,8 +161,35 @@ class ExtensionSetting {
     this.key = key;
     this.value = value;
     this.listeners = [];
+
+    // Remember the setting by its full key.
+    // This makes it easier when we only need to read the setting knowing its
+    // key (HTML field value tracking), or to get all known settings (to e.g.
+    // loop over them).
+    if (settings.inner.perKey === undefined) settings.inner.perKey = {};
+    settings.inner.perKey[key] = this;
+
     // Automatically register ourself as a setting.
-    settings.inner[key] = this;
+    // Handle subfields recursively.
+    var target = settings.inner;
+    var keys = key.split('.');
+    while (keys.length > 0) {
+      var leaf = keys.shift();
+      if (keys.length > 0) {
+        // We will need to access another subfield.
+        // Belt and suspenders: ensure we did not accidentally assigned a
+        // setting to the subfield itself.
+        if (target[leaf] instanceof ExtensionSetting) {
+          throw Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
+        }
+        // Recursively create a Settings Proxy for subfield if needed.
+        if (target[leaf] === undefined) target[leaf] = new Settings().proxy;
+        target = target[leaf].inner;
+      } else {
+        // Reached leaf: assign us.
+        target[leaf] = this;
+      }
+    }
   }
 
   addListener(listener) {
@@ -283,7 +321,7 @@ export var settings = new Settings().proxy;
 browser.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   for (var key of Object.keys(changes)) {
-    var setting = settings.inner[key];
+    var setting = settings.inner.perKey[key];
     if (!(setting instanceof ExtensionSetting)) return;
     var {oldValue, newValue} = changes[key];
     setting.setValue(newValue, true);
