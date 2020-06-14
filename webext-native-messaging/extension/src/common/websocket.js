@@ -1,6 +1,6 @@
 'use strict';
 
-import * as constants from './constants.js';
+import { constants } from './constants.js';
 import * as util from './util.js';
 
 

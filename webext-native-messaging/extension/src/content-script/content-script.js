@@ -1,7 +1,7 @@
 'use strict';
 
+import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
-import * as constants from '../common/constants.js';
 import { WebExtension } from '../common/messaging.js';
 
 

@@ -1,7 +1,7 @@
 'use strict';
 
+import { constants } from './constants.js';
 import * as util from './util.js';
-import * as constants from './constants.js';
 import { settings } from '../common/settings.js';
 
 
