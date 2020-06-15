@@ -33,15 +33,19 @@
     </div>
     <div class="panel-section-separator"></div>
     <div class="panel-section-formElements">
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="debug"><label for="debug">Debug</label></input></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptRequests"><label for="interceptRequests">Intercept requests</label></input></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptDownloads"><label for="interceptDownloads">Intercept downloads</label></input></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="clearDownloads"><label for="clearDownloads">Clear downloads</label></input></div>
+      <div class="browser-style panel-formElements-item">
+        <span>Debug: </span>
+        <input type="checkbox" id="debug.misc"><label for="debug.misc">Misc</label>
+        <input type="checkbox" id="debug.downloads"><label for="debug.downloads">Requests</label>
+      </div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptRequests"><label for="interceptRequests">Intercept requests</label></div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptDownloads"><label for="interceptDownloads">Intercept downloads</label></div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="clearDownloads"><label for="clearDownloads">Clear downloads</label></div>
       <div class="browser-style panel-formElements-item"><label for="interceptSize">Intercept minimum size:</label><br><input type="text" id="interceptSize"/></div>
     </div>
     <div class="panel-section-separator"></div>
     <div class="panel-section-formElements">
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="notifyIntercept"><label for="notifyIntercept">Interception notification</label></input></div>
+      <div class="browser-style panel-formElements-item"><input type="checkbox" id="notifyIntercept"><label for="notifyIntercept">Interception notification</label></div>
       <div class="browser-style panel-formElements-item"><label for="notifyTtl">Notification TTL:</label><br><input type="text" id="notifyTtl"/></div>
     </div>
   </div>

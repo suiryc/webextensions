@@ -271,7 +271,7 @@ export class RequestsHandler {
     var interceptingDownloads = browser.downloads.onCreated.hasListener(this.listeners.onDownload);
     // Add/remove listeners as requested.
     if (this.interceptRequests && !interceptingRequests) {
-      if (settings.debug) console.debug('Installing webRequest interception');
+      if (settings.debug.downloads) console.debug('Installing webRequest interception');
       // Note: we only need to intercept frames requests (no need for media
       // or websocket for example).
       var webRequestFilter = { urls: ['<all_urls>'], types: ['main_frame', 'sub_frame'] };
@@ -294,7 +294,7 @@ export class RequestsHandler {
         webRequestFilter
       );
     } else if (!this.interceptRequests && interceptingRequests) {
-      if (settings.debug) console.debug('Uninstalling webRequest interception');
+      if (settings.debug.downloads) console.debug('Uninstalling webRequest interception');
       browser.webRequest.onSendHeaders.removeListener(this.listeners.onRequest);
       browser.webRequest.onHeadersReceived.removeListener(this.listeners.onResponse);
       browser.webRequest.onCompleted.removeListener(this.listeners.onRequestCompleted);
@@ -308,10 +308,10 @@ export class RequestsHandler {
     }
 
     if (this.interceptDownloads && !interceptingDownloads) {
-      if (settings.debug) console.debug('Installing downloads interception');
+      if (settings.debug.downloads) console.debug('Installing downloads interception');
       browser.downloads.onCreated.addListener(this.listeners.onDownload);
     } else if (!this.interceptDownloads && interceptingDownloads) {
-      if (settings.debug) console.debug('Uninstalling downloads interception');
+      if (settings.debug.downloads) console.debug('Uninstalling downloads interception');
       browser.downloads.onCreated.removeListener(this.listeners.onDownload);
     }
     if (!this.interceptDownloads) {
@@ -427,7 +427,7 @@ export class RequestsHandler {
   cleanupCompletedRequests() {
     for (var [key, completed] of Object.entries(this.requestsCompleted)) {
       while ((completed.length > 0) && (util.getTimestamp() - completed[0].timestamp > constants.REQUESTS_TTL)) {
-        if (settings.debug) console.debug('Dropping completed request %o: TTL reached', completed[0]);
+        if (settings.debug.downloads) console.debug('Dropping completed request %o: TTL reached', completed[0]);
         this.removeCompletedRequest(key);
         // Note: we share the array with removeCompletedRequest.
       }
@@ -484,7 +484,7 @@ export class RequestsHandler {
       reason = `ignoring (initial interception reason: ${reason})`;
     }
     if (!intercept) {
-      if (settings.debug) console.debug('Not intercepting request %o: %s', requestDetails, reason);
+      if (settings.debug.downloads) console.debug('Not intercepting request %o: %s', requestDetails, reason);
       if (requestDetails.remember) self.addUnintercepted(requestDetails);
       return {};
     }
@@ -607,7 +607,7 @@ export class RequestsHandler {
       reason = `ignoring (initial interception reason: ${reason})`;
     }
     if (!intercept) {
-      if (settings.debug) console.debug('Not intercepting download %o: %s', download, reason);
+      if (settings.debug.downloads) console.debug('Not intercepting download %o: %s', download, reason);
       return;
     }
     console.info('Intercepting download %o', download);

@@ -70,52 +70,20 @@
 // This way we can directly get/set settings value with e.g. 'settings.debug'
 // instead of 'settings.debug.value'/'settings.debug.setValue' (read/write).
 
-export var browserInfo = {};
+function getStorageValue(key, value) {
+  if (key === undefined) key = null;
+  if (key === null) return browser.storage.local.get(null);
 
-// Loops over declared settings, passing each one to given callback.
-function forSettings(cb) {
-  Object.keys(settings.inner.perKey).forEach(key => {
-    var setting = settings.inner.perKey[key];
-    if (!(setting instanceof ExtensionSetting)) return;
-    cb(setting);
+  var keys = {};
+  keys[key] = value;
+  return browser.storage.local.get(keys).then(v => {
+    return v[key];
+  }).catch(() => {
+    return value;
   });
 }
 
-// Waits for settings to be ready (initialized).
-export function waitForSettings() {
-  var promises = [];
-  forSettings(setting => {
-    promises.push(setting.initValue());
-  });
-  // Knowing the browser is sometimes useful/necessary.
-  // browser.runtime.getBrowserInfo exists in Firefox >= 51
-  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
-  if (browser.runtime.getBrowserInfo !== undefined) {
-    promises.push(browser.runtime.getBrowserInfo().then(info => {
-      // Note: replacing the variable, instead of altering its content, means
-      // caller really *must* wait for us to be ready *before* getting this
-      // exported variable.
-      // Retrieving it *before* we are done gives the empty initial object.
-      // If we did replace its content instead, caller would get it empty
-      // initially and later see the altered content.
-      // Anyway all callers are supposed to 'waitForSettings'.
-      browserInfo = {
-        raw: info,
-        version: parseInt(info.version)
-      };
-    }));
-  }
-  return Promise.all(promises);
-}
-
-// Tracks all fields.
-export function trackFields() {
-  forSettings(setting => {
-    setting.trackField();
-  });
-}
-
-class Settings {
+class SettingsBranch {
 
   constructor() {
     var handler = {
@@ -127,11 +95,10 @@ class Settings {
 
   proxy_get(target, property) {
     // When accessing the special 'inner' property, point to the original
-    // object (the Settings instance). This lets us access the object itself
-    // by-passing the Proxy.
+    // object. This lets us access the object itself by-passing the Proxy.
     // As such internally we can directly deal with ExtensionSetting instances
-    // stored inside Settings, while externally the Proxy does hide those
-    // instances to give access to virtual primitive fields.
+    // while externally the Proxy does hide those instances to give access to
+    // virtual primitive fields.
     if (property === 'inner') return target;
     var field = target[property];
     if (field instanceof ExtensionSetting) return field.value;
@@ -148,6 +115,78 @@ class Settings {
     }
     target[property] = value;
     return true;
+  }
+
+}
+
+class Settings extends SettingsBranch {
+
+  constructor() {
+    super();
+    // The latest settings version.
+    this.latestSettingsVersion = 1;
+  }
+
+  registerSettings() {
+    // Create settings (auto-registered).
+    new ExtensionIntSetting('settingsVersion', 0);
+    new ExtensionBooleanSetting('clearDownloads', true);
+    new ExtensionBooleanSetting('debug.misc', false);
+    new ExtensionBooleanSetting('debug.downloads', false);
+    new ExtensionBooleanSetting('interceptDownloads', true);
+    new ExtensionBooleanSetting('interceptRequests', true);
+    new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
+    new ExtensionBooleanSetting('notifyIntercept', true);
+    new ExtensionIntSetting('notifyTtl', 4000);
+
+    return this;
+  }
+
+  async migrate_v1() {
+    var debug = await getStorageValue('debug');
+    if (debug !== undefined) {
+      settings.debug.misc = debug;
+      settings.debug.downloads = debug;
+    }
+    // else: default value
+    await browser.storage.local.remove('debug');
+  }
+
+  async migrate() {
+    var setting = this.settingsVersion;
+    var settingsVersion = await setting.initValue();
+
+    // Only migrate if necessary.
+    if (settingsVersion == this.latestSettingsVersion) return;
+
+    if (settingsVersion === 0) {
+      // We need to distinguish two cases (v0 being the default value when
+      // version is not stored):
+      //  - we actually come from v0: we wish to migrate
+      //  - we just installed the extension: there is nothing to migrate
+      // So we check whether settings are present: if there are none then we
+      // assume the extension was just installed and we only need to save the
+      // current version. At worst no setting was ever changed in which case we
+      // use default values anyway.
+      if (Object.keys(await getStorageValue()).length == 0) {
+        // Assume extension was just installed.
+        console.log(`Initiate settings at version=<${this.latestSettingsVersion}>`);
+        await setting.setValue(this.latestSettingsVersion);
+        return;
+      }
+      // else: there were previous settings, we wish to migrate.
+    }
+
+    for (var version=settingsVersion+1; version<=this.latestSettingsVersion; version++) {
+      console.log(`Migrate settings from version=<${version-1}> to next version`);
+      try {
+        await this[`migrate_v${version}`]();
+      } catch (error) {
+        console.log(`Failed to migrate settings to version=<${version}>:`, error);
+        break;
+      }
+      await setting.setValue(version);
+    }
   }
 
 }
@@ -183,7 +222,7 @@ class ExtensionSetting {
           throw Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
         }
         // Recursively create a Settings Proxy for subfield if needed.
-        if (target[leaf] === undefined) target[leaf] = new Settings().proxy;
+        if (target[leaf] === undefined) target[leaf] = new SettingsBranch().proxy;
         target = target[leaf].inner;
       } else {
         // Reached leaf: assign us.
@@ -210,7 +249,7 @@ class ExtensionSetting {
 
   // Changes the setting value.
   // Also refreshes any associated field and persists value.
-  setValue(v, updated) {
+  async setValue(v, updated) {
     var self = this;
     var oldValue = self.value;
     // Nothing to do if value is not changed.
@@ -221,7 +260,7 @@ class ExtensionSetting {
     if (self.field !== undefined) self.updateField();
     if (!updated) {
       // Persist new value.
-      self.persistValue();
+      await self.persistValue();
     }
     // else value change comes from the storage, so don't persist it: it is
     // unnecessary (the storage already has this value), and may trigger an
@@ -248,20 +287,14 @@ class ExtensionSetting {
 
   // Initializes the setting value.
   // To be called first before doing anything with the setting.
-  initValue() {
+  async initValue() {
     var self = this;
-    var keys = {};
-    keys[self.key] = self.value;
-    return browser.storage.local.get(keys).then(v => {
-      // Special case: callers are expected to wait for settings to be ready
-      // before doing anything. And initializing the value is part of this. So
-      // we don't 'setValue' since it triggers saving to the storage from which
-      // we just retrieved the value.
-      self.value = v[self.key];
-      return self.value;
-    }).catch(() => {
-      return self.value;
-    });
+    // Beware not to 'setValue': callers are expected to wait for settings to be
+    // ready before doing anything. And initializing the value is part of this.
+    // 'setValue' triggers saving to the storage from which we just retrieved
+    // the value.
+    self.value = await getStorageValue(self.key, self.value);
+    return self.value;
   }
 
   // Persists the setting value.
@@ -295,9 +328,8 @@ class ExtensionBooleanSetting extends ExtensionSetting {
 
 }
 
-// Manages a text setting.
-// Actual value can be an integer.
-class ExtensionTextSetting extends ExtensionSetting {
+// Manages an int setting.
+class ExtensionIntSetting extends ExtensionSetting {
 
   constructor(key, value) {
     super(key, value);
@@ -311,7 +343,7 @@ class ExtensionTextSetting extends ExtensionSetting {
     var self = this;
     if (!super.trackField()) return;
     self.field.addEventListener('change', () => {
-      self.setValue(self.field.value);
+      self.setValue(parseInt(self.field.value));
     });
   }
 
@@ -319,6 +351,58 @@ class ExtensionTextSetting extends ExtensionSetting {
 
 // The settings.
 export var settings = new Settings().proxy;
+settings.registerSettings();
+
+export var browserInfo = {};
+
+// Loops over declared settings, passing each one to given callback.
+function forSettings(cb) {
+  Object.keys(settings.inner.perKey).forEach(key => {
+    var setting = settings.inner.perKey[key];
+    if (!(setting instanceof ExtensionSetting)) return;
+    cb(setting);
+  });
+}
+
+// Waits for settings to be ready (initialized).
+// Only one caller (the background script) is expected to ask for migration.
+// Other listeners will get notified of storage changes if any.
+export async function waitForSettings(migrate) {
+  // First migrate settings if necessary.
+  if (migrate) await settings.migrate();
+
+  var promises = [];
+  forSettings(setting => {
+    promises.push(setting.initValue());
+  });
+  // Knowing the browser is sometimes useful/necessary.
+  // browser.runtime.getBrowserInfo exists in Firefox >= 51
+  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
+  if (browser.runtime.getBrowserInfo !== undefined) {
+    promises.push(browser.runtime.getBrowserInfo().then(info => {
+      // Note: replacing the variable, instead of altering its content, means
+      // caller really *must* wait for us to be ready *before* getting this
+      // exported variable.
+      // Retrieving it *before* we are done gives the empty initial object.
+      // If we did replace its content instead, caller would get it empty
+      // initially and later see the altered content.
+      // Anyway all callers are supposed to 'waitForSettings'.
+      browserInfo = {
+        raw: info,
+        version: parseInt(info.version)
+      };
+    }));
+  }
+  await Promise.all(promises);
+  return;
+}
+
+// Tracks all fields.
+export function trackFields() {
+  forSettings(setting => {
+    setting.trackField();
+  });
+}
 
 // Track value changes in storage to update corresponding settings.
 browser.storage.onChanged.addListener((changes, area) => {
@@ -331,12 +415,3 @@ browser.storage.onChanged.addListener((changes, area) => {
     setting.notifyListeners(oldValue, newValue);
   }
 });
-
-// Create settings (auto-registered).
-new ExtensionBooleanSetting('clearDownloads', true);
-new ExtensionBooleanSetting('debug', false);
-new ExtensionBooleanSetting('interceptDownloads', true);
-new ExtensionBooleanSetting('interceptRequests', true);
-new ExtensionTextSetting('interceptSize', 10 * 1024 * 1024);
-new ExtensionBooleanSetting('notifyIntercept', true);
-new ExtensionTextSetting('notifyTtl', 4000);

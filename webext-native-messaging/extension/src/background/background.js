@@ -263,7 +263,7 @@ var webext;
 var requestsHandler;
 var nativeApp;
 var applicationMessages = [];
-waitForSettings().then(() => {
+waitForSettings(true).then(() => {
   // Extension handler
   webext = new WebExtension({ target: constants.TARGET_BACKGROUND_PAGE, onMessage: onMessage });
   // Native application handler
