@@ -13,21 +13,6 @@ var app = new nativeMessaging.NativeApplication(onMessage);
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.
 async function onMessage(app, msg) {
-  try {
-    return handleMessage(app, msg);
-  } catch (error) {
-    console.error('Could not handle message %o: %o', msg, error);
-    // Propagate error to client if this was a request.
-    if (msg.correlationId !== undefined) return {error: error};
-  }
-}
-
-function unhandledMessage(msg) {
-  console.warn('Received unhandled message feature=<%s> kind=<%s> contentSize=%d',
-    msg.feature, msg.kind, msg.content === undefined ? 0 : msg.content.length)
-}
-
-function handleMessage(app, msg) {
   switch (msg.feature) {
     case constants.FEATURE_APP:
       return app_onMessage(app, msg);
@@ -45,7 +30,7 @@ function handleMessage(app, msg) {
       // Special case: empty message is a PING.
       var props = Object.getOwnPropertyNames(msg);
       if ((props.length == 1) && msg.hasOwnProperty('correlationId')) return {};
-      else unhandledMessage(msg);
+      else return unhandledMessage(msg);
       break;
   }
 }
@@ -58,15 +43,23 @@ function app_onMessage(app, msg) {
       break;
 
     default:
-      unhandledMessage(msg);
+      return unhandledMessage(msg);
       break;
   }
 }
 
+// Logs unhandled messages received.
+function unhandledMessage(msg) {
+  console.warn('Received unhandled message feature=<%s> kind=<%s> contentSize=%d',
+    msg.feature, msg.kind, msg.content === undefined ? 0 : msg.content.length)
+  return {
+    error: 'Message is not handled by native application',
+    message: msg
+  };
+}
+
 function app_specs(app, msg) {
   return {
-    feature: constants.FEATURE_APP,
-    kind: constants.KIND_SPECS,
     //version: config.version,
     env: process.env,
     release: process.release,
@@ -86,7 +79,7 @@ function dl_onMessage(app, msg) {
       break;
 
     default:
-      unhandledMessage(msg);
+      return unhandledMessage(msg);
       break;
   }
 }
@@ -164,9 +157,7 @@ function dl_save(app, msg) {
     if (details.code === null) delete details.code;
     if (details.code === undefined) details.code = 0;
     if (details.signal === null) delete details.signal;
-    var response = {
-      kind: constants.KIND_RESPONSE
-    };
+    var response = { };
     // We consider the action failed if either:
     //  - the application wrote on stderr: (belt and suspenders) we actually
     //    only expect this to happen with a non-0 return code
@@ -213,7 +204,7 @@ function tw_onMessage(app, msg) {
       break;
 
     default:
-      unhandledMessage(msg);
+      return unhandledMessage(msg);
       break;
   }
 }
@@ -222,9 +213,7 @@ function tw_save(app, msg) {
   var deferred = new util.Deferred();
 
   fs.writeFile(msg.path, msg.content, err => {
-    var response = {
-      kind: constants.KIND_RESPONSE
-    };
+    var response = { };
     if (err) response.error = err;
     deferred.resolve(response);
   });

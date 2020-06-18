@@ -101,12 +101,15 @@ export class NativeApplication {
     this.cnx = undefined;
   }
 
+  // Posts message without needing to get the reply.
+  // Takes care of (re)connecting if needed.
   postMessage(msg) {
     this.connect();
     this.cnx.postMessage(msg);
     this.lastActivity = util.getTimestamp();
   }
 
+  // Posts request and return reply through Promise.
   postRequest(msg, timeout) {
     var self = this;
     // Get a unique - non-used - id
@@ -169,7 +172,12 @@ export class NativeApplication {
           // Note: request will be automatically removed upon resolving the
           // associated promise.
           delete(msg.correlationId);
-          promise.resolve(msg);
+          // We either expect a reply in the 'reply' field, or an error in the
+          // 'error' field. For simplicity, we don't transform an error into a
+          // failed Promise, but let caller check whether this in an error
+          // through the field.
+          if (msg.reply !== undefined) promise.resolve(msg.reply);
+          else promise.resolve(msg);
           callback = false;
         }
       }

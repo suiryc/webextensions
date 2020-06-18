@@ -220,20 +220,23 @@ class NativeHandler extends stream.Writable {
 
   _write(msg, encoding, done) {
     var self = this;
-    var r = self.handler(self.app, msg);
-    if (r instanceof Promise) {
-      var response = {
-        feature: msg.feature,
-        kind: msg.kind,
-        correlationId: msg.correlationId
-      };
-      r.then(v => {
-        if (typeof(v) !== 'object') return;
-        self.app.postMessage(Object.assign(response, v));
-      }).catch(error => {
-        self.app.postMessage(Object.assign(response, {error: error}));
-      });
+    var r;
+    // Enforce Promise, so that we handle both synchronous/asynchronous reply.
+    try {
+      r = Promise.resolve(self.handler(self.app, msg));
+    } catch (error) {
+      r = Promise.reject(error);
     }
+    // Don't handle reply if caller don't expect it.
+    if (msg.correlationId === undefined) return;
+    // Embed reply in 'reply' field, or error in 'error' field.
+    r.then(v => {
+      self.app.postMessage({reply: v, correlationId: msg.correlationId});
+    }).catch(error => {
+      console.error('Could not handle message %o: %o', msg, error);
+      // Format object: pure Errors are empty when sent.
+      self.app.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
+    });
     done();
   }
 

@@ -9,7 +9,6 @@ module.exports = Object.freeze({
 
   KIND_CONSOLE: 'console',
   KIND_NOTIFICATION: 'notification',
-  KIND_RESPONSE: 'response',
   KIND_SAVE: 'save',
   KIND_SPECS: 'specs'
 });
