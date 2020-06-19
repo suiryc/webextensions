@@ -25,38 +25,38 @@ async function onMessage(extension, msg, sender) {
 }
 
 function handleMessage(extension, msg, sender) {
-  switch (msg.feature) {
-    case constants.FEATURE_TIDDLYWIKI:
+  switch (msg.kind) {
+    case constants.KIND_CHECK_NATIVE_APP:
+      return ext_checkNativeApp(msg);
+      break;
+
+    case constants.KIND_TW_CHECK_CONCURRENT:
+      tw_checkConcurrent(msg);
+      break;
+
+    case constants.KIND_TW_SAVE:
+      // Protection: we really do expect this message to come from a tab.
       if (sender.tab === undefined) {
         unhandledMessage(msg, sender);
         return;
       }
-      return tw_onMessage(extension, msg, sender);
-      break;
-
-    case constants.FEATURE_APP:
-      return app_onMessage(extension, msg, sender);
-      break;
-
-    default:
-      unhandledMessage(msg, sender);
-      break;
-  }
-}
-
-// Handles TW feature message.
-function tw_onMessage(extension, msg, sender) {
-  switch (msg.kind) {
-    case constants.KIND_CHECK_NATIVE_APP:
-      return tw_checkNativeApp(msg);
-      break;
-
-    case constants.KIND_CHECK_CONCURRENT:
-      tw_checkConcurrent(msg);
-      break;
-
-    case constants.KIND_SAVE:
       return tw_save(msg);
+      break;
+
+    case constants.KIND_DL_IGNORE_NEXT:
+      return dl_ignoreNext(msg);
+      break;
+
+    case constants.KIND_CLEAR_MESSAGES:
+      return ext_clearMessages();
+      break;
+
+    case constants.KIND_GET_EXT_MESSAGES:
+      return ext_getMessages(msg);
+      break;
+
+    case constants.KIND_ECHO:
+      return ext_echo(msg, sender);
       break;
 
     default:
@@ -66,7 +66,7 @@ function tw_onMessage(extension, msg, sender) {
 }
 
 // Checks whether native application is ok.
-function tw_checkNativeApp(msg) {
+function ext_checkNativeApp(msg) {
   return nativeApp.postRequest({});
 }
 
@@ -77,8 +77,7 @@ function tw_checkConcurrent(msg) {
     if (tabs.length > 1) {
       for (var tab of tabs) {
         webext.sendTabMessage(tab.id, {
-          feature: constants.FEATURE_TIDDLYWIKI,
-          kind: constants.KIND_WARN_CONCURRENT
+          kind: constants.KIND_TW_WARN_CONCURRENT
         });
       }
     }
@@ -91,50 +90,25 @@ function tw_save(msg) {
   return nativeApp.postRequest(msg, constants.TW_SAVE_TIMEOUT);
 }
 
-// Handles application feature message.
-function app_onMessage(extension, msg, sender) {
-  switch (msg.kind) {
-    case constants.KIND_IGNORE_NEXT:
-      return app_ignoreNext(msg);
-      break;
-
-    case constants.KIND_CLEAR_MESSAGES:
-      return app_clearMessages();
-      break;
-
-    case constants.KIND_GET_MESSAGES:
-      return app_getMessages(msg);
-      break;
-
-    case constants.KIND_ECHO:
-      return app_echo(msg, sender);
-      break;
-
-    default:
-      unhandledMessage(msg, sender);
-      break;
-  }
-}
-
 // Ignore next interception.
-function app_ignoreNext(msg) {
+function dl_ignoreNext(msg) {
   requestsHandler.ignoreNext(msg.ttl);
 }
 
 // Clears application messages.
-function app_clearMessages() {
+function ext_clearMessages() {
   applicationMessages = [];
   browser.browserAction.setBadgeText({text: null});
   browser.browserAction.setBadgeBackgroundColor({color: null});
 }
 
 // Gets application messages to display.
-function app_getMessages(msg) {
+function ext_getMessages(msg) {
   return applicationMessages;
 }
 
 // Replies with original message and sender.
-function app_echo(msg, sender) {
+function ext_echo(msg, sender) {
   return {
     msg: msg,
     sender: sender
@@ -146,21 +120,8 @@ function unhandledNativeMessage(app, msg) {
   console.warn('Received unhandled native application %s message %o', app.appId, msg);
 }
 
-// Handles received native application messages.
+// Handles messages received from native application.
 function onNativeMessage(app, msg) {
-  switch (msg.feature) {
-    case constants.FEATURE_APP:
-      return app_onNativeMessage(app, msg);
-      break;
-
-    default:
-      unhandledNativeMessage(app, msg);
-      break;
-  }
-}
-
-// Handles generic application messages.
-function app_onNativeMessage(app, msg) {
   switch (msg.kind) {
     case constants.KIND_CONSOLE:
       return app_console(app, msg);
@@ -217,7 +178,7 @@ function notification(label, details) {
     'message': util.htmlToText(msg)
   }, settings.notifyTtl);
 
-  addApplicationMessage(details);
+  addExtensionMessage(details);
 
   // Also log details.
   if (!(level in console)) level = 'info';
@@ -232,12 +193,11 @@ function notification(label, details) {
   console[level].apply(console, args);
 }
 
-function addApplicationMessage(details) {
+function addExtensionMessage(details) {
   var level = '';
   webext.sendMessage({
     target: constants.TARGET_BROWSER_ACTION,
-    feature: constants.FEATURE_APP,
-    kind: constants.KIND_ADD_MESSAGE,
+    kind: constants.KIND_EXT_MESSAGE,
     details: details
   });
   applicationMessages.push(details);
@@ -273,7 +233,6 @@ waitForSettings(true).then(() => {
   nativeApp.connect();
   console.info('Native application %s starting', nativeApp.appId);
   nativeApp.postRequest({
-    feature: constants.FEATURE_APP,
     kind: constants.KIND_SPECS
   }).then(specs => {
     console.log('Native application %s started: %o', nativeApp.appId, specs);

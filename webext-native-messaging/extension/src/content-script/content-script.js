@@ -27,21 +27,8 @@ async function onMessage(extension, msg, sender) {
 }
 
 function handleMessage(extension, msg, sender) {
-  switch (msg.feature) {
-    case constants.FEATURE_TIDDLYWIKI:
-      tw_onMessage(extension, msg, sender);
-      break;
-
-    default:
-      unhandledMessage(msg, sender);
-      break;
-  }
-}
-
-// Handles TW feature message.
-function tw_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case constants.KIND_WARN_CONCURRENT:
+    case constants.KIND_TW_WARN_CONCURRENT:
       tw_warnConcurrent(msg);
       break;
 
@@ -101,7 +88,6 @@ function startExtension() {
   if (ready) {
     webext.sendMessage({
       target: constants.TARGET_BACKGROUND_PAGE,
-      feature: constants.FEATURE_TIDDLYWIKI,
       kind: constants.KIND_CHECK_NATIVE_APP
     }).then(r => {
       if (r.error) {
@@ -178,8 +164,7 @@ function tw_checkConcurrent() {
   url = url.href;
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
-    feature: constants.FEATURE_TIDDLYWIKI,
-    kind: constants.KIND_CHECK_CONCURRENT,
+    kind: constants.KIND_TW_CHECK_CONCURRENT,
     url: url
   });
 }
@@ -234,8 +219,7 @@ function tw_injectMessageBox() {
     // Save the file
     webext.sendMessage({
       target: constants.TARGET_BACKGROUND_PAGE,
-      feature: constants.FEATURE_TIDDLYWIKI,
-      kind: constants.KIND_SAVE,
+      kind: constants.KIND_TW_SAVE,
       path: path,
       content: content
     }).then(r => {

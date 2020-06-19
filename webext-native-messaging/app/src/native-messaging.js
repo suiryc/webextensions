@@ -322,7 +322,6 @@ class NativeApplication {
     var self = this;
     output.write = function (chunk, encoding, done) {
       self.postMessage({
-        feature: constants.FEATURE_APP,
         kind: constants.KIND_CONSOLE,
         level: level,
         content: chunk.replace(/\r?\n+$/, '')
@@ -335,7 +334,6 @@ class NativeApplication {
     var self = this;
     console[level] = function (...args) {
       self.postMessage({
-        feature: constants.FEATURE_APP,
         kind: constants.KIND_CONSOLE,
         level: level,
         args: args
@@ -345,7 +343,6 @@ class NativeApplication {
 
   notify(details) {
     this.postMessage({
-      feature: constants.FEATURE_APP,
       kind: constants.KIND_NOTIFICATION,
       details: details
     });

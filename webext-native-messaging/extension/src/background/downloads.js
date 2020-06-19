@@ -347,8 +347,7 @@ export class RequestsHandler {
       // Otherwise update displayed TTL and loop.
       self.webext.sendMessage({
         target: constants.TARGET_BROWSER_ACTION,
-        feature: constants.FEATURE_APP,
-        kind: constants.KIND_IGNORE_NEXT,
+        kind: constants.KIND_DL_IGNORE_NEXT,
         ttl: self.ignoringNext.ttl
       });
       self.ignoringNext.timeout = setTimeout(decrement, ttlStep);
@@ -363,8 +362,7 @@ export class RequestsHandler {
     if (this.ignoringNext.timeout !== undefined) clearTimeout(this.ignoringNext.timeout);
     this.webext.sendMessage({
       target: constants.TARGET_BROWSER_ACTION,
-      feature: constants.FEATURE_APP,
-      kind: constants.KIND_IGNORE_NEXT,
+      kind: constants.KIND_DL_IGNORE_NEXT,
       ttl: 0
     });
     delete(this.ignoringNext);
@@ -508,8 +506,7 @@ export class RequestsHandler {
       var comment = title;
       if (requestDetails.hasFilename()) comment = `${requestDetails.filename}\n${comment}`;
       return self.wsRequest({
-        feature: constants.FEATURE_DOWNLOAD,
-        kind: constants.KIND_SAVE,
+        kind: constants.KIND_DOWNLOAD,
         url: url,
         referrer: findHeader(requestDetails.sent.requestHeaders, 'Referer'),
         cookie: findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
@@ -663,8 +660,7 @@ export class RequestsHandler {
       }
 
       return self.wsRequest({
-        feature: constants.FEATURE_DOWNLOAD,
-        kind: constants.KIND_SAVE,
+        kind: constants.KIND_DOWNLOAD,
         url: download.url,
         referrer: download.referrer,
         cookie: cookie,
@@ -714,8 +710,7 @@ export class RequestsHandler {
       if ((info.linkText !== undefined) && (info.linkText !== null) && (info.linkText != url)) comment = `${comment}\n${info.linkText}`;
 
       return self.wsRequest({
-        feature: constants.FEATURE_DOWNLOAD,
-        kind: constants.KIND_SAVE,
+        kind: constants.KIND_DOWNLOAD,
         url: url,
         referrer: referrer,
         cookie: cookie,

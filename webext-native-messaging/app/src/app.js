@@ -13,17 +13,17 @@ var app = new nativeMessaging.NativeApplication(onMessage);
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.
 async function onMessage(app, msg) {
-  switch (msg.feature) {
-    case constants.FEATURE_APP:
-      return app_onMessage(app, msg);
+  switch (msg.kind) {
+    case constants.KIND_DOWNLOAD:
+      return dl_save(app, msg);
       break;
 
-    case constants.FEATURE_DOWNLOAD:
-      return dl_onMessage(app, msg);
+    case constants.KIND_TW_SAVE:
+      return tw_save(app, msg);
       break;
 
-    case constants.FEATURE_TIDDLYWIKI:
-      return tw_onMessage(app, msg);
+    case constants.KIND_SPECS:
+      return app_specs(app, msg);
       break;
 
     default:
@@ -31,19 +31,6 @@ async function onMessage(app, msg) {
       var props = Object.getOwnPropertyNames(msg);
       if ((props.length == 1) && msg.hasOwnProperty('correlationId')) return {};
       else return unhandledMessage(msg);
-      break;
-  }
-}
-
-// Handles generic application messages
-function app_onMessage(app, msg) {
-  switch (msg.kind) {
-    case constants.KIND_SPECS:
-      return app_specs(app, msg);
-      break;
-
-    default:
-      return unhandledMessage(msg);
       break;
   }
 }
@@ -69,19 +56,6 @@ function app_specs(app, msg) {
     separator: require('path').sep,
     tmpdir: require('os').tmpdir()
   };
-}
-
-// Handles DL feature message.
-function dl_onMessage(app, msg) {
-  switch (msg.kind) {
-    case constants.KIND_SAVE:
-      return dl_save(app, msg);
-      break;
-
-    default:
-      return unhandledMessage(msg);
-      break;
-  }
 }
 
 function dl_save(app, msg) {
@@ -194,19 +168,6 @@ function dl_save(app, msg) {
   });
 
   return deferred.promise;
-}
-
-// Handles TW feature message.
-function tw_onMessage(app, msg) {
-  switch (msg.kind) {
-    case constants.KIND_SAVE:
-      return tw_save(app, msg);
-      break;
-
-    default:
-      return unhandledMessage(msg);
-      break;
-  }
 }
 
 function tw_save(app, msg) {

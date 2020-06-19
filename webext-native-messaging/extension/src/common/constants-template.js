@@ -20,24 +20,6 @@ export const constants = {
   // Maximum time to wait for next interception to ignore
   IGNORE_NEXT_TTL: 20 * 1000,
 
-  // Kind of native message embedding fragments
-  // Notes:
-  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
-  // The maximum size of a single message from the application is 1 MB.
-  // The maximum size of a message sent to the application is 4 GB.
-  //
-  // For our usage, we thus send messages as-is to the application, while the
-  // application handle possible fragments for what it sends to us.
-  // As we, the extension, only need to handle the reception of fragments, we
-  // can do so by only checking two of the three kinds of fragments:
-  //  - 'start': first fragment; otherwise we concatenate from previous fragments
-  //  - 'cont': we are not done yet
-  // And we don't need to declare/use the 'end' fragment kind, as we infer it if
-  // a fragment is not 'start' nor 'cont'.
-  FRAGMENT_KIND_START: 'start',
-  FRAGMENT_KIND_CONT: 'cont',
-  //FRAGMENT_KIND_END: 'end',
-
   // Minimum period (ms) between janitoring
   JANITORING_PERIOD: 10 * 1000,
   // TTL of received native message fragments
@@ -53,24 +35,20 @@ export const constants = {
   // We handle 'options page' with the same code than 'browser action'.
   // We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
 
-  // Message known 'feature' field values
-  FEATURE_APP: 'app',
-  FEATURE_DOWNLOAD: 'download',
-  FEATURE_TIDDLYWIKI: 'tiddlywiki',
-
   // Message known 'kind' field values
-  KIND_ADD_MESSAGE: 'addMessage',
-  KIND_CHECK_CONCURRENT: 'checkConcurrent',
   KIND_CHECK_NATIVE_APP: 'checkNativeApp',
   KIND_CLEAR_MESSAGES: 'clearMessages',
   KIND_CONSOLE: 'console',
+  KIND_DL_IGNORE_NEXT: 'dlIgnoreNext',
+  KIND_DOWNLOAD: 'download',
   KIND_ECHO: 'echo',
-  KIND_GET_MESSAGES: 'getMessages',
-  KIND_IGNORE_NEXT: 'ignoreNext',
+  KIND_EXT_MESSAGE: 'extMessage',
+  KIND_GET_EXT_MESSAGES: 'getExtMessages',
   KIND_NOTIFICATION: 'notification',
-  KIND_SAVE: 'save',
   KIND_SPECS: 'specs',
-  KIND_WARN_CONCURRENT: 'warnConcurrent'
+  KIND_TW_CHECK_CONCURRENT: 'twCheckConcurrent',
+  KIND_TW_SAVE: 'twSave',
+  KIND_TW_WARN_CONCURRENT: 'twWarnConcurrent'
 
 };
 

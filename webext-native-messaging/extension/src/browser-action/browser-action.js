@@ -27,26 +27,13 @@ async function onMessage(extension, msg, sender) {
 }
 
 function handleMessage(extension, msg, sender) {
-  switch (msg.feature) {
-    case constants.FEATURE_APP:
-      return app_onMessage(extension, msg, sender);
-      break;
-
-    default:
-      unhandledMessage(msg, sender);
-      break;
-  }
-}
-
-// Handles application feature message.
-function app_onMessage(extension, msg, sender) {
   switch (msg.kind) {
-    case constants.KIND_IGNORE_NEXT:
-      return app_ignoreNext(msg);
+    case constants.KIND_DL_IGNORE_NEXT:
+      return dl_ignoreNext(msg);
       break;
 
-    case constants.KIND_ADD_MESSAGE:
-      return app_addMessage(msg);
+    case constants.KIND_EXT_MESSAGE:
+      return ext_addMessage(msg);
       break;
 
     default:
@@ -56,7 +43,7 @@ function app_onMessage(extension, msg, sender) {
 }
 
 // Next interception is being ignored.
-function app_ignoreNext(msg) {
+function dl_ignoreNext(msg) {
   var ttl = msg.ttl / 1000;
   ignoringNext = (ttl > 0);
   // Update displayed button text: append remaining TTL if any.
@@ -65,7 +52,7 @@ function app_ignoreNext(msg) {
 }
 
 // Adds message to display.
-function app_addMessage(msg) {
+function ext_addMessage(msg) {
   addMessage(msg.details);
 }
 
@@ -120,8 +107,7 @@ ignoreNextButton.addEventListener('click', () => {
   // Cancel if we are already igoring.
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
-    feature: constants.FEATURE_APP,
-    kind: constants.KIND_IGNORE_NEXT,
+    kind: constants.KIND_DL_IGNORE_NEXT,
     ttl: ignoringNext ? 0 : undefined
   });
 });
@@ -130,7 +116,6 @@ ignoreNextButton.addEventListener('click', () => {
 clearMessagesButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
-    feature: constants.FEATURE_APP,
     kind: constants.KIND_CLEAR_MESSAGES
   }).then(() => {
     messagesNode.classList.add('hidden');
@@ -140,8 +125,7 @@ clearMessagesButton.addEventListener('click', () => {
 // Get and add application messages.
 webext.sendMessage({
   target: constants.TARGET_BACKGROUND_PAGE,
-  feature: constants.FEATURE_APP,
-  kind: constants.KIND_GET_MESSAGES
+  kind: constants.KIND_GET_EXT_MESSAGES
 }).then(r => {
   if ((r === undefined) || !Array.isArray(r) || !r.length) return;
 

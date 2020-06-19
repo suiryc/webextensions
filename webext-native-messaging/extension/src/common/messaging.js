@@ -58,15 +58,26 @@ export class WebExtension {
 
 }
 
+// Kind of native message embedding fragments
+// Notes:
+// See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
+// "The maximum size of a single message from the application is 1 MB."
+// "The maximum size of a message sent to the application is 4 GB."
+//
+// For our usage, we thus post message as-is to the application, and handle
+// possible fragments from what is received the application.
+// As we, the extension, only need to handle the reception of fragments, we
+// can do so by only checking two of the three kinds of fragments:
+//  - 'start': first fragment; otherwise we concatenate from previous fragments
+//  - 'cont': we are not done yet
+// And we don't need to declare/use the 'end' fragment kind, as we infer it if
+// a fragment is not 'start' nor 'cont'.
+const FRAGMENT_KIND_START = 'start';
+const FRAGMENT_KIND_CONT = 'cont';
+//const FRAGMENT_KIND_END = 'end';
+
 // Native application messages handler.
 export class NativeApplication {
-
-  // Notes:
-  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging
-  // "The maximum size of a single message from the application is 1 MB."
-  // "The maximum size of a message sent to the application is 4 GB."
-  // For our usage, we thus post message as-is to the application, and handle
-  // possible fragments from what is received the application.
 
   constructor(appId, handlers) {
     this.appId = appId;
@@ -199,7 +210,7 @@ export class NativeApplication {
 
     var previousFragment = this.fragments[correlationId];
     if (previousFragment === undefined) {
-      if (fragmentKind === constants.FRAGMENT_KIND_START) {
+      if (fragmentKind === FRAGMENT_KIND_START) {
         // First fragment
         msg.msgCreationTime = util.getTimestamp();
         this.fragments[correlationId] = msg;
@@ -209,7 +220,7 @@ export class NativeApplication {
       return;
     }
 
-    if (fragmentKind === constants.FRAGMENT_KIND_START) {
+    if (fragmentKind === FRAGMENT_KIND_START) {
       console.warn('Dropping incomplete message %o: received new fragment start', previousFragment);
       this.fragments[correlationId] = msg;
       return;
@@ -218,7 +229,7 @@ export class NativeApplication {
     delete(previousFragment.fragment);
     previousFragment.content = (previousFragment.content || '') + (msg.content || '');
     previousFragment.msgCreationTime = util.getTimestamp();
-    if (fragmentKind !== constants.FRAGMENT_KIND_CONT) {
+    if (fragmentKind !== FRAGMENT_KIND_CONT) {
       // There is no need to enforce it: we suppose we received a
       // FRAGMENT_KIND_END fragment, which is the last fragment.
       delete(this.fragments[correlationId]);
