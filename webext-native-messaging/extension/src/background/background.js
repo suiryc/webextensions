@@ -5,6 +5,7 @@ import * as util from '../common/util.js';
 import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { RequestsHandler } from './downloads.js';
+import { MenuHandler } from './menus.js';
 
 
 // Logs unhandled received extension messages.
@@ -221,6 +222,7 @@ function addExtensionMessage(details) {
 
 var webext;
 var requestsHandler;
+var menuHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings(true).then(() => {
@@ -243,16 +245,7 @@ waitForSettings(true).then(() => {
 
   // Listen to requests and downloads
   requestsHandler = new RequestsHandler(webext, nativeApp, notification);
+  // Handle menus.
+  menuHandler = new MenuHandler(requestsHandler);
 
-  // Add context menu entry to download links (and video/audio elements).
-  // Restrict to links that apparently point to sites.
-  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns
-  browser.contextMenus.create({
-    id: 'dl-mngr',
-    title: 'dl-mngr',
-    icons: { '16': '/resources/icon.svg' },
-    contexts: ['link', 'video', 'audio'],
-    targetUrlPatterns: ['*://*/*'],
-    onclick: requestsHandler.manageClick.bind(requestsHandler)
-  });
 });
