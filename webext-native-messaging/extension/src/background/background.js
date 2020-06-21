@@ -8,6 +8,8 @@ import { RequestsHandler } from './downloads.js';
 import { MenuHandler } from './menus.js';
 
 
+// Messages handlers
+
 // Logs unhandled received extension messages.
 function unhandledMessage(msg, sender) {
   console.warn('Received unhandled message %o from %o', msg, sender);
@@ -66,6 +68,31 @@ function handleMessage(extension, msg, sender) {
   }
 }
 
+// Logs unhandled received native application messages.
+function unhandledNativeMessage(app, msg) {
+  console.warn('Received unhandled native application %s message %o', app.appId, msg);
+}
+
+// Handles messages received from native application.
+function onNativeMessage(app, msg) {
+  switch (msg.kind) {
+    case constants.KIND_CONSOLE:
+      return app_console(app, msg);
+      break;
+
+    case constants.KIND_NOTIFICATION:
+      return app_notification(app, msg);
+      break;
+
+    default:
+      unhandledNativeMessage(app, msg);
+      break;
+  }
+}
+
+
+// Extension message handling
+
 // Checks whether native application is ok.
 function ext_checkNativeApp(msg) {
   return nativeApp.postRequest({});
@@ -93,19 +120,19 @@ function tw_save(msg) {
   return nativeApp.postRequest(msg, constants.TW_SAVE_TIMEOUT);
 }
 
-// Ignore next interception.
+// Ignore next download interception.
 function dl_ignoreNext(msg) {
   requestsHandler.ignoreNext(msg.ttl);
 }
 
-// Clears application messages.
+// Clears extension messages.
 function ext_clearMessages() {
   applicationMessages = [];
   browser.browserAction.setBadgeText({text: null});
   browser.browserAction.setBadgeBackgroundColor({color: null});
 }
 
-// Gets application messages to display.
+// Gets extension messages to display.
 function ext_getMessages(msg) {
   return applicationMessages;
 }
@@ -118,27 +145,8 @@ function ext_echo(msg, sender) {
   };
 }
 
-// Logs unhandled received native application messages.
-function unhandledNativeMessage(app, msg) {
-  console.warn('Received unhandled native application %s message %o', app.appId, msg);
-}
 
-// Handles messages received from native application.
-function onNativeMessage(app, msg) {
-  switch (msg.kind) {
-    case constants.KIND_CONSOLE:
-      return app_console(app, msg);
-      break;
-
-    case constants.KIND_NOTIFICATION:
-      return app_notification(app, msg);
-      break;
-
-    default:
-      unhandledNativeMessage(app, msg);
-      break;
-  }
-}
+// Native application message handling
 
 // Logs native application log message.
 function app_console(app, msg) {
