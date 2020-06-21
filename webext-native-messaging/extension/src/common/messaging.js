@@ -12,11 +12,22 @@ export class WebExtension {
     var self = this;
     if (params.target == null) delete(params.target);
     self.params = params;
+    // Notes:
+    // When the listener callback returns a Promise, it is sent back to the
+    // sender. When the listener callback returns a value, the sender gets
+    // an empty response.
     browser.runtime.onMessage.addListener((msg, sender) => {
       // Ignore message when applicable.
       if (!self.isTarget(msg)) {
         if (settings.debug.misc) console.debug('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, self.params.target, msg.target);
         return;
+      }
+      // Handle 'echo' message internally.
+      if (msg.kind === constants.KIND_ECHO) {
+        return Promise.resolve({
+          msg: msg,
+          sender: sender
+        });
       }
       // When returning a promise, only success is expected; failed promise
       // is returned without the original error but a generic one.

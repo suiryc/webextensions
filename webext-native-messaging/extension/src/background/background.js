@@ -58,10 +58,6 @@ function handleMessage(extension, msg, sender) {
       return ext_getMessages(msg);
       break;
 
-    case constants.KIND_ECHO:
-      return ext_echo(msg, sender);
-      break;
-
     default:
       unhandledMessage(msg, sender);
       break;
@@ -135,14 +131,6 @@ function ext_clearMessages() {
 // Gets extension messages to display.
 function ext_getMessages(msg) {
   return applicationMessages;
-}
-
-// Replies with original message and sender.
-function ext_echo(msg, sender) {
-  return {
-    msg: msg,
-    sender: sender
-  };
 }
 
 
