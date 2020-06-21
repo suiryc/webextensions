@@ -9,33 +9,27 @@ import { WebExtension } from '../common/messaging.js';
 // (to only display it only once until discarded)
 var tw_warningConcurrent = false;
 
-// Logs unhandled received extension messages.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-}
-
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  try {
-    return handleMessage(extension, msg, sender);
-  } catch (error) {
-    console.error('Could not handle sender %o message %o: %o', sender, msg, error);
-    // Propagate error.
-    throw error;
-  }
-}
-
-function handleMessage(extension, msg, sender) {
   switch (msg.kind) {
     case constants.KIND_TW_WARN_CONCURRENT:
-      tw_warnConcurrent(msg);
+      return tw_warnConcurrent(msg);
       break;
 
     default:
-      unhandledMessage(msg, sender);
+      return unhandledMessage(msg, sender);
       break;
   }
+}
+
+// Logs unhandled messages received.
+function unhandledMessage(msg, sender) {
+  console.warn('Received unhandled message %o from %o', msg, sender);
+  return {
+    error: 'Message is not handled by TW content script',
+    message: msg
+  };
 }
 
 // Displays modal message warning TiddlyWiki file (URL) is open in more than one tab/window.

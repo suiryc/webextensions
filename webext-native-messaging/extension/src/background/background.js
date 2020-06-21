@@ -10,39 +10,21 @@ import { MenuHandler } from './menus.js';
 
 // Messages handlers
 
-// Logs unhandled received extension messages.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-}
-
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  try {
-    return handleMessage(extension, msg, sender);
-  } catch (error) {
-    console.error('Could not handle sender %o message %o: %o', sender, msg, error);
-    // Propagate error.
-    throw error;
-  }
-}
-
-function handleMessage(extension, msg, sender) {
   switch (msg.kind) {
     case constants.KIND_CHECK_NATIVE_APP:
       return ext_checkNativeApp(msg);
       break;
 
     case constants.KIND_TW_CHECK_CONCURRENT:
-      tw_checkConcurrent(msg);
+      return tw_checkConcurrent(msg);
       break;
 
     case constants.KIND_TW_SAVE:
       // Protection: we really do expect this message to come from a tab.
-      if (sender.tab === undefined) {
-        unhandledMessage(msg, sender);
-        return;
-      }
+      if (sender.tab === undefined) return unhandledMessage(msg, sender);
       return tw_save(msg);
       break;
 
@@ -59,14 +41,9 @@ function handleMessage(extension, msg, sender) {
       break;
 
     default:
-      unhandledMessage(msg, sender);
+      return unhandledMessage(msg, sender);
       break;
   }
-}
-
-// Logs unhandled received native application messages.
-function unhandledNativeMessage(app, msg) {
-  console.warn('Received unhandled native application %s message %o', app.appId, msg);
 }
 
 // Handles messages received from native application.
@@ -81,13 +58,22 @@ function onNativeMessage(app, msg) {
       break;
 
     default:
-      unhandledNativeMessage(app, msg);
+      return unhandledNativeMessage(app, msg);
       break;
   }
 }
 
 
 // Extension message handling
+
+// Logs unhandled messages received.
+function unhandledMessage(msg, sender) {
+  console.warn('Received unhandled message %o from %o', msg, sender);
+  return {
+    error: 'Message is not handled by background script',
+    message: msg
+  };
+}
 
 // Checks whether native application is ok.
 function ext_checkNativeApp(msg) {
@@ -135,6 +121,11 @@ function ext_getMessages(msg) {
 
 
 // Native application message handling
+
+// Logs unhandled messages received.
+function unhandledNativeMessage(app, msg) {
+  console.warn('Received unhandled native application %s message %o', app.appId, msg);
+}
 
 // Logs native application log message.
 function app_console(app, msg) {

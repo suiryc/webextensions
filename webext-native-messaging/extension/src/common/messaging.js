@@ -29,16 +29,20 @@ export class WebExtension {
           sender: sender
         });
       }
-      // When returning a promise, only success is expected; failed promise
-      // is returned without the original error but a generic one.
-      // So translate to response with error field which caller will have
-      // to handle.
-      var r = self.params.onMessage(self, msg, sender);
-      if (r instanceof Promise) {
-        r = r.catch(error => {
-          return {error: error};
-        });
+      var r;
+      // Enforce Promise, so that we handle both synchronous/asynchronous reply.
+      try {
+        r = Promise.resolve(self.params.onMessage(self, msg, sender));
+      } catch (error) {
+        r = Promise.reject(error);
       }
+      // Sender only handle/expect success Promise: failure is given through
+      // 'error' field when applicable.
+      r = r.catch(error => {
+        console.error('Could not handle sender %o message %o: %o', sender, msg, error);
+        // Format object: pure Errors are empty when sent.
+        return {error: util.formatObject(error)};
+      });
       return r;
     });
   }

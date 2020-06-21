@@ -9,24 +9,9 @@ import { WebExtension } from '../common/messaging.js';
 // Wait for settings to be ready, then track fields changes (to persist settings).
 waitForSettings().then(() => trackFields());
 
-// Logs unhandled received extension messages.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-}
-
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  try {
-    return handleMessage(extension, msg, sender);
-  } catch (error) {
-    console.error('Could not handle sender %o message %o: %o', sender, msg, error);
-    // Propagate error.
-    throw error;
-  }
-}
-
-function handleMessage(extension, msg, sender) {
   switch (msg.kind) {
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
@@ -37,9 +22,18 @@ function handleMessage(extension, msg, sender) {
       break;
 
     default:
-      unhandledMessage(msg, sender);
+      return unhandledMessage(msg, sender);
       break;
   }
+}
+
+// Logs unhandled messages received.
+function unhandledMessage(msg, sender) {
+  console.warn('Received unhandled message %o from %o', msg, sender);
+  return {
+    error: 'Message is not handled by browser action',
+    message: msg
+  };
 }
 
 // Next interception is being ignored.
