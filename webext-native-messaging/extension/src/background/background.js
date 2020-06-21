@@ -77,6 +77,8 @@ function tw_checkConcurrent(msg) {
   browser.tabs.query({url: msg.url}).then(tabs => {
     if (tabs.length > 1) {
       for (var tab of tabs) {
+        // We cannot send a message to a discarded tab.
+        if (tab.discarded) continue;
         webext.sendTabMessage(tab.id, {
           kind: constants.KIND_TW_WARN_CONCURRENT
         });
