@@ -6,6 +6,7 @@ import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { RequestsHandler } from './downloads.js';
 import { MenuHandler } from './menus.js';
+import { TabsHandler } from './tabs.js';
 
 
 // Messages handlers
@@ -209,9 +210,55 @@ function addExtensionMessage(details) {
 }
 
 
+// Content script dynamic execution handling.
+
+// Injects TiddlyWiki content script CSS and code.
+function contentscript_inject_tw(tabHandler) {
+  var tabId = tabHandler.id;
+
+  async function inject() {
+    var details = {
+      file: '/resources/content-script-tw.css',
+      runAt: 'document_start'
+    };
+    await browser.tabs.insertCSS(tabId, details);
+
+    details.file = '/dist/content-script-tw.bundle.js';
+    await browser.tabs.executeScript(tabId, details);
+  }
+
+  return tabHandler.frameHandler.setupScript('tw', inject);
+}
+
+async function ext_handleFrame(tabHandler, frameHandler) {
+  if (frameHandler === undefined) frameHandler = tabHandler.frameHandler;
+
+  // We can check which content script(s) to inject now.
+  // When dealing with a pdf file, Firefox has its own PDF.js handling and
+  // we cannot execute script in the (special and privileged) frame.
+  // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1454760
+  // Example: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/object
+  // Assume urls ending with '.pdf' are PDF displayed in frames, and exclude
+  // them.
+  if (frameHandler.url.match(/\.pdf$/i)) {
+    if (settings.debug.misc) console.log('Not handling tab=<%s> frame=<%s> url=<%s>: appears to be a PDF', tabHandler.id, frameHandler.id, frameHandler.url);
+    return;
+  }
+
+  if (frameHandler.id === 0) {
+    // Inject TiddlyWiki content script where applicable.
+    // We only handle (and expect) main frame for this.
+    if (tabHandler.url().match(/^file:.*html?$/i)) {
+      contentscript_inject_tw(tabHandler);
+    }
+  }
+}
+
+
 var webext;
 var requestsHandler;
 var menuHandler;
+var tabsHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings(true).then(() => {
@@ -236,5 +283,56 @@ waitForSettings(true).then(() => {
   requestsHandler = new RequestsHandler(webext, nativeApp, notification);
   // Handle menus.
   menuHandler = new MenuHandler(requestsHandler);
+  // Handle tabs.
+  tabsHandler = new TabsHandler(ext_handleFrame);
 
+  // We register for changes before getting all current tabs, to prevent missing
+  // any due to race conditions.
+  // We listen to frames changes:
+  //  - onBeforeNavigate: to trigger frame reset ASAP (before page is loaded)
+  //  - onDOMContentLoaded: to inject scripts where appropriate
+  //  - onCompleted: because sometimes onDOMContentLoaded is skipped
+  //    e.g.: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/embed
+  // We don't listen to onCommitted (instead of onDOMContentLoaded) because
+  // we may be called right before the frame document actually changes for its
+  // new committed target; e.g. we may end up injecting script in the previous
+  // (often 'about:blank' for subframes) page, which will be wiped out right
+  // after.
+  //
+  // Depending on when script injection is requested and how the frame behaves,
+  // it may be necessary to 'runAt' ASAP, i.e. 'document_start' instead of
+  // 'document_end'. When listening to onDOMContentLoaded, this should not
+  // make a difference though.
+  // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1499667
+
+  // Listen to tabs being removed, so that we can clear them.
+  browser.tabs.onRemoved.addListener(id => {
+    tabsHandler.removeTab(id);
+  });
+
+  // Listen to frame changes.
+  var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
+  browser.webNavigation.onBeforeNavigate.addListener(details => {
+    tabsHandler.resetFrame(details);
+  }, webNavigationFilter);
+  browser.webNavigation.onDOMContentLoaded.addListener(details => {
+    tabsHandler.addFrame(details);
+  }, webNavigationFilter);
+  browser.webNavigation.onCompleted.addListener(details => {
+    // Don't add frames we already known about: if frame is already known we
+    // assume onDOMContentLoaded was triggered.
+    // For now we don't expect the situation (onDOMContentLoaded skipped) to
+    // happen on the main frame, which would require more specific handling.
+    tabsHandler.addFrame(details, {skipExisting: true});
+  }, webNavigationFilter);
+
+  // Get all live (non-discarded) tabs to handle.
+  browser.tabs.query({
+    url: ['file:///*', 'http://*/*', 'https://*/*'],
+    discarded: false
+  }).then(tabs => {
+    for (var tab of tabs) {
+      tabsHandler.addTab(tab, true);
+    }
+  });
 });

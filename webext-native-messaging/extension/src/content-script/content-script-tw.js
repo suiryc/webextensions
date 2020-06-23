@@ -2,8 +2,11 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
+
+util.checkContentScriptSetup('tw');
 
 // Whether the 'concurrent' warning is displayed
 // (to only display it only once until discarded)
@@ -50,22 +53,16 @@ function tw_warnConcurrent(msg) {
 // Extension handler
 var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
-// We want to wait for 'document.body' to exist.
-// The simplest way is to wait for 'DOMContentLoaded' which happens when the
-// page has been loaded (not including stylesheets, images and subframes).
-if (document.body !== null) {
-  startExtension();
-} else {
-  document.addEventListener('DOMContentLoaded', ev => {
-    startExtension();
-  });
-}
+waitForSettings().then(() => {
+  util.waitForDocument(startExtension);
+});
 
 // Really starts extension
 function startExtension() {
   // Enable TiddlyWiki handling when applicable.
   var ready = false;
   if (isTW5()) {
+    if (settings.debug.misc) console.log('Is TW5');
     try {
       tw_injectMessageBox();
       tw_checkConcurrent();
@@ -77,6 +74,8 @@ function startExtension() {
       });
       console.error('Failed to initialize TiddlyWiki handling: %o', error);
     }
+  } else if (settings.debug.misc) {
+    console.log('Is not TW5');
   }
 
   if (ready) {

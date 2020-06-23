@@ -20,6 +20,7 @@
   //  - <all_urls>: so that webRequest and cookies work for all URLs
   // For TiddlyWiki we use:
   //  - tabs: to get tabs properties (url is the local file to save to)
+  //  - webNavigation: to work with frames (dynamic script execution)
   "permissions": [
     "contextMenus",
     "cookies",
@@ -29,6 +30,7 @@
     "notifications",
     "storage",
     "tabs",
+    "webNavigation",
     "webRequest",
     "webRequestBlocking",
     "<all_urls>"
@@ -60,16 +62,5 @@
   "options_ui": {
     "page": "/resources/browser-action.html",
     "browser_style": true
-  },
-
-  // The content scripts only have to handle local TiddlyWiki pages
-  "content_scripts": [{
-    "matches": [
-      "file:///*.html",
-      "file:///*.htm"
-    ],
-    "run_at": "document_start",
-    "js": [ "/dist/content-script.bundle.js" ],
-    "css": [ "/resources/content-script.css" ]
-  }]
+  }
 }

@@ -107,6 +107,33 @@ export function cleanupFields(obj) {
   }
 }
 
+export function checkContentScriptSetup(label) {
+  // Possible ways to check whether global variable is set:
+  //  - typeof(variable) !== 'undefined'
+  //  - window.variable !== undefined
+  if (typeof(csParams) === 'undefined') {
+    // Assume there was a race condition: frame changed after injecting content
+    // scripts params and before we could be injected.
+    var msg = `Not executing ${label} content script: frame not setup yet`;
+    console.log(msg);
+    // Throw an Error, as throwing a mere string results in 'An unexpected error occurred'.
+    throw new Error(msg);
+  }
+}
+
+export function waitForDocument(callback) {
+  // We want to wait for 'document.body' to exist.
+  // The simplest way is to wait for 'DOMContentLoaded' which happens when the
+  // page has been loaded (not including stylesheets, images and subframes).
+  if (document.body !== null) {
+    callback();
+  } else {
+    document.addEventListener('DOMContentLoaded', ev => {
+      callback();
+    });
+  }
+}
+
 // Sets node HTML content.
 // See: https://stackoverflow.com/a/35385518
 // See: https://stackoverflow.com/a/42658543
@@ -195,6 +222,15 @@ export class Deferred {
       if (this.promise[f] === undefined) continue;
       this[f] = this.promise[f].bind(this.promise);
     }
+  }
+
+  completeWith(callback) {
+    try {
+      this.resolve(callback());
+    } catch (error) {
+      this.reject(error);
+    }
+    return this;
   }
 
 }

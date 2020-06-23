@@ -16,6 +16,10 @@ export class WebExtension {
     // When the listener callback returns a Promise, it is sent back to the
     // sender. When the listener callback returns a value, the sender gets
     // an empty response.
+    //
+    // More than one listener can be added.
+    // Caller is expected to manage whether to use one listener and dispatch
+    // responses, or add multiple listeners for each dedicated feature.
     browser.runtime.onMessage.addListener((msg, sender) => {
       // Ignore message when applicable.
       if (!self.isTarget(msg)) {
@@ -67,8 +71,8 @@ export class WebExtension {
     return browser.runtime.sendMessage(msg);
   }
 
-  sendTabMessage(tabId, msg) {
-    return browser.tabs.sendMessage(tabId, msg);
+  sendTabMessage(tabId, msg, options) {
+    return browser.tabs.sendMessage(tabId, msg, options);
   }
 
 }
