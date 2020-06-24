@@ -21,28 +21,6 @@ function findHeader(headers, name) {
   return (header === undefined) ? undefined : header.value;
 }
 
-function parseContentType(requestDetails) {
-  requestDetails.contentType = new ContentType(requestDetails.contentType);
-}
-
-function parseContentDisposition(requestDetails) {
-  requestDetails.contentDisposition = {
-    raw: requestDetails.contentDisposition,
-    kind: undefined,
-    params: {}
-  }
-  if (requestDetails.contentDisposition.raw === undefined) return;
-
-  // See: https://tools.ietf.org/html/rfc6266
-  // Examples:
-  //  attachment
-  //  inline; param1=value1; param2=value2 ...
-  // Note: no 'comment' is expected in the value.
-  var parser = new HeaderParser(requestDetails.contentDisposition.raw);
-  requestDetails.contentDisposition.kind = parser.parseToken();
-  requestDetails.contentDisposition.params = parser.parseParameters(true);
-}
-
 // Gets filename, deduced from URL when necessary.
 // Returns filename or empty value if unknown.
 function getFilename(url, filename) {
@@ -271,7 +249,7 @@ export class RequestsHandler {
     var interceptingDownloads = browser.downloads.onCreated.hasListener(this.listeners.onDownload);
     // Add/remove listeners as requested.
     if (this.interceptRequests && !interceptingRequests) {
-      if (settings.debug.downloads) console.debug('Installing webRequest interception');
+      if (settings.debug.downloads) console.debug('Installing downloads webRequest interception');
       // Note: we only need to intercept frames requests (no need for media
       // or websocket for example).
       var webRequestFilter = { urls: ['<all_urls>'], types: ['main_frame', 'sub_frame'] };
@@ -280,6 +258,8 @@ export class RequestsHandler {
         webRequestFilter,
         ['requestHeaders']
       );
+      // Note: 'blocking' is used so that we can cancel the request if
+      // applicable.
       browser.webRequest.onHeadersReceived.addListener(
         this.listeners.onResponse,
         webRequestFilter,
@@ -294,7 +274,7 @@ export class RequestsHandler {
         webRequestFilter
       );
     } else if (!this.interceptRequests && interceptingRequests) {
-      if (settings.debug.downloads) console.debug('Uninstalling webRequest interception');
+      if (settings.debug.downloads) console.debug('Uninstalling downloads webRequest interception');
       browser.webRequest.onSendHeaders.removeListener(this.listeners.onRequest);
       browser.webRequest.onHeadersReceived.removeListener(this.listeners.onResponse);
       browser.webRequest.onCompleted.removeListener(this.listeners.onRequestCompleted);
@@ -753,6 +733,53 @@ class RequestDetails {
     return (this.filename !== undefined);
   }
 
+  parseResponse(interceptSize) {
+    const response = this.received;
+
+    // Get content length. Use undefined if unknown.
+    this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
+    if (this.hasSize()) this.contentLength = Number(this.contentLength);
+    // Normalize: negative length means size is unknown.
+    if (this.contentLength < 0) this.contentLength = undefined;
+    // Don't bother parsing other headers if content length is below limit.
+    // Note: comparing undefined to integer returns false.
+    if (this.contentLength < interceptSize) return;
+
+    // Get content type.
+    this.contentType = new ContentType(findHeader(response.responseHeaders, 'Content-Type'));
+
+    // Get content disposition.
+    this.contentDisposition = {
+      raw: findHeader(response.responseHeaders, 'Content-Disposition'),
+      kind: undefined,
+      params: {}
+    }
+    if (this.contentDisposition.raw !== undefined) {
+      // See: https://tools.ietf.org/html/rfc6266
+      // Examples:
+      //  attachment
+      //  inline; param1=value1; param2=value2 ...
+      // Note: no 'comment' is expected in the value.
+      var parser = new HeaderParser(this.contentDisposition.raw);
+      this.contentDisposition.kind = parser.parseToken();
+      this.contentDisposition.params = parser.parseParameters(true);
+    }
+
+    // Determine filename if given (i.e. not from URL).
+    // Content-Disposition 'filename' is preferred over Content-Type 'name'.
+    this.filename = this.contentDisposition.params.filename;
+    if (!this.hasFilename()) this.filename = this.contentType.params.name;
+    // Make sure to only keep filename (and no useless folder hierarchy).
+    if (this.hasFilename()) {
+      this.filename = this.filename.split(/\/|\\/).pop();
+      // And guess mime type when necessary.
+      this.contentType.guess(this.filename, false);
+    }
+    // Note: we don't guess filename from URL because we wish to know - for
+    // later conditions testing - there was no explicit filename.
+    // The external download application will do it anyway.
+  }
+
   manage(handler) {
     const response = this.received;
     if (!canDownload(response.url)) return handler.manageRequest(this, false, 'URL not handled');
@@ -760,7 +787,7 @@ class RequestDetails {
     // Special case: upon redirections (status code 3xx), we receive a first
     // response but the browser keeps on using the same 'request' to access
     // the actual target URL (the 'request' is not 'completed' yet, actually a
-    // a new HTTP request is done, re-using the same requestId).
+    // new HTTP request is done, re-using the same requestId).
     // e.g. (in the same 'request'): a 'request' is triggered to perform a 'GET'
     // which receives a 302 that triggers another 'GET' on the new URL, which
     // ends with a 200, and *then* the 'request' is completed.
@@ -803,32 +830,13 @@ class RequestDetails {
     // be intercepted due to missing matching request (we consume it here).
     if ((statusCode == 206) && (findHeader(this.sent.requestHeaders, 'Range') !== undefined)) return handler.manageRequest(this, false, 'Skip partial content request');
 
-    // Get content length. Use undefined if unknown.
-    this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
-    if (this.hasSize()) this.contentLength = Number(this.contentLength);
-    // Normalize: negative length means size is unknown.
-    if (this.contentLength < 0) this.contentLength = undefined;
-    // Don't intercept 'too small' content
+    // Parse response to get content length, type, disposition.
+    this.parseResponse(settings.interceptSize);
+
+    // Don't intercept 'too small' content.
+    // Note: comparing undefined to integer returns false.
     if (this.contentLength < settings.interceptSize) return handler.manageRequest(this, false, 'Content length below limit');
     // From this point onward, content is either unknown or big enough.
-
-    // Get content type and disposition.
-    this.contentType = findHeader(response.responseHeaders, 'Content-Type');
-    parseContentType(this);
-    this.contentDisposition = findHeader(response.responseHeaders, 'Content-Disposition');
-    parseContentDisposition(this);
-    // Content-Disposition 'filename' is preferred over Content-Type 'name'
-    this.filename = this.contentDisposition.params.filename;
-    if (!this.hasFilename()) this.filename = this.contentType.params.name;
-    // Make sure to only keep filename (and no useless folder hierarchy).
-    if (this.hasFilename()) {
-      this.filename = this.filename.split(/\/|\\/).pop();
-      // And guess mime type when necessary.
-      this.contentType.guess(this.filename, false);
-    }
-    // Note: we don't guess filename from URL because we wish to know - for
-    // later conditions testing - there was no explicit filename.
-    // The external download application will do it anyway.
 
     // Don't intercept 'inline' content (displayed inside the browser).
     if (this.contentDisposition.kind === 'inline') return handler.manageRequest(this, false, 'Inline content');
