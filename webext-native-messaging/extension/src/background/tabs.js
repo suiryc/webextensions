@@ -119,8 +119,8 @@ class FrameHandler {
       frameId: frameId,
       code: `if (csParams === undefined) {
   var csParams = ${JSON.stringify(csParams)};
-  var result = { uuid: csParams.uuid, existed: false, url: location.href };
-} else result = { uuid: csParams.uuid, existed: true, url: location.href };
+  var result = { csUuid: csParams.uuid, existed: false, url: location.href };
+} else result = { csUuid: csParams.uuid, existed: true, url: location.href };
 result;`,
       runAt: 'document_start'
     };
@@ -138,14 +138,14 @@ result;`,
     var reused = this.used;
     try {
       var result = (await browser.tabs.executeScript(tabId, details))[0];
-      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> scripts existed=<%s> uuid=<%s>', tabId, frameId, result.existed, result.uuid);
+      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> scripts existed=<%s> csUuid=<%s>', tabId, frameId, result.existed, result.csUuid);
       this.used = true;
        // Use our brand new uuid when applicable.
-      if (!result.existed) this.uuid = newUuid;
+      if (!result.existed) this.csUuid = newUuid;
       // Refresh our url.
       this.url = result.url;
       // We should have our known uuid (previous one, or brand new).
-      if (result.uuid !== this.uuid) console.log('Tab=<%s> frame=<%s> already had been initialised with uuid=<%s> instead of uuid=<%s>', tabId, frameId, result.uuid, this.uuid);
+      if (result.csUuid !== this.csUuid) console.log('Tab=<%s> frame=<%s> already had been initialised with csUuid=<%s> instead of csUuid=<%s>', tabId, frameId, result.csUuid, this.csUuid);
       return {
         reused: reused,
         success: true,
@@ -208,7 +208,7 @@ result;`,
         // In all cases, go on with the script setup.
         // Also, do not touch 'actionNext': reset does clear it; any pending
         // action are scripts re-setup added by caller after reset.
-        if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> uuid=<%s> has been updated', tabId, frameId, self.uuid);
+        if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> csUuid=<%s> has been updated', tabId, frameId, self.csUuid);
         // Notes:
         // Going on is the best approach.
         // If frame setup could be done, we will inject this script (and
@@ -226,11 +226,11 @@ result;`,
     }
     // Nothing to do if script already setup.
     if (self.scripts[id] !== undefined) {
-      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> uuid=<%s> already has script=<%s>', tabId, frameId, self.uuid, id);
+      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> csUuid=<%s> already has script=<%s>', tabId, frameId, self.csUuid, id);
       return self.scripts[id];
     }
     self.scripts[id] = callback().then(result => {
-      if (settings.debug.misc) console.log('Set up script=<%s> in tab=<%s> frame=<%s> uuid=<%s>: %o', id, tabId, frameId, self.uuid, result);
+      if (settings.debug.misc) console.log('Set up script=<%s> in tab=<%s> frame=<%s> csUuid=<%s>: %o', id, tabId, frameId, self.csUuid, result);
       return {
         success: true,
         result: result
@@ -239,7 +239,7 @@ result;`,
       // Script injection actually failed: forget it, so that it can be injected
       // again if needed.
       delete(self.scripts[id]);
-      console.log('Failed to setup script=<%s> in tab=<%s> frame=<%s> uuid=<%s>: %o', id, tabId, frameId, self.uuid, error);
+      console.log('Failed to setup script=<%s> in tab=<%s> frame=<%s> csUuid=<%s>: %o', id, tabId, frameId, self.csUuid, error);
       return {
         success: false,
         error: error
@@ -260,6 +260,19 @@ class TabHandler {
 
   url() {
     return this.frameHandler.url;
+  }
+
+  // Resets frame, which is about to be (re)used.
+  reset(details) {
+    // Reset main frame.
+    if (this.frameHandler !== undefined) this.frameHandler.reset(details);
+    // Remove all subframes.
+    for (var frameHandler of Object.values(this.frames)) {
+      if (frameHandler.id === 0) continue;
+      if (settings.debug.misc) console.log('Removing tab=<%s> frame=<%s>', this.id, frameHandler.id);
+      frameHandler.clear();
+      delete(this.frames[frameHandler.id]);
+    }
   }
 
   // Clears tab, which is about to be removed.
@@ -316,16 +329,8 @@ class TabHandler {
     // We are called ahead of time, before frame content is actually loaded.
     // We can ignore unknown frames, for which 'addFrame' will be called later.
     if (frameHandler === undefined) return;
-    frameHandler.reset(details);
-    if (frameId === 0) {
-      // If the main frame is being changed, all subframes are to be removed.
-      for (var frameHandler of Object.values(this.frames)) {
-        if (frameHandler.id === 0) continue;
-        if (settings.debug.misc) console.log('Removing tab=<%s> frame=<%s>', this.id, frameHandler.id);
-        frameHandler.clear();
-        delete(this.frames[frameHandler.id]);
-      }
-    }
+    if (frameId === 0) this.reset(details);
+    else frameHandler.reset(details);
   }
 
 }
