@@ -46,16 +46,29 @@ class FrameHandler {
   }
 
   // Resets frame, which is about to be (re)used.
-  reset(details) {
+  reset(details, notify) {
+    var sameUrl = this.url == details.url;
     this.url = details.url;
     // For each script (id), remember the associated promise, resolved with its
     // injection success and result/error.
     this.scripts = {};
     if (!this.cleared) this.actionNext = [];
+    if (notify !== undefined) {
+      var notifyDetails = Object.assign({}, notify, {
+        tabId: this.tabHandler.id,
+        tabHandler: this.tabHandler,
+        frameId: this.id,
+        frameHandler: this,
+        csUuid: this.csUuid,
+        sameUrl: sameUrl
+      });
+      if (this.id == 0) this.getTabsHandler().notifyObservers('tabReset', notifyDetails);
+      this.getTabsHandler().notifyObservers('frameReset', notifyDetails);
+    }
   }
 
   // Clears frame, which is about to be removed.
-  clear() {
+  clear(notify) {
     // Code being executed asynchronously (async functions, or right after an
     // await statement) have to check whether 'cleared' has been set.
     this.cleared = true;
@@ -66,6 +79,17 @@ class FrameHandler {
       action.deferred.reject('Frame has been cleared');
     }
     delete(this.actionNext);
+    if (notify) this.getTabsHandler().notifyObservers('frameRemoved', {
+      tabId: this.tabHandler.id,
+      tabHandler: this.tabHandler,
+      frameId: this.id,
+      frameHandler: this,
+      csUuid: this.csUuid
+    });
+  }
+
+  getTabsHandler() {
+    return this.tabHandler.getTabsHandler();
   }
 
   // Queue a new action to execute sequentially.
@@ -216,11 +240,11 @@ result;`,
         // If frame setup failed, we don't expect any other injection to
         // succeed. This would trigger multiple error logs though: for each
         // other script setup, we will re-try to setup frame.
-        // In particular, upon issue it is not a good idea to call 'frameCb'
-        // without other kind of hinting, as it would end in an endless
-        // injection attempts loop:
+        // In particular, upon issue it is not a good idea to re-trigger
+        // (through observers) script setup without enough hinting, as it
+        // may end in an endless injection attempt loop:
         //  1. first script setup triggers frame setup, which fails
-        //  2. we call frameCb, which queues a new script setup
+        //  2. observer, notified of failure, queues a new script setup
         //  3. we got back to 1.
       }
     }
@@ -252,9 +276,9 @@ result;`,
 
 class TabHandler {
 
-  constructor(tab, frameCb) {
+  constructor(tabsHandler, tab) {
     this.id = tab.id;
-    this.frameCb = frameCb;
+    this.tabsHandler = tabsHandler;
     this.frames = {};
   }
 
@@ -262,15 +286,29 @@ class TabHandler {
     return this.frameHandler.url;
   }
 
+  getTabsHandler() {
+    return this.tabsHandler;
+  }
+
   // Resets frame, which is about to be (re)used.
-  reset(details) {
+  reset(details, notify) {
     // Reset main frame.
-    if (this.frameHandler !== undefined) this.frameHandler.reset(details);
+    // Note: notify observer even if we don't know the main frame.
+    if (this.frameHandler !== undefined) this.frameHandler.reset(details, notify);
+    else {
+      var notifyDetails = Object.assign({}, notify, {
+        tabId: this.id,
+        tabHandler: this,
+        frameId: 0
+      });
+      this.getTabsHandler().notifyObservers('tabReset', notifyDetails);
+      this.getTabsHandler().notifyObservers('frameReset', notifyDetails);
+    }
     // Remove all subframes.
     for (var frameHandler of Object.values(this.frames)) {
       if (frameHandler.id === 0) continue;
       if (settings.debug.misc) console.log('Removing tab=<%s> frame=<%s>', this.id, frameHandler.id);
-      frameHandler.clear();
+      frameHandler.clear(true);
       delete(this.frames[frameHandler.id]);
     }
   }
@@ -281,7 +319,9 @@ class TabHandler {
     // await statement) have to check whether 'cleared' has been set.
     this.cleared = true;
     for (var frameHandler of Object.values(this.frames)) {
-      frameHandler.clear();
+      // Don't notify observers for each frame, as the tab itself is being
+      // removed.
+      frameHandler.clear(false);
     }
     this.frames = {};
   }
@@ -311,16 +351,20 @@ class TabHandler {
       // If requested, skip processing existing frame.
       if (params.skipExisting) return;
       // Frame is being reused: reset it.
-      frameHandler.reset(details);
+      frameHandler.reset(details, { beforeNavigate: false, domLoaded: true });
     } else {
       // New frame.
       frameHandler = new FrameHandler(this, details);
       if (settings.debug.misc) console.log('Managing new tab=<%s> frame=<%s> url=<%s>', this.id, frameId, frameHandler.url);
       this.frames[frameId] = frameHandler;
       if (frameId === 0) this.frameHandler = frameHandler;
+      this.getTabsHandler().notifyObservers('frameAdded', {
+        tabId: this.id,
+        tabHandler: this,
+        frameId: frameId,
+        frameHandler: frameHandler
+      });
     }
-    // Let caller setup scripts if applicable.
-    this.frameCb(this, frameHandler);
   }
 
   resetFrame(details) {
@@ -329,28 +373,72 @@ class TabHandler {
     // We are called ahead of time, before frame content is actually loaded.
     // We can ignore unknown frames, for which 'addFrame' will be called later.
     if (frameHandler === undefined) return;
-    if (frameId === 0) this.reset(details);
-    else frameHandler.reset(details);
+    if (frameId === 0) this.reset(details, { beforeNavigate: true, domLoaded: false });
+    else frameHandler.reset(details, { beforeNavigate: true, domLoaded: false });
   }
 
 }
 
+// Manages tabs and frames.
+//
+// Notes:
+// This handler does not listen itself to tab/frame changes, but let caller
+// determine when and how to call it.
+//
+// Observers can be added to be notified of changes. For each possible change,
+// observers are only notified if they have a function of the same name.
+// The possible changes to observe:
+//  - tabAdded: a new tab has been added
+//  - tabReset: an existing tab is being reused
+//  - tabRemoved: a tab is being removed
+//  - frameAdded: a new frame has been added
+//  - frameReset: an existing frame is being reused
+//  - frameRemoved: a frame is being removed
+// Tab and frame handlers are passed to observers when known, so that they don't
+// have to look them up when needed.
+//
+// When a tab is being reused, both 'tabReset' and 'frameReset' (on the main
+// frame) are triggered.
+// 'tabReset' and 'frameReset' are usually triggered twice:
+//  - when browser is about to navigate to target url
+//  - when the frame DOM content has been loaded: the frame is ready to be used
+// The former case sets 'beforeNavigate' to true, the later sets 'domLoaded'.
+// 'tabReset', 'tabRemove' and 'frameReset' are triggered even when tab/frame
+// was actually not known by the handler. It may be useful when observers rely
+// on other features that make them know about tabs/frames before the handler.
+// When a tab is being removed, only 'tabRemoved' is triggered: there is no
+// 'frameRemoved' for each (known) frame.
 export class TabsHandler {
 
-  constructor(frameCb) {
+  constructor() {
     this.tabs = {};
-    this.frameCb = frameCb;
+    this.observers = [];
+  }
+
+  addObserver(observer) {
+    this.observers.push(observer);
+  }
+
+  notifyObservers() {
+    var args = [...arguments];
+    var callback = args.shift();
+    for (var observer of this.observers) {
+      if (typeof(observer[callback]) !== 'function') continue;
+      observer[callback].apply(observer, args);
+    }
   }
 
   // Adds tab and return tab handler.
   // If tab is known, existing handler is returned.
   async addTab(tab, findFrames) {
-    var tabHandler = this.tabs[tab.id];
+    var tabId = tab.id;
+    var tabHandler = this.tabs[tabId];
     if (tabHandler !== undefined) return tabHandler;
 
-    if (settings.debug.misc) console.log('Managing new tab=<%s> url=<%s>', tab.id, tab.url);
-    this.tabs[tab.id] = tabHandler = new TabHandler(tab, this.frameCb);
+    if (settings.debug.misc) console.log('Managing new tab=<%s> url=<%s>', tabId, tab.url);
+    this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
     if (findFrames) await tabHandler.findFrames();
+    this.notifyObservers('tabAdded', { tabId: tabId, tabHandler: tabHandler });
     return tabHandler;
   }
 
@@ -387,7 +475,10 @@ export class TabsHandler {
   }
 
   removeTab(tabId) {
+    // Note: observers may have received messages related to a tab before the
+    // handler, so notify them even if we don't know the tab.
     var tabHandler = this.tabs[tabId];
+    this.notifyObservers('tabRemoved', { tabId: tabId, tabHandler: tabHandler });
     if (tabHandler === undefined) return;
     if (settings.debug.misc) console.log('Removing tab=<%s>', tabHandler.id);
     tabHandler.clear();

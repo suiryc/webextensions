@@ -210,55 +210,74 @@ function addExtensionMessage(details) {
 }
 
 
-// Content script dynamic execution handling.
+// Handles dynamic content script injection in frames.
+// Observes changes to handle 'new' frames:
+//  - a (brand new) frame is added
+//  - an existing frame is being reused for new content
+class ContentScriptHandler {
 
-// Injects TiddlyWiki content script CSS and code.
-function contentscript_inject_tw(tabHandler) {
-  var tabId = tabHandler.id;
+  // Injects TiddlyWiki content script CSS and code.
+  inject_tw(frameHandler) {
+    var tabId = frameHandler.tabHandler.id;
 
-  async function inject() {
-    var details = {
-      file: '/resources/content-script-tw.css',
-      runAt: 'document_start'
-    };
-    await browser.tabs.insertCSS(tabId, details);
+    async function inject() {
+      var details = {
+        file: '/resources/content-script-tw.css',
+        runAt: 'document_start'
+      };
+      await browser.tabs.insertCSS(tabId, details);
 
-    details.file = '/dist/content-script-tw.bundle.js';
-    await browser.tabs.executeScript(tabId, details);
+      details.file = '/dist/content-script-tw.bundle.js';
+      await browser.tabs.executeScript(tabId, details);
+    }
+
+    return frameHandler.setupScript('tw', inject);
   }
 
-  return tabHandler.frameHandler.setupScript('tw', inject);
-}
+  async handleFrame(frameHandler) {
+    var tabHandler = frameHandler.tabHandler;
+    // We can check which content script(s) to inject now.
+    // When dealing with a pdf file, Firefox has its own PDF.js handling and
+    // we cannot execute script in the (special and privileged) frame.
+    // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1454760
+    // Example: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/object
+    // Assume urls ending with '.pdf' are PDF displayed in frames, and exclude
+    // them.
+    if (frameHandler.url.match(/\.pdf$/i)) {
+      if (settings.debug.misc) console.log('Not handling tab=<%s> frame=<%s> url=<%s>: appears to be a PDF', tabHandler.id, frameHandler.id, frameHandler.url);
+      return;
+    }
 
-async function ext_handleFrame(tabHandler, frameHandler) {
-  if (frameHandler === undefined) frameHandler = tabHandler.frameHandler;
-
-  // We can check which content script(s) to inject now.
-  // When dealing with a pdf file, Firefox has its own PDF.js handling and
-  // we cannot execute script in the (special and privileged) frame.
-  // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1454760
-  // Example: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/object
-  // Assume urls ending with '.pdf' are PDF displayed in frames, and exclude
-  // them.
-  if (frameHandler.url.match(/\.pdf$/i)) {
-    if (settings.debug.misc) console.log('Not handling tab=<%s> frame=<%s> url=<%s>: appears to be a PDF', tabHandler.id, frameHandler.id, frameHandler.url);
-    return;
-  }
-
-  if (frameHandler.id === 0) {
-    // Inject TiddlyWiki content script where applicable.
-    // We only handle (and expect) main frame for this.
-    if (tabHandler.url().match(/^file:.*html?$/i)) {
-      contentscript_inject_tw(tabHandler);
+    if (frameHandler.id === 0) {
+      // Inject TiddlyWiki content script where applicable.
+      // We only handle (and expect) main frame for this.
+      if (tabHandler.url().match(/^file:.*html?$/i)) {
+        this.inject_tw(frameHandler);
+      }
     }
   }
+
+  // Tab/frame observer
+
+  frameAdded(details) {
+    this.handleFrame(details.frameHandler);
+  }
+
+  frameReset(details) {
+    var frameHandler = details.frameHandler;
+    // We want the DOM content to be loaded.
+    // If frameHandler is not (yet) known, we expect a 'frameAdded' to be
+    // triggered soon.
+    if (!details.domLoaded || (frameHandler === undefined)) return;
+    this.handleFrame(frameHandler);
+  }
+
 }
 
 
 var webext;
 var requestsHandler;
 var menuHandler;
-var tabsHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings(true).then(() => {
@@ -284,7 +303,9 @@ waitForSettings(true).then(() => {
   // Handle menus.
   menuHandler = new MenuHandler(requestsHandler);
   // Handle tabs.
-  tabsHandler = new TabsHandler(ext_handleFrame);
+  var tabsHandler = new TabsHandler();
+  // Handle content script injection.
+  tabsHandler.addObserver(new ContentScriptHandler());
 
   // We register for changes before getting all current tabs, to prevent missing
   // any due to race conditions.
