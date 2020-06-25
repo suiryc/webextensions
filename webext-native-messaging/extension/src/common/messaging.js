@@ -23,7 +23,7 @@ export class WebExtension {
     browser.runtime.onMessage.addListener((msg, sender) => {
       // Ignore message when applicable.
       if (!self.isTarget(msg)) {
-        if (settings.debug.misc) console.debug('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, self.params.target, msg.target);
+        if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, self.params.target, msg.target);
         return;
       }
       // Handle 'echo' message internally.
