@@ -278,6 +278,7 @@ class TabHandler {
 
   constructor(tabsHandler, tab) {
     this.id = tab.id;
+    this.title = tab.title;
     this.tabsHandler = tabsHandler;
     this.frames = {};
   }
@@ -346,7 +347,7 @@ class TabHandler {
     });
   }
 
-  addFrame(details, params) {
+  async addFrame(details, params) {
     if (this.cleared) return;
     params = params || {};
     var frameId = details.frameId;
@@ -354,6 +355,12 @@ class TabHandler {
     if (frameHandler !== undefined) {
       // If requested, skip processing existing frame.
       if (params.skipExisting) return;
+      // Get fresh tab information.
+      try {
+        var tab = await browser.tabs.get(this.id);
+        this.title = tab.title;
+      } catch (error) {
+      }
       // Frame is being reused: reset it.
       frameHandler.reset(details, { beforeNavigate: false, domLoaded: true });
     } else {
