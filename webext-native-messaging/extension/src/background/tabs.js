@@ -382,8 +382,7 @@ class TabHandler {
 // Manages tabs and frames.
 //
 // Notes:
-// This handler does not listen itself to tab/frame changes, but let caller
-// determine when and how to call it.
+// Once created, it automatically listens to tab/frame changes.
 //
 // Observers can be added to be notified of changes. For each possible change,
 // observers are only notified if they have a function of the same name.
@@ -413,6 +412,8 @@ export class TabsHandler {
   constructor() {
     this.tabs = {};
     this.observers = [];
+    // Listen to tab/frame changes.
+    this.setup();
   }
 
   addObserver(observer) {
@@ -483,6 +484,59 @@ export class TabsHandler {
     if (settings.debug.misc) console.log('Removing tab=<%s>', tabHandler.id);
     tabHandler.clear();
     delete(this.tabs[tabId]);
+  }
+
+  setup() {
+    var self = this;
+    // We register for changes before getting all current tabs, to prevent
+    // missing any due to race conditions.
+    // We listen to frames changes:
+    //  - onBeforeNavigate: to trigger frame reset ASAP (before page is loaded)
+    //  - onDOMContentLoaded: to inject scripts where appropriate
+    //  - onCompleted: because sometimes onDOMContentLoaded is skipped
+    //    e.g.: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/embed
+    // We don't listen to onCommitted (instead of onDOMContentLoaded) because
+    // we may be called right before the frame document actually changes for
+    // its new committed target; e.g. we may end up injecting script in the
+    // previous (often 'about:blank' for subframes) page, which will be wiped
+    // out right after.
+    //
+    // Depending on when script injection is requested and how the frame
+    // behaves, it may be necessary to 'runAt' ASAP, i.e. 'document_start'
+    // instead of 'document_end'. When listening to onDOMContentLoaded, this
+    // should not make a difference though.
+    // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1499667
+
+    // Listen to tabs being removed, so that we can clear them.
+    browser.tabs.onRemoved.addListener(id => {
+      self.removeTab(id);
+    });
+
+    // Listen to frame changes.
+    var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
+    browser.webNavigation.onBeforeNavigate.addListener(details => {
+      self.resetFrame(details);
+    }, webNavigationFilter);
+    browser.webNavigation.onDOMContentLoaded.addListener(details => {
+      self.addFrame(details);
+    }, webNavigationFilter);
+    browser.webNavigation.onCompleted.addListener(details => {
+      // Don't add frames we already known about: if frame is already known we
+      // assume onDOMContentLoaded was triggered.
+      // For now we don't expect the situation (onDOMContentLoaded skipped) to
+      // happen on the main frame, which would require more specific handling.
+      self.addFrame(details, {skipExisting: true});
+    }, webNavigationFilter);
+
+    // Get all live (non-discarded) tabs to handle.
+    browser.tabs.query({
+      url: ['file:///*', 'http://*/*', 'https://*/*'],
+      discarded: false
+    }).then(tabs => {
+      for (var tab of tabs) {
+        self.addTab(tab, true);
+      }
+    });
   }
 
 }
