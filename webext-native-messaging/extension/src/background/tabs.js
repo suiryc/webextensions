@@ -281,6 +281,8 @@ class TabHandler {
     this.title = tab.title;
     this.tabsHandler = tabsHandler;
     this.frames = {};
+    // Properties managed by the extension.
+    this.extensionProperties = {};
   }
 
   url() {
@@ -316,6 +318,8 @@ class TabHandler {
       frameHandler.clear(true);
       delete(this.frames[frameHandler.id]);
     }
+    // Reset properties last, as observers may need it.
+    this.resetExtensionProperties();
   }
 
   // Clears tab, which is about to be removed.
@@ -329,6 +333,27 @@ class TabHandler {
       frameHandler.clear(false);
     }
     this.frames = {};
+    this.resetExtensionProperties();
+  }
+
+  resetExtensionProperties() {
+    for (var [key, entry] of Object.entries(this.extensionProperties)) {
+      if (entry.keepOnReset) continue;
+      delete(this.extensionProperties[key]);
+    }
+  }
+
+  getExtensionProperty(details) {
+    var key = details.key;
+    var create = details.create;
+    var entry = this.extensionProperties[key];
+    if ((entry === undefined) && (create !== undefined)) {
+      entry = this.extensionProperties[key] = {
+        prop: create(this),
+        keepOnReset: details.keepOnReset
+      }
+    }
+    return (entry !== undefined) ? entry.prop : undefined;
   }
 
   async findFrames() {
@@ -432,6 +457,10 @@ class TabHandler {
 // the handler).
 // In the latter, the handler is known and previousTabId is the same than tabId
 // so that observers can deduce there is no actual change.
+//
+// Properties, accessed by key name, can be added to managed tabs.
+// Those are removed when tab is reset, unless caller asks to keep them.
+// Observers can e.g. use this to store objects linked to tab lifecycle.
 export class TabsHandler {
 
   constructor() {
