@@ -290,6 +290,10 @@ class TabHandler {
     return this.tabsHandler;
   }
 
+  isActive() {
+    return (this.getTabsHandler().activeTab.id == this.id);
+  }
+
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
     // Reset main frame.
@@ -388,6 +392,7 @@ class TabHandler {
 // observers are only notified if they have a function of the same name.
 // The possible changes to observe:
 //  - tabAdded: a new tab has been added
+//  - tabActivated: a tab has been activated
 //  - tabReset: an existing tab is being reused
 //  - tabRemoved: a tab is being removed
 //  - frameAdded: a new frame has been added
@@ -396,21 +401,35 @@ class TabHandler {
 // Tab and frame handlers are passed to observers when known, so that they don't
 // have to look them up when needed.
 //
-// When a tab is being reused, both 'tabReset' and 'frameReset' (on the main
-// frame) are triggered.
-// 'tabReset' and 'frameReset' are usually triggered twice:
+// When a tab is being reused, both tabReset and frameReset (on the main frame)
+// are triggered.
+// tabReset and frameReset are usually triggered twice:
 //  - when browser is about to navigate to target url
 //  - when the frame DOM content has been loaded: the frame is ready to be used
-// The former case sets 'beforeNavigate' to true, the later sets 'domLoaded'.
-// 'tabReset', 'tabRemove' and 'frameReset' are triggered even when tab/frame
-// was actually not known by the handler. It may be useful when observers rely
-// on other features that make them know about tabs/frames before the handler.
-// When a tab is being removed, only 'tabRemoved' is triggered: there is no
-// 'frameRemoved' for each (known) frame.
+// The former case sets beforeNavigate to true, the latter sets domLoaded.
+//
+// tabReset, tabRemove and frameReset are triggered even when tab/frame was
+// actually not known by the handler. It may be useful when observers rely on
+// other features that make them know about tabs/frames before the handler.
+//
+// When a tab is being removed, only tabRemoved is triggered: there is no
+// frameRemoved for each (known) frame.
+//
+// Even if there is no change, tabActivated is called once for the active tab
+// when the extension starts.
+// For a given active tab, tabActivated may be called twice:
+//  - when the tab is activated, but not managed yet
+//  - when the tab is finally managed, and is still activated
+// In the former, the passed tab handler is undefined; the notification is made
+// so that observers can handle it early if possible (i.e. even without knowing
+// the handler).
+// In the latter, the handler is known and previousTabId is the same than tabId
+// so that observers can deduce there is no actual change.
 export class TabsHandler {
 
   constructor() {
     this.tabs = {};
+    this.activeTab = {};
     this.observers = [];
     // Listen to tab/frame changes.
     this.setup();
@@ -434,13 +453,58 @@ export class TabsHandler {
   async addTab(tab, findFrames) {
     var tabId = tab.id;
     var tabHandler = this.tabs[tabId];
+    // Reminder: we may be called with outdated (since the query was done) tab
+    // information.
+    // So if the tab is already known, do nothing.
     if (tabHandler !== undefined) return tabHandler;
 
     if (settings.debug.misc) console.log('Managing new tab=<%s> url=<%s>', tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
     if (findFrames) await tabHandler.findFrames();
     this.notifyObservers('tabAdded', { tabId: tabId, tabHandler: tabHandler });
+    // If this tab is supposed to be active, ensure it is still the case:
+    //  - we must not know the active tab handler
+    //  - if we know the active tab id, it must be this tab: in this case we
+    //    will trigger a second 'tabActivated' notification, passing the known
+    //    handler (which was undefined in the previous notification)
+    if (tab.active && (this.activateTab.handler === undefined)) {
+      // Either we did not know yet which tab was active, or we did not manage
+      // yet this tab.
+      if ((this.activeTab.id === undefined) || (this.activeTab.id === tabId)) {
+        // We manage the tab now, and it really is the active tab.
+        // previousTabId points to the active tab too, so that observer can
+        // deduce there is no actual change (except for the handler known).
+        this.activateTab({ previousTabId: tabId, tabId: tabId, windowId: tab.windowId });
+      }
+    }
     return tabHandler;
+  }
+
+  activateTab(details) {
+    var tabId = details.tabId;
+    var tabHandler = this.tabs[tabId];
+    // Get previous handler to pass to observers.
+    // Note: previousTabId is undefined if the tab does not exist anymore.
+    // We let this as-is even though we may pass the previous handler if still
+    // not removed here.
+    var previousTabId = details.previousTabId;
+    var previousTabHandler = this.activeTab.handler;
+    if ((previousTabHandler === undefined) && (previousTabId !== undefined)) previousTabHandler = this.tabs[previousTabId];
+    // Note: we still notify observers when handler is not (yet) known. In this
+    // case the passed handled is undefined.
+    // Once the tab become known, we are called again, and can then pass the
+    // associated handler.
+    this.activeTab = {
+      id: tabId,
+      handler: tabHandler
+    };
+    if (settings.debug.misc) console.log('Activated tab=<%s>', tabId);
+    this.notifyObservers('tabActivated', {
+      previousTabId: previousTabId,
+      previousTabHandler: previousTabHandler,
+      tabId: tabId,
+      tabHandler: tabHandler
+    });
   }
 
   // Adds frame and return frame handler.
@@ -510,6 +574,10 @@ export class TabsHandler {
     // Listen to tabs being removed, so that we can clear them.
     browser.tabs.onRemoved.addListener(id => {
       self.removeTab(id);
+    });
+    // Listen to tab being activated.
+    browser.tabs.onActivated.addListener(details => {
+      self.activateTab(details);
     });
 
     // Listen to frame changes.
