@@ -1,5 +1,6 @@
 'use strict';
 
+import * as util from '../common/util.js';
 import { browserInfo } from '../common/settings.js';
 
 
@@ -16,24 +17,6 @@ export function findHeader(headers, name) {
   name = name.toLowerCase();
   var header = headers.find(h => h.name.toLowerCase() === name);
   return (header === undefined) ? undefined : header.value;
-}
-
-// Gets filename, deduced from URL when necessary.
-// Returns filename or empty value if unknown.
-export function getFilename(url, filename) {
-  // Deduce filename from URL when necessary.
-  if (filename === undefined) {
-    filename = url.split('#').shift().split('?').shift().split('/').pop();
-    try {
-      filename = decodeURIComponent(filename);
-    } catch (error) {
-    }
-    // Normalize: undefined if null.
-    if (filename === null) filename = undefined;
-  }
-  // Normalize: empty value if undefined.
-  if (filename === undefined) filename = '';
-  return filename;
 }
 
 // Gets cookie for given URL.
@@ -153,7 +136,7 @@ export class ContentType {
   guess(filename, ifNeeded) {
     if (ifNeeded && !this.needGuess()) return;
     if ((filename === undefined) || (filename === null)) return;
-    var extension = filename.split(/\./).pop().toLowerCase();
+    var extension = util.getFilenameExtension(filename).extension || '';
 
     // We mainly care about text and images.
     var guessed;

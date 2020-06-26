@@ -152,13 +152,10 @@ function tw_checkConcurrent() {
   // Remove fragment from URL so that querying tabs will work as expected: in
   // Firefox 69, querying does not take into account the fragment part in tabs
   // URL, but the queried URL is used as-is (with its fragment if present).
-  var url = new URL(document.URL);
-  url.hash = '';
-  url = url.href;
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_TW_CHECK_CONCURRENT,
-    url: url
+    url: util.normalizeUrl(document.URL)
   });
 }
 

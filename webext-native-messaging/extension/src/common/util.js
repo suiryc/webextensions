@@ -107,6 +107,49 @@ export function cleanupFields(obj) {
   }
 }
 
+// Normalizes url (for download).
+// Drops fragment if any.
+export function normalizeUrl(url, log, label) {
+  if (url === undefined) return;
+  // Notes:
+  // We could simply do url.split('#').shift(), but using URL is more standard
+  // and does sanitize a bit more.
+  var normalized = new URL(url);
+  normalized.hash = '';
+  normalized = normalized.href;
+  if (log && (normalized !== url)) console.log('Normalized=<%s> %s url=<%s>', normalized, url, label);
+  return normalized;
+}
+
+// Gets filename, deduced from URL when necessary.
+// Returns filename or empty value if unknown.
+export function getFilename(url, filename) {
+  // Deduce filename from URL when necessary.
+  // Note: we could do normalizeUrl(url).split('?').shift().split('/').pop(),
+  // but using URL is more standard, and handle more cases.
+  if (filename === undefined) {
+    try {
+      filename = decodeURIComponent(new URL(url).pathname.split('/').pop());
+    } catch (error) {
+    }
+    // Normalize: undefined if null.
+    if (filename === null) filename = undefined;
+  }
+  // Normalize: empty value if undefined.
+  if (filename === undefined) filename = '';
+  return filename;
+}
+
+// Gets file name and extension.
+// Extension is lowercased.
+export function getFilenameExtension(filename) {
+  var idx = filename.lastIndexOf('.');
+  return {
+    name: (idx > 0) ? filename.slice(0, idx) : filename,
+    extension: (idx > 0) ? filename.slice(idx + 1).toLowerCase() : undefined
+  };
+}
+
 export function checkContentScriptSetup(label) {
   // Possible ways to check whether global variable is set:
   //  - typeof(variable) !== 'undefined'

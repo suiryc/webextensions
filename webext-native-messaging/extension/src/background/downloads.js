@@ -22,7 +22,7 @@ function maybePageContent(url) {
   // dynamic (e.g. javascript/php/...) it may trigger another request that would
   // be a real content to download.
   // We first get the leaf path name.
-  var pathname = http.getFilename(url);
+  var pathname = util.getFilename(url);
   // If it's empty (that is the URL ends with a slash '/'), we assume the URL is
   // *not* for a content to download; most likely it's the 'index' page of the
   // site or one of its paths.
@@ -129,7 +129,7 @@ export class RequestsHandler {
         self.notification(constants.EXTENSION_ID, {
           title: 'Failed to download',
           level: 'error',
-          message: `${http.getFilename(url, filename)}\n${url}`,
+          message: `${util.getFilename(url, filename)}\n${url}`,
           error: r.error
         });
       }
@@ -427,7 +427,7 @@ export class RequestsHandler {
       util.browserNotification({
         'type': 'basic',
         'title': 'Intercepted request',
-        'message': `${http.getFilename(url, requestDetails.filename)}\n${url}`
+        'message': `${util.getFilename(url, requestDetails.filename)}\n${url}`
       }, settings.notifyTtl);
     }
 
