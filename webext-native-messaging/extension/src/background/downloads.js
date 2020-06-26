@@ -43,6 +43,108 @@ function maybePageContent(url) {
   return undefined;
 }
 
+class DlMngrClient {
+
+  setup(nativeApp, notification) {
+    this.nativeApp = nativeApp;
+    this.notification = notification;
+  }
+
+  async download(details, params) {
+    var self = this;
+
+    // Drop undefined (or null) fields.
+    util.cleanupFields(details);
+    util.cleanupFields(params);
+
+    // Set 'kind' field, in case we pass this message to the native app.
+    details.kind = constants.KIND_DOWNLOAD;
+    // Fill requested fields.
+    params = params || {};
+    if (params.addCookie && (details.cookie === undefined)) {
+      try {
+        details.cookie = await http.getCookie(details.url);
+      } catch (error) {
+        console.log('Could not add cookie for url=<%s>: %o', details.url, error);
+      }
+    }
+    if (params.addUserAgent && (details.userAgent === undefined)) {
+      details.userAgent = navigator.userAgent;
+    }
+    if (params.addComment && (details.comment === undefined)) {
+      var comment = [];
+      if (details.file !== undefined) comment.push(details.file);
+      if (params.tabTitle !== undefined) comment.push(params.tabTitle);
+      if ((params.linkText !== undefined) && (params.linkText != details.url)) comment.push(params.linkText);
+      if (comment.length > 0) details.comment = comment.join('\n');
+    }
+
+    // Cleanup again.
+    util.cleanupFields(details);
+
+    function handleError(r) {
+      if (r.error) {
+        var url = details.url;
+        var filename = details.file;
+        self.notification(constants.EXTENSION_ID, {
+          title: 'Failed to download',
+          level: 'error',
+          message: `${util.getFilename(url, filename)}\n${url}`,
+          error: r.error
+        });
+      }
+      return r;
+    }
+
+    async function postNative() {
+      var r;
+      try {
+        r = await self.nativeApp.postRequest(details);
+        // Remember WebSocket port for next request.
+        if (r.wsPort) self.wsPort = r.wsPort;
+      } catch (error) {
+        // Wrap error to handle it properly (as an error coming from the remote
+        // applicaton).
+        r = {
+          error: error
+        };
+      }
+      return handleError(r);
+    }
+
+    // Post native request if we don't know the WebSocket port yet.
+    if (!self.wsPort) return await postNative();
+
+    // Otherwise try WebSocket, and fallback to native request upon issue.
+    var wsClient = new WebSocketClient(`ws://127.0.0.1:${self.wsPort}/`);
+    try {
+      await wsClient.connect();
+      var r = await wsClient.postRequest(details);
+      // If WebSocket returns non-0 code, log it. It is useless to fallback to
+      // the native application, since the same should happen (except we don't
+      // wait for its return code). Better return a proper error.
+      if (r.code !== 0) {
+        // Note: error will be notified and logged.
+        r.error = (r.output !== undefined) ? r.output : 'WebSocket returned non-0 response code';
+      }
+      return handleError(r);
+    } catch (error) {
+      // Note: this is not an error message returned through WebSocket, but
+      // a pure WebSocket error.
+      // This may happen if the remote application is not running anymore.
+      console.log('WebSocket request=<%o> failed=<%o>: fallback to native app', details, error);
+      return await postNative();
+    } finally {
+      // Disconnect WebSocket once done.
+      wsClient.disconnect();
+    }
+  }
+
+}
+
+// Background script will set it up.
+export var dlMngr = new DlMngrClient();
+
 export class RequestsHandler {
 
   // When requested, monitors requests and downloads to intercept.
@@ -98,11 +200,9 @@ export class RequestsHandler {
   //  - it would be even less problematic since such downloads are expected to
   //    complete in a short time (due to the interception minimum size)
 
-  constructor(webext, nativeApp, notification) {
+  constructor(webext) {
     var self = this;
     self.webext = webext;
-    self.nativeApp = nativeApp;
-    self.notification = notification;
     self.requests = {};
     self.unintercepted = {};
     self.requestsCompleted = {};
@@ -114,70 +214,6 @@ export class RequestsHandler {
       });
     });
     self.setupInterception();
-  }
-
-  wsRequest(msg) {
-    var self = this;
-
-    // Drop undefined (or null) fields.
-    util.cleanupFields(msg);
-
-    function handleError(r) {
-      if (r.error) {
-        var url = msg.url;
-        var filename = msg.file;
-        self.notification(constants.EXTENSION_ID, {
-          title: 'Failed to download',
-          level: 'error',
-          message: `${util.getFilename(url, filename)}\n${url}`,
-          error: r.error
-        });
-      }
-      return r;
-    }
-
-    function postNative() {
-      return self.nativeApp.postRequest(msg).then(r => {
-        // Remember WebSocket port for next request.
-        if (r.wsPort) self.wsPort = r.wsPort;
-        return r;
-      }).catch(error => {
-        // Wrap error to handle it properly (as an error coming from the remote
-        // applicaton).
-        return {
-          error: error
-        };
-      }).then(r => {
-        return handleError(r);
-      });
-    }
-
-    // Post native request if we don't know the WebSocket port yet.
-    if (!self.wsPort) return postNative();
-
-    // Otherwise try WebSocket, and fallback to native request upon issue.
-    var wsClient = new WebSocketClient(`ws://127.0.0.1:${self.wsPort}/`);
-    return wsClient.connect().then(() => {
-      return wsClient.postRequest(msg);
-    }).then(r => {
-      // If WebSocket returns non-0 code, log it. It is useless to fallback to
-      // the native application, since the same should happen (except we don't
-      // wait for its return code). Better return a proper error.
-      if (r.code !== 0) {
-        // Note: error will be notified and logged.
-        r.error = (r.output !== undefined) ? r.output : 'WebSocket returned non-0 response code';
-      }
-      return handleError(r);
-    }).catch(error => {
-      // Note: this is not an error message returned through WebSocket, but
-      // a pure WebSocket error.
-      // This may happen if the remote application is not running anymore.
-      console.log('WebSocket request=<%o> failed=<%o>: fallback to native app', msg, error);
-      return postNative();
-    }).finally(() => {
-      // Disconnect WebSocket once done.
-      wsClient.disconnect();
-    });
   }
 
   setupInterception() {
@@ -408,7 +444,7 @@ export class RequestsHandler {
     return requestDetails.manage(this);
   }
 
-  manageRequest(requestDetails, intercept, reason) {
+  async manageRequest(requestDetails, intercept, reason) {
     var self = this;
     if (intercept && self.checkIgnoreNext()) {
       intercept = false;
@@ -431,29 +467,28 @@ export class RequestsHandler {
       }, settings.notifyTtl);
     }
 
-    return browser.tabs.get(requestDetails.sent.tabId).then(tab => {
-      return tab.title;
-    }).catch(error => {
-      return undefined;
-    }).then(title => {
-      var comment = title;
-      if (requestDetails.hasFilename()) comment = `${requestDetails.filename}\n${comment}`;
-      return self.wsRequest({
-        kind: constants.KIND_DOWNLOAD,
-        url: url,
-        referrer: http.findHeader(requestDetails.sent.requestHeaders, 'Referer'),
-        cookie: http.findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
-        userAgent: http.findHeader(requestDetails.sent.requestHeaders, 'User-Agent'),
-        file: requestDetails.filename,
-        size: requestDetails.contentLength,
-        comment: comment
-      }).then(r => {
-        if (r.error) return {};
-        return {
-          cancel: true
-        };
-      });
+    var tabTitle;
+    try {
+      var tab = await browser.tabs.get(requestDetails.sent.tabId);
+      tabTitle = tab.title;
+    } catch (error) {
+    }
+    var r = await dlMngr.download({
+      url: url,
+      referrer: http.findHeader(requestDetails.sent.requestHeaders, 'Referer'),
+      cookie: http.findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
+      userAgent: http.findHeader(requestDetails.sent.requestHeaders, 'User-Agent'),
+      file: requestDetails.filename,
+      size: requestDetails.contentLength
+    }, {
+      addComment: true,
+      tabTitle: tabTitle
     });
+    // Cancel the request if we successfully managed to trigger the download.
+    if (r.error) return {};
+    return {
+      cancel: true
+    };
   }
 
   onDownload(download) {
@@ -530,7 +565,7 @@ export class RequestsHandler {
     });
   }
 
-  manageDownload(download, intercept, reason) {
+  async manageDownload(download, intercept, reason) {
     var self = this;
     if (intercept && self.checkIgnoreNext()) {
       intercept = false;
@@ -546,9 +581,13 @@ export class RequestsHandler {
     // We better wait for this to be done before handing over the download to
     // the external application: then we are sure the browser has no more cnx
     // for this URL (and the target file has been deleted by browser).
-    browser.downloads.cancel(download.id).catch(error => {
+    try {
+      await browser.downloads.cancel(download.id);
+    } catch (error) {
       console.error('Failed to cancel download %o: %o', download, error);
-    }).then(() => {
+    }
+
+    async function cleanup() {
       // Then remove it from the list.
       // Notes:
       // Usually we would remove the created file from disk through 'removeFile'
@@ -561,52 +600,56 @@ export class RequestsHandler {
       // cancellation. Thus if we erase it too fast, those extensions will fail
       // to detect the download has been cancelled. As a workaround, wait a bit
       // before doing so: 2s appears to be enough (1s works in most cases).
-      util.delayPromise(2000).then(() => {
-        browser.downloads.erase({id: download.id}).catch(error => {
-          console.error('Failed to erase download %o: %o', download, error);
-        });
-      }).then(() => {
-        // If requested, clear downloads history.
-        // Notes:
-        // 'browser.downloads.erase' removes the entry from downloads, but an
-        // entry remains in the downloads history.
-        // 'browser.browsingData.removeDownloads' may be able to cleanup that
-        // entry, but in Firefox v66 it does not help, maybe because erasing
-        // ('originTypes') 'extension' data is not supported.
-        // Fortunately, 'browser.history.deleteUrl' does the trick.
-        if (settings.clearDownloads) return browser.history.deleteUrl({url: download.url});
-      }).catch(error => {
-        console.error('Failed to delete url for download %o: %o', error);
-      });
-
-      // While entry is being erased from list and history, we can hand over the
-      // download. First we need to get the cookie for the download URL.
-      return http.getCookie(download.url);
-    }).then(cookie => {
-      // Finally really do manage the download.
-      if (settings.notifyIntercept) {
-        util.browserNotification({
-          'type': 'basic',
-          'title': 'Intercepted download',
-          'message': `${download.filename}\n${download.url}`
-        }, settings.notifyTtl);
+      await util.delayPromise(2000);
+      try {
+        await browser.downloads.erase({id: download.id});
+      } catch (error) {
+        console.error('Failed to erase download %o: %o', download, error);
       }
 
-      return self.wsRequest({
-        kind: constants.KIND_DOWNLOAD,
-        url: download.url,
-        referrer: download.referrer,
-        cookie: cookie,
-        userAgent: navigator.userAgent,
-        file: download.filename,
-        size: download.totalBytes,
-        comment: download.filename,
-        auto: true
-      });
+      // If requested, clear downloads history.
+      // Notes:
+      // 'browser.downloads.erase' removes the entry from downloads, but an
+      // entry remains in the downloads history.
+      // 'browser.browsingData.removeDownloads' may be able to cleanup that
+      // entry, but in Firefox v66 it does not help, maybe because erasing
+      // ('originTypes') 'extension' data is not supported.
+      // Fortunately, 'browser.history.deleteUrl' does the trick.
+      if (settings.clearDownloads) {
+        try {
+          await browser.history.deleteUrl({url: download.url});
+        } catch (error) {
+          console.error('Failed to delete url for download %o: %o', error);
+        }
+      }
+    }
+    // Do some cleanup in the background.
+    cleanup();
+
+    // While entry is being erased from list and history, we can hand over the
+    // download.
+    if (settings.notifyIntercept) {
+      util.browserNotification({
+        'type': 'basic',
+        'title': 'Intercepted download',
+        'message': `${download.filename}\n${download.url}`
+      }, settings.notifyTtl);
+    }
+
+    return await dlMngr.download({
+      url: download.url,
+      referrer: download.referrer,
+      file: download.filename,
+      size: download.totalBytes,
+      auto: true
+    }, {
+      addCookie: true,
+      addUserAgent: true,
+      addComment: true
     });
   }
 
-  manageClick(info, tab) {
+  async manageClick(info, tab) {
     var self = this;
     // If mediaType is defined (e.g. 'video', 'audio' or 'image'), user clicked
     // on this kind of HTML element, instead of a plain link. In this case
@@ -625,31 +668,27 @@ export class RequestsHandler {
       return;
     }
 
-    http.getCookie(url).then(cookie => {
-      if (settings.notifyIntercept) {
-        util.browserNotification({
-          'type': 'basic',
-          'title': 'Intercepted link',
-          'message': url
-        }, settings.notifyTtl);
-      }
+    if (settings.notifyIntercept) {
+      util.browserNotification({
+        'type': 'basic',
+        'title': 'Intercepted link',
+        'message': url
+      }, settings.notifyTtl);
+    }
 
-      // Determine the referrer: either the frame or the page.
-      var referrer = info.frameUrl;
-      if (referrer === undefined) referrer = info.pageUrl;
+    // Determine the referrer: either the frame or the page.
+    var referrer = info.frameUrl;
+    if (referrer === undefined) referrer = info.pageUrl;
 
-      // Determine the comment: tab title, and link text (if applicable).
-      var comment = tab.title;
-      if ((info.linkText !== undefined) && (info.linkText !== null) && (info.linkText != url)) comment = `${comment}\n${info.linkText}`;
-
-      return self.wsRequest({
-        kind: constants.KIND_DOWNLOAD,
-        url: url,
-        referrer: referrer,
-        cookie: cookie,
-        userAgent: navigator.userAgent,
-        comment: comment
-      });
+    return await dlMngr.download({
+      url: url,
+      referrer: referrer
+    }, {
+      addCookie: true,
+      addUserAgent: true,
+      addComment: true,
+      tabTitle: tab.title,
+      linkText: info.linkText
     });
   }
 

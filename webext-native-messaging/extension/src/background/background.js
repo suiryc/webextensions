@@ -4,7 +4,7 @@ import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
-import { RequestsHandler } from './downloads.js';
+import { dlMngr, RequestsHandler } from './downloads.js';
 import { MenuHandler } from './menus.js';
 import { TabsHandler } from './tabs.js';
 
@@ -297,8 +297,9 @@ waitForSettings(true).then(() => {
   });
 
 
-  // Listen to requests and downloads
-  requestsHandler = new RequestsHandler(webext, nativeApp, notification);
+  // Listen to requests and downloads.
+  dlMngr.setup(nativeApp, notification);
+  requestsHandler = new RequestsHandler(webext);
   // Handle menus.
   var menuHandler = new MenuHandler(requestsHandler);
   // Handle tabs.
