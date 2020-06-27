@@ -54,11 +54,8 @@ function tw_warnConcurrent(msg) {
 var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
 waitForSettings().then(() => {
-  util.waitForDocument(startExtension);
-});
-
-// Really starts extension
-function startExtension() {
+  return util.waitForDocument();
+}).then(() => {
   // Enable TiddlyWiki handling when applicable.
   var ready = false;
   if (isTW5()) {
@@ -92,7 +89,7 @@ function startExtension() {
       }
     });
   }
-}
+});
 
 // Displays a modal message.
 // See: https://www.w3schools.com/howto/howto_css_modals.asp

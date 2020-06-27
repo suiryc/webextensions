@@ -164,17 +164,24 @@ export function checkContentScriptSetup(label) {
   }
 }
 
+// Waits for DOM content to be loaded (i.e. document ready to be used).
+// Executes given callback if any once ready.
+// Returns a Promise resolved when ready, with passed callback result if any.
 export function waitForDocument(callback) {
+  var d = new Deferred();
+
+  function complete() {
+    if (callback !== undefined) d.completeWith(callback);
+    else d.resolve();
+  }
+
   // We want to wait for 'document.body' to exist.
   // The simplest way is to wait for 'DOMContentLoaded' which happens when the
   // page has been loaded (not including stylesheets, images and subframes).
-  if (document.body !== null) {
-    callback();
-  } else {
-    document.addEventListener('DOMContentLoaded', ev => {
-      callback();
-    });
-  }
+  if (document.body !== null) complete();
+  else document.addEventListener('DOMContentLoaded', complete);
+
+  return d.promise;
 }
 
 // Sets node HTML content.
