@@ -89,7 +89,7 @@ function addMessage(details) {
   }
   replaceNode(node.querySelector('.icon'), icon);
   util.setHtml(node.querySelector('.title'), details.title);
-  message = message.replace(/\n/g, '<br>');
+  message = util.textToHtml(message);
   util.setHtml(node.querySelector('.content'), message);
 
   messagesNode.appendChild(node);

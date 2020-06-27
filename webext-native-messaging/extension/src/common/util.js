@@ -202,10 +202,24 @@ export function htmlToElement(html) {
   return template.firstChild;
 }
 
+// Extracts plain text from html.
+// html tags are stripped, only text remains.
 export function htmlToText(html) {
   var template = document.createElement('template');
   setHtml(template, html);
   return template.textContent;
+}
+
+// Converts text into html text.
+// Escapes characters so that original text can be displayed in html content.
+// Newlines are also replaced by 'br' tags.
+// Notes:
+// innerHTML is empty when using a 'template' node.
+// It works as needed when using a 'div' node.
+export function textToHtml(text) {
+  var el = document.createElement('div');
+  el.textContent = text;
+  return el.innerHTML.replace(/\n/g, '<br>');;
 }
 
 // Displays a browser notification and hide it after TTL (milliseconds).
