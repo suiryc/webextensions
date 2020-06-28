@@ -251,7 +251,7 @@ class ContentScriptHandler {
     if (frameHandler.id === 0) {
       // Inject TiddlyWiki content script where applicable.
       // We only handle (and expect) main frame for this.
-      if (tabHandler.url().match(/^file:.*html?$/i)) {
+      if (tabHandler.url.match(/^file:.*html?$/i)) {
         this.inject_tw(frameHandler);
       }
     }

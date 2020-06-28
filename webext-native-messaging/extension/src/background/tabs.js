@@ -48,7 +48,7 @@ class FrameHandler {
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
     var sameUrl = this.url == details.url;
-    this.url = details.url;
+    this.setUrl(details.url);
     // For each script (id), remember the associated promise, resolved with its
     // injection success and result/error.
     this.scripts = {};
@@ -90,6 +90,12 @@ class FrameHandler {
 
   getTabsHandler() {
     return this.tabHandler.getTabsHandler();
+  }
+
+  setUrl(url) {
+    this.url = url;
+    // Update parent tab url if we are the main frame.
+    if (this.id == 0) this.tabHandler.url = url;
   }
 
   // Queue a new action to execute sequentially.
@@ -167,7 +173,7 @@ result;`,
        // Use our brand new uuid when applicable.
       if (!result.existed) this.csUuid = newUuid;
       // Refresh our url.
-      this.url = result.url;
+      this.setUrl(result.url);
       // We should have our known uuid (previous one, or brand new).
       if (result.csUuid !== this.csUuid) console.log('Tab=<%s> frame=<%s> already had been initialised with csUuid=<%s> instead of csUuid=<%s>', tabId, frameId, result.csUuid, this.csUuid);
       return {
@@ -278,15 +284,12 @@ class TabHandler {
 
   constructor(tabsHandler, tab) {
     this.id = tab.id;
+    this.url = tab.url;
     this.title = tab.title;
     this.tabsHandler = tabsHandler;
     this.frames = {};
     // Properties managed by the extension.
     this.extensionProperties = {};
-  }
-
-  url() {
-    return this.frameHandler.url;
   }
 
   getTabsHandler() {
