@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "WebExtension native messaging",
-  "version": "0.3.0",
+  "version": "0.4.0",
 
   "description": "Personal multi-purpose WebExtension interacting with native application.",
   // We delegate most actions to a native application:
@@ -16,6 +16,7 @@
   //  - notifications: to notify when a request/download/link was intercepted
   //  - storage: to persist some settings
   //  - tabs: to get a tab properties (title used as DL comment)
+  //  - webNavigation: to work with frames (dynamic script execution)
   //  - webRequest/webRequestBlocking: to intercept requests
   //  - <all_urls>: so that webRequest and cookies work for all URLs
   // For TiddlyWiki we use:
