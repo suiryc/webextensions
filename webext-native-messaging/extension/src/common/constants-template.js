@@ -36,6 +36,7 @@ export const constants = {
   // We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
 
   // Message known 'kind' field values
+  KIND_ADD_VIDEO_SOURCE: 'addVideoSource',
   KIND_CHECK_NATIVE_APP: 'checkNativeApp',
   KIND_CLEAR_MESSAGES: 'clearMessages',
   KIND_CONSOLE: 'console',

@@ -1,7 +1,7 @@
 'use strict';
 
 import * as util from '../common/util.js';
-import { browserInfo } from '../common/settings.js';
+import { browserInfo, settings } from '../common/settings.js';
 
 
 // Checks whether an URL is considered downloadable.
@@ -52,9 +52,22 @@ export class RequestDetails {
 
   parseResponse(interceptSize) {
     const response = this.received;
+    var statusCode = response.statusCode;
 
-    // Get content length. Use undefined if unknown.
-    this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
+    if (statusCode == 200) {
+      // Get content length. Use undefined if unknown.
+      this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
+    }
+    if (statusCode == 206) {
+      // Determine content length through range response.
+      var range = findHeader(response.responseHeaders, 'Content-Range');
+      if ((range !== undefined) && (range.split(' ').shift().toLowerCase() === 'bytes')) {
+        this.contentLength = range.split('/').pop().trim();
+      } else {
+        // Should not happen.
+        if (settings.debug.misc) console.log('Ignoring unhandled Content-Range=<%s> in response=<%o>', range, response);
+      }
+    }
     if (this.hasSize()) this.contentLength = Number(this.contentLength);
     // Normalize: negative length means size is unknown.
     if (this.contentLength < 0) this.contentLength = undefined;
@@ -138,7 +151,7 @@ export class ContentType {
     if ((filename === undefined) || (filename === null)) return;
     var extension = util.getFilenameExtension(filename).extension || '';
 
-    // We mainly care about text and images.
+    // We mainly care about text, images and audio.
     var guessed;
     if ('txt' == extension) guessed = 'text/plain';
     else if ('css' == extension) guessed = 'text/css';
@@ -152,6 +165,11 @@ export class ContentType {
     else if ('gif' == extension) guessed = 'image/gif';
     else if ('bmp' == extension) guessed = 'image/bmp';
     else if (/^tiff?$/.test(extension)) guessed = 'image/tiff';
+    else if (/^mp[1-3]$/.test(extension)) guessed = 'audio/mpeg';
+    else if (/^m[12p]a$/.test(extension)) guessed = 'audio/mpeg';
+    else if ('m4a' == extension) guessed = 'audio/mp4';
+    else if ('weba' == extension) guessed = 'audio/webm';
+    else if ('opus' == extension) guessed = 'audio/ogg';
 
     if (guessed !== undefined) {
       this.raw = guessed;
@@ -181,6 +199,10 @@ export class ContentType {
 
   isImage() {
     return this.is('image');
+  }
+
+  isAudio() {
+    return this.is('audio');
   }
 
   maybeText() {

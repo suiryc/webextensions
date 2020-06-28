@@ -475,6 +475,17 @@ export class TabsHandler {
     this.setup();
   }
 
+  getFrame(details) {
+    // Get request tab handler if known.
+    var tabHandler = this.tabs[details.tabId];
+    if (tabHandler === undefined) return;
+    // Ensure requested frame belongs to the tab.
+    var frameHandler = tabHandler.frames[details.frameId];
+    if (frameHandler === undefined) return;
+    if ((details.csUuid !== undefined) && (frameHandler.csUuid !== details.csUuid)) return;
+    return frameHandler;
+  }
+
   addObserver(observer) {
     this.observers.push(observer);
   }

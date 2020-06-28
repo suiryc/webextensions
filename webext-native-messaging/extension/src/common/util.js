@@ -150,6 +150,54 @@ export function getFilenameExtension(filename) {
   };
 }
 
+// Round number to the requested precision (3 digits by default).
+function roundNumber(num, dec, precision) {
+  if (num == 0) return 0;
+  if (precision === undefined) precision = 3;
+
+  var threshold = Math.pow(10, precision - 1);
+  if (dec === undefined) {
+    var tmp = Math.abs(num);
+    if (tmp >= threshold) return Math.round(num);
+
+    dec = 0;
+    while (tmp < threshold) {
+      tmp *= 10;
+      dec++;
+    }
+  }
+
+  return Math.round(num * Math.pow(10, dec)) / Math.pow(10, dec);
+}
+
+const sizeUnitFactor = 1024;
+const sizeUnits = ['B', 'K', 'M', 'G', 'T'];
+
+// Gets human-readable representation of size (in bytes).
+export function getSizeText(size) {
+  var idx = 0;
+  while ((idx + 1 < sizeUnits.length) && (size >= sizeUnitFactor)) {
+    size /= sizeUnitFactor;
+    idx++;
+  }
+  // Round number, keep 3 digits of precision (e.g. 234, 23.4, 2.34).
+  return `${roundNumber(size)}${sizeUnits[idx]}`;
+}
+
+// Limits text size by using ellipsis.
+// If the text exceeds the given limit, its middle part is replaced by an
+// ellipsis unicode character.
+export function limitText(s, limit) {
+  if ((s === undefined) || (s.length <= limit)) return s;
+  // We insert one ellipsis unicode character, to deduce from the given limit.
+  //  actualLimit = limit - 1
+  // We split the string in two to keep that start and end.
+  // For odd splitting, we take one more character from the start.
+  // First half: from 0 to (actualLimit + 1) / 2
+  // Second half: actualLimit / 2 from the end till the end
+  return `${s.slice(0, limit / 2)}…${s.slice(-(limit - 1) / 2)}`;
+}
+
 export function checkContentScriptSetup(label) {
   // Possible ways to check whether global variable is set:
   //  - typeof(variable) !== 'undefined'

@@ -133,8 +133,10 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('clearDownloads', true);
     new ExtensionBooleanSetting('debug.misc', false);
     new ExtensionBooleanSetting('debug.downloads', false);
+    new ExtensionBooleanSetting('debug.video', false);
     new ExtensionBooleanSetting('interceptDownloads', true);
     new ExtensionBooleanSetting('interceptRequests', true);
+    new ExtensionBooleanSetting('interceptVideo', true);
     new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
     new ExtensionBooleanSetting('notifyIntercept', true);
     new ExtensionIntSetting('notifyTtl', 4000);
@@ -147,6 +149,7 @@ class Settings extends SettingsBranch {
     if (debug !== undefined) {
       settings.debug.misc = debug;
       settings.debug.downloads = debug;
+      settings.debug.video = debug;
     }
     // else: default value
     await browser.storage.local.remove('debug');

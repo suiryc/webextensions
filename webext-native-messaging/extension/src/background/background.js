@@ -5,6 +5,7 @@ import * as util from '../common/util.js';
 import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { dlMngr, RequestsHandler } from './downloads.js';
+import { VideoSourceHandler } from './video-sources.js';
 import { MenuHandler } from './menus.js';
 import { TabsHandler } from './tabs.js';
 
@@ -39,6 +40,13 @@ async function onMessage(extension, msg, sender) {
 
     case constants.KIND_GET_EXT_MESSAGES:
       return ext_getMessages(msg);
+      break;
+
+    case constants.KIND_ADD_VIDEO_SOURCE:
+      // We may receive messages from scripts injected before disabling video
+      // interception.
+      if (!settings.interceptVideo) return;
+      return dl_addVideoSource(msg, sender);
       break;
 
     default:
@@ -118,6 +126,15 @@ function ext_clearMessages() {
 // Gets extension messages to display.
 function ext_getMessages(msg) {
   return applicationMessages;
+}
+
+function dl_addVideoSource(msg, sender) {
+  return videoSourceHandler.addSource({
+    tabId: sender.tab.id,
+    frameId: sender.frameId,
+    csUuid: msg.csUuid,
+    url: msg.src
+  });
 }
 
 
@@ -234,6 +251,26 @@ class ContentScriptHandler {
     return frameHandler.setupScript('tw', inject);
   }
 
+  // Injects 'video' content script code.
+  inject_video(frameHandler) {
+    var tabId = frameHandler.tabHandler.id;
+    var frameId = frameHandler.id;
+
+    async function inject() {
+      // Notes:
+      // We only target http/file frames, and only need to inject in frames that
+      // are not 'about:blank'.
+      var details = {
+        frameId: frameId,
+        file: '/dist/content-script-video.bundle.js',
+        runAt: 'document_start'
+      };
+      await browser.tabs.executeScript(tabId, details);
+    }
+
+    return frameHandler.setupScript('video', inject);
+  }
+
   async handleFrame(frameHandler) {
     var tabHandler = frameHandler.tabHandler;
     // We can check which content script(s) to inject now.
@@ -254,6 +291,10 @@ class ContentScriptHandler {
       if (tabHandler.url.match(/^file:.*html?$/i)) {
         this.inject_tw(frameHandler);
       }
+    }
+
+    if (settings.interceptVideo && tabHandler.url.startsWith('http')) {
+      this.inject_video(frameHandler);
     }
   }
 
@@ -277,6 +318,7 @@ class ContentScriptHandler {
 
 var webext;
 var requestsHandler;
+var videoSourceHandler;
 var nativeApp;
 var applicationMessages = [];
 waitForSettings(true).then(() => {
@@ -306,4 +348,7 @@ waitForSettings(true).then(() => {
   var tabsHandler = new TabsHandler();
   // Handle content script injection.
   tabsHandler.addObserver(new ContentScriptHandler());
+  // Handle video sources.
+  videoSourceHandler = new VideoSourceHandler(tabsHandler, menuHandler);
+  tabsHandler.addObserver(videoSourceHandler);
 });
