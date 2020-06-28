@@ -73,10 +73,12 @@ class DlMngrClient {
     }
     if (params.addComment && (details.comment === undefined)) {
       var comment = [];
-      if (details.file !== undefined) comment.push(details.file);
-      if (params.tabTitle !== undefined) comment.push(params.tabTitle);
-      if ((params.linkText !== undefined) && (params.linkText != details.url)) comment.push(params.linkText);
-      if (comment.length > 0) details.comment = comment.join('\n');
+      if (details.file !== undefined) comment.push(`Download filename: ${details.file}`);
+      if (params.mimeFilename !== undefined) comment.push(`MIME filename: ${params.mimeFilename}`);
+      comment.push(`URL filename: ${util.getFilename(details.url)}`);
+      if (params.tabTitle !== undefined) comment.push(`Page title: ${params.tabTitle}`);
+      if ((params.linkText !== undefined) && (params.linkText != details.url)) comment.push(`Link text: ${params.linkText}`);
+      details.comment = comment.join('\n');
     }
 
     // Cleanup again.
@@ -482,6 +484,7 @@ export class RequestsHandler {
       size: requestDetails.contentLength
     }, {
       addComment: true,
+      mimeFilename: requestDetails.filename,
       tabTitle: tabTitle
     });
     // Cancel the request if we successfully managed to trigger the download.
