@@ -142,6 +142,7 @@ class FrameHandler {
     var newUuid = util.uuidv4();
     const csParams = {
       tabId: tabId,
+      tabUrl: this.tabHandler.url,
       frameId: frameId,
       uuid: newUuid
     };
