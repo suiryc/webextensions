@@ -285,6 +285,7 @@ class TabHandler {
 
   constructor(tabsHandler, tab) {
     this.id = tab.id;
+    this.windowId = tab.windowId;
     this.url = tab.url;
     this.title = tab.title;
     this.tabsHandler = tabsHandler;
@@ -298,7 +299,11 @@ class TabHandler {
   }
 
   isActive() {
-    return (this.getTabsHandler().activeTab.id == this.id);
+    return (this.getTabsHandler().getActiveTab(this.windowId).id == this.id);
+  }
+
+  isFocused() {
+    return (this.getTabsHandler().getActiveTab().id == this.id);
   }
 
   // Resets frame, which is about to be (re)used.
@@ -422,13 +427,15 @@ class TabHandler {
 // Manages tabs and frames.
 //
 // Notes:
-// Once created, it automatically listens to tab/frame changes.
+// Once created, it automatically listens to window/tab/frame changes.
 //
 // Observers can be added to be notified of changes. For each possible change,
 // observers are only notified if they have a function of the same name.
 // The possible changes to observe:
+//  - windowFocused: a window has focus
 //  - tabAdded: a new tab has been added
 //  - tabActivated: a tab has been activated
+//  - tabFocused: a tab has focus
 //  - tabReset: an existing tab is being reused
 //  - tabRemoved: a tab is being removed
 //  - frameAdded: a new frame has been added
@@ -436,6 +443,20 @@ class TabHandler {
 //  - frameRemoved: a frame is being removed
 // Tab and frame handlers are passed to observers when known, so that they don't
 // have to look them up when needed.
+//
+// Each windowId is unique.
+// Each tabId is unique, even amongst all windows.
+// Each frame is identified by its parent tabId and its frameId, even though in
+// the case of non-main frames Firefox appear to use unique frame ids amongts
+// all tabs.
+// Usually we only need to relate to one element and its parent:
+//  - a tab in a window
+//  - a frame in a tab
+// As such, we usually only log windowId+tabId or tabId+frameId, but not all
+// three together.
+// Most of the time there is no need to take into account/deal with the window
+// a tab belongs to. The exception is when dealing with tab activation (see
+// below).
 //
 // When a tab is being reused, both tabReset and frameReset (on the main frame)
 // are triggered.
@@ -451,6 +472,17 @@ class TabHandler {
 // When a tab is being removed, only tabRemoved is triggered: there is no
 // frameRemoved for each (known) frame.
 //
+// Tab activation is per window: there is one active tab per window. Selecting
+// a tab in another window first changes focus to the new window before the tab
+// is activated. This also means than upon activation, the previousTabId if any
+// corresponds to another tab in the same window, hence the fact there is only
+// one windowId and no previousWindowId.
+// Since observers may need to determine which tab is actually selected by the
+// user, which happens when focusing a new window or activating a new tab, a
+// fake change tabFocused is forged when either windowFocused or tabActivated
+// happens. In this case it is only need to observe the former instead of the
+// latter two.
+//
 // Even if there is no change, tabActivated is called once for the active tab
 // when the extension starts.
 // For a given active tab, tabActivated may be called twice:
@@ -462,6 +494,25 @@ class TabHandler {
 // In the latter, the handler is known and previousTabId is the same than tabId
 // so that observers can deduce there is no actual change.
 //
+// The main relations between windows and tabs:
+// When a tab is opened in a new window:
+//  - the window and tab are created
+//  - the tab is activated and window focused
+//  - the tab main frame navigates to the target url
+// When a tab is moved to another window:
+//  - a new tab is activated in the origin window, if one remain
+//  - the target window is focused
+//  - the moved tab is activated (in the new window)
+//  - the previous window is removed if it was its last tab
+// When a window is closed:
+//  - each tab is individually removed; which means obervers usually only need
+//    to handle tabRemoved, not windowRemoved
+//  - the window is removed
+//  - windows focus is changed (to another window or to none)
+// When a tab in another window is activated:
+//  - the target window is focused
+//  - the tab is activated
+//
 // Properties, accessed by key name, can be added to managed tabs.
 // Those are removed when tab is reset, unless caller asks to keep them.
 // Observers can e.g. use this to store objects linked to tab lifecycle.
@@ -469,10 +520,16 @@ export class TabsHandler {
 
   constructor() {
     this.tabs = {};
+    this.focusedWindowId = undefined;
     this.activeTab = {};
+    this.activeTabs = {};
     this.observers = [];
     // Listen to tab/frame changes.
     this.setup();
+  }
+
+  getActiveTab(windowId) {
+    return (windowId === undefined) ? this.activeTab : (this.activeTabs[windowId] || {});
   }
 
   getFrame(details) {
@@ -502,6 +559,7 @@ export class TabsHandler {
   // Adds tab and return tab handler.
   // If tab is known, existing handler is returned.
   async addTab(tab, findFrames) {
+    var windowId = tab.windowId;
     var tabId = tab.id;
     var tabHandler = this.tabs[tabId];
     // Reminder: we may be called with outdated (since the query was done) tab
@@ -509,29 +567,31 @@ export class TabsHandler {
     // So if the tab is already known, do nothing.
     if (tabHandler !== undefined) return tabHandler;
 
-    if (settings.debug.misc) console.log('Managing new tab=<%s> url=<%s>', tabId, tab.url);
+    if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
     if (findFrames) await tabHandler.findFrames();
     this.notifyObservers('tabAdded', { tabId: tabId, tabHandler: tabHandler });
     // If this tab is supposed to be active, ensure it is still the case:
-    //  - we must not know the active tab handler
+    //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
     //    will trigger a second 'tabActivated' notification, passing the known
     //    handler (which was undefined in the previous notification)
-    if (tab.active && (this.activateTab.handler === undefined)) {
+    var activeTab = this.getActiveTab(windowId);
+    if (tab.active && (activeTab.handler === undefined)) {
       // Either we did not know yet which tab was active, or we did not manage
       // yet this tab.
-      if ((this.activeTab.id === undefined) || (this.activeTab.id === tabId)) {
+      if ((activeTab.id === undefined) || (activeTab.id === tabId)) {
         // We manage the tab now, and it really is the active tab.
         // previousTabId points to the active tab too, so that observer can
         // deduce there is no actual change (except for the handler known).
-        this.activateTab({ previousTabId: tabId, tabId: tabId, windowId: tab.windowId });
+        this.activateTab({ previousTabId: tabId, tabId: tabId, windowId: windowId });
       }
     }
     return tabHandler;
   }
 
   activateTab(details) {
+    var windowId = details.windowId;
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
     // Get previous handler to pass to observers.
@@ -539,22 +599,53 @@ export class TabsHandler {
     // We let this as-is even though we may pass the previous handler if still
     // not removed here.
     var previousTabId = details.previousTabId;
-    var previousTabHandler = this.activeTab.handler;
+    var previousTabHandler = this.getActiveTab(windowId).handler;
     if ((previousTabHandler === undefined) && (previousTabId !== undefined)) previousTabHandler = this.tabs[previousTabId];
     // Note: we still notify observers when handler is not (yet) known. In this
     // case the passed handled is undefined.
     // Once the tab become known, we are called again, and can then pass the
     // associated handler.
-    this.activeTab = {
+    this.activeTab = this.activeTabs[windowId] = {
       id: tabId,
       handler: tabHandler
     };
-    if (settings.debug.misc) console.log('Activated tab=<%s>', tabId);
+    // onActivated is triggered when a tab is moved from one window to another.
+    // This is our chance to update the known windowId.
+    if (tabHandler !== undefined) tabHandler.windowId = windowId;
+    if (settings.debug.misc) console.log('Activated window=<%s> tab=<%s>', windowId, tabId);
     this.notifyObservers('tabActivated', {
       previousTabId: previousTabId,
       previousTabHandler: previousTabHandler,
       tabId: tabId,
       tabHandler: tabHandler
+    });
+    // Note: windows are focused before tabs are activated; so when a tab is
+    // activated, the previous active is also the previous 'focused'.
+    this.notifyObservers('tabFocused', {
+      previousTabId: previousTabId,
+      previousTabHandler: previousTabHandler,
+      tabId: tabId,
+      tabHandler: tabHandler
+    });
+  }
+
+  focusWindow(windowId) {
+    // Note: windows.WINDOW_ID_NONE is used when no window has the focus.
+    var previousWindowId = this.focusedWindowId;
+    this.focusedWindowId = windowId;
+    this.activeTab = this.activeTabs[windowId] || {};
+    if (settings.debug.misc) {
+      if (windowId !== browser.windows.WINDOW_ID_NONE) console.log('Focused window=<%s>', windowId);
+      else console.log('No more window focused');
+    }
+    var previousActiveTab = this.getActiveTab(previousWindowId);
+    var activeTab = this.getActiveTab(windowId);
+    this.notifyObservers('windowFocused', { previousWindowId: previousWindowId, windowId: windowId });
+    this.notifyObservers('tabFocused', {
+      previousTabId: previousActiveTab.id,
+      previousTabHandler: previousActiveTab.handler,
+      tabId: activeTab.id,
+      tabHandler: activeTab.handler
     });
   }
 
@@ -596,9 +687,15 @@ export class TabsHandler {
     var tabHandler = this.tabs[tabId];
     this.notifyObservers('tabRemoved', { tabId: tabId, tabHandler: tabHandler });
     if (tabHandler === undefined) return;
-    if (settings.debug.misc) console.log('Removing tab=<%s>', tabHandler.id);
+    if (settings.debug.misc) console.log('Removing window=<%s> tab=<%s>', tabHandler.windowId, tabHandler.id);
     tabHandler.clear();
     delete(this.tabs[tabId]);
+  }
+
+  removeWindow(windowId) {
+    this.notifyObservers('windowRemoved', {windowId: windowId});
+    if (settings.debug.misc) console.log('Removing window=<%s>', windowId);
+    delete(this.activeTabs[windowId]);
   }
 
   setup() {
@@ -622,11 +719,24 @@ export class TabsHandler {
     // should not make a difference though.
     // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1499667
 
-    // Listen to tabs being removed, so that we can clear them.
+    // Listen to windows being removed or focused.
+    browser.windows.onRemoved.addListener(id => {
+      self.removeWindow(id);
+    });
+    // Note: listening on focus change triggers an initial event (so that we
+    // known which window is focused).
+    browser.windows.onFocusChanged.addListener(id => {
+      self.focusWindow(id);
+    });
+
+    // Listen to tabs being removed or activated.
+    // There is no real tab onUpdated event triggered when a tab is moved to
+    // another window. The actual way is to listen onActivated, as it is
+    // triggered in this case: the target window gets focus then the tab moved
+    // in the window gets activated (with its new windowId).
     browser.tabs.onRemoved.addListener(id => {
       self.removeTab(id);
     });
-    // Listen to tab being activated.
     browser.tabs.onActivated.addListener(details => {
       self.activateTab(details);
     });

@@ -402,7 +402,7 @@ class VideoSourceTabHandler {
     details.tabTitle = tabHandler.title;
     var source = new VideoSource(details);
     this.sources.push(source);
-    if (tabHandler.isActive()) source.addMenuEntry(this.menuHandler);
+    if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
 
     // Process buffered requests.
     var buffered = this.getBufferedRequests(url, true);
@@ -737,14 +737,14 @@ export class VideoSourceHandler {
     }, 1000);
   }
 
-  tabActivated(details) {
-    // Remove entries from previous active tab, if there really was a change.
+  tabFocused(details) {
+    // Remove entries from previous focused tab, if there really was a change.
     if ((details.previousTabId !== details.tabId) && (details.previousTabHandler !== undefined)) {
       var handler = details.previousTabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
       if (handler !== undefined) handler.removeMenuEntries();
     }
 
-    // Add entries of new active tab.
+    // Add entries of new focused tab.
     if (details.tabHandler === undefined) return;
     var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
     if (handler !== undefined) handler.addMenuEntries();
