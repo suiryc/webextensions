@@ -219,16 +219,18 @@ class VideoSource {
     this.needRefresh = false;
     self.menuEntryId = menuHandler.addEntry({
       title: self.getMenuEntryTitle(),
-      onclick: () => {
+      onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
         // extracted those).
+        // Right-click or Ctrl triggers auto download.
         dlMngr.download({
           url: self.getUrl(),
           referrer: self.frameUrl,
           cookie: self.cookie,
           userAgent: self.userAgent,
           file: self.getDownloadFile().filename,
-          size: self.size
+          size: self.size,
+          auto: (data.button == 2) || (data.modifiers.includes('Ctrl'))
         }, {
           addCookie: !self.seenRequest,
           addUserAgent: !self.seenRequest,
