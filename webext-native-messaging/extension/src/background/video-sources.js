@@ -33,6 +33,7 @@ class VideoSource {
     // multiple sources when applicable.
     this.urls = new Set();
     this.addUrl(details.url);
+    this.needRefresh = true;
   }
 
   matches(other) {
@@ -74,14 +75,32 @@ class VideoSource {
     this.completed = true;
   }
 
-  mergeField(field, from) {
-    if ((this[field] === undefined) && (from[field] !== undefined)) this[field] = from[field];
+  setFilename(filename) {
+    if ((filename === undefined) || (this.filename == filename)) return;
+    this.filename = filename;
+    this.needRefresh = true;
+  }
+
+  setSize(size) {
+    if ((size === undefined) || (this.size == size)) return;
+    this.size = size;
+    this.needRefresh = true;
+  }
+
+  mergeField(field, from, needRefresh) {
+    if ((this[field] === undefined) && (from[field] !== undefined) && (this[field] !== from[field])) {
+      this[field] = from[field];
+      this.needRefresh |= needRefresh;
+    }
   }
 
   merge(from) {
     // Get our missing fields if any.
-    for (var field of ['cookie', 'filename', 'size', 'etag']) {
-      this.mergeField(field, from);
+    for (var field of ['cookie', 'etag']) {
+      this.mergeField(field, from, false);
+    }
+    for (var field of ['filename', 'size']) {
+      this.mergeField(field, from, true);
     }
 
     // Set final redirection if we are not complete.
@@ -197,6 +216,7 @@ class VideoSource {
       self.refreshMenuEntry(menuHandler);
       return;
     }
+    this.needRefresh = false;
     self.menuEntryId = menuHandler.addEntry({
       title: self.getMenuEntryTitle(),
       onclick: () => {
@@ -221,7 +241,8 @@ class VideoSource {
   }
 
   refreshMenuEntry(menuHandler) {
-    if (this.menuEntryId === undefined) return;
+    if ((this.menuEntryId === undefined) || !this.needRefresh) return;
+    this.needRefresh = false;
     browser.contextMenus.update(this.menuEntryId, {
       title: this.getMenuEntryTitle()
     });
@@ -476,9 +497,9 @@ class VideoSourceTabHandler {
     var requestDetails = new http.RequestDetails(response);
     requestDetails.parseResponse();
     // Keep filename if given.
-    if (requestDetails.hasFilename()) source.filename = requestDetails.filename;
+    source.setFilename(requestDetails.filename);
     // Keep content length if known.
-    if (requestDetails.hasSize()) source.size = requestDetails.contentLength;
+    source.setSize(requestDetails.contentLength);
     // Guess content type if needed, based on the given filename (or url).
     requestDetails.contentType.guess(util.getFilename(source.getUrl(), source.filename), true);
     // Retrieved/actual information may differ from original ones. Check again
