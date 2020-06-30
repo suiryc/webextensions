@@ -18,7 +18,7 @@ const TITLE_END_PART_REGEXPS = [
   / Online(?: Free)?$/i
 ];
 const TITLE_REGEXPS = [
-  /(?:Subbed)? Online Free$/i
+  /(?: Subbed)? Online Free$/i
 ];
 
 class VideoSource {
