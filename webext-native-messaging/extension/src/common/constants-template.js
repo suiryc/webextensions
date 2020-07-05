@@ -10,6 +10,9 @@ export const constants = {
 
   // Idle timeout (ms)
   IDLE_TIMEOUT: 30 * 1000,
+  // Timeout (ms) when waiting for any extension response
+  // (reminder: an internal message may trigger a native or webextension one)
+  MESSAGE_RESPONSE_TIMEOUT: 20 * 1000,
   // Timeout (ms) when waiting for any native app response
   NATIVE_RESPONSE_TIMEOUT: 20 * 1000,
   // Timeout (ms) when waiting for TiddlyWiki saving action to end
@@ -46,6 +49,7 @@ export const constants = {
   KIND_EXT_MESSAGE: 'extMessage',
   KIND_GET_EXT_MESSAGES: 'getExtMessages',
   KIND_NOTIFICATION: 'notification',
+  KIND_REGISTER_PORT: 'registerPort',
   KIND_SPECS: 'specs',
   KIND_TW_CHECK_CONCURRENT: 'twCheckConcurrent',
   KIND_TW_SAVE: 'twSave',

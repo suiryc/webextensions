@@ -6,73 +6,351 @@ import { settings } from '../common/settings.js';
 
 
 // Extension messages handler.
+//
+// Notes:
+// browser.runtime.sendMessage sends a message to all extension pages currently
+// listening, except the sender and content scripts.
+// If no page is listening (e.g. if browser action or options pages are not
+// running right now), an error is triggered:
+//  Could not establish connection. Receiving end does not exist.
+// browser.tabs.sendMessage sends a message to all extension content scripts
+// currently listening in the target tab.
+// Both methods do return a Promise resolved with the remote listener(s)
+// response.
+//
+// With moderate usage of messages, those two methods are usually enough, with
+// only a few possible error logs.
+// To let only specific listeners handle the sent message, we can indicate in
+// the message which is the target and have listener code filter out messages
+// meant for other targets.
+//
+// For heavier message usage, it become useful to create dedicated Ports:
+//  - the background script listens for incoming connections
+//  - any other script can then connect (creates a new Port) to talk to the
+//    background script
+//  - for proper targeting we can also indicate which is the target in the
+//    message
+//    - to send message from background script to specific scripts
+//    - to send from one script to another through the background script
+// Unlike sendMessage, Port.postMessage does not return a Promise: any request
+// response have to be handled, e.g. by correlating messages: this lets us
+// determine whether a message received from the remote endpoint is a new one,
+// or actually the response to a previous message sent by the local endpoint.
+// The same is needed for native application messages (also relies on Port).
 export class WebExtension {
 
   constructor(params) {
-    var self = this;
     if (params.target == null) delete(params.target);
-    self.params = params;
+    if (params.target == undefined) throw new Error('The target parameter is mandatory');
+    this.params = params;
     // Notes:
-    // When the listener callback returns a Promise, it is sent back to the
-    // sender. When the listener callback returns a value, the sender gets
-    // an empty response.
-    //
     // More than one listener can be added.
     // Caller is expected to manage whether to use one listener and dispatch
     // responses, or add multiple listeners for each dedicated feature.
-    browser.runtime.onMessage.addListener((msg, sender) => {
-      // Ignore message when applicable.
-      if (!self.isTarget(msg)) {
-        if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, self.params.target, msg.target);
-        return;
-      }
-      // Handle 'echo' message internally.
-      if (msg.kind === constants.KIND_ECHO) {
-        return Promise.resolve({
-          msg: msg,
-          sender: sender
-        });
-      }
-      var r;
-      // Enforce Promise, so that we handle both synchronous/asynchronous reply.
-      try {
-        r = Promise.resolve(self.params.onMessage(self, msg, sender));
-      } catch (error) {
-        r = Promise.reject(error);
-      }
-      // Sender only handle/expect success Promise: failure is given through
-      // 'error' field when applicable.
-      r = r.catch(error => {
-        console.error('Could not handle sender %o message %o: %o', sender, msg, error);
-        // Format object: pure Errors are empty when sent.
-        return {error: util.formatObject(error)};
+    browser.runtime.onMessage.addListener(this.onMessage.bind(this));
+    if (params.target === constants.TARGET_BACKGROUND_PAGE) this.listenConnections();
+    else this.connect();
+  }
+
+  onMessage(msg, sender) {
+    // Notes:
+    // When the browser.runtime.onMessage listener callback returns a Promise,
+    // it is sent back to the sender; when it returns a value, the sender gets
+    // an empty response.
+    // Port.onMessage listener properly transmits any returned value/Promise.
+    var actualSender = sender;
+    // If the sender is a Port, get the real sender field.
+    var isPort = (sender.sender !== undefined);
+    if (isPort) actualSender = sender.sender;
+    // Ignore message when applicable.
+    if (!this.isTarget(msg)) {
+      // If the background script receives a Port message for another target,
+      // forward the message.
+      if (isPort && (this.targets !== undefined) && (msg.target !== undefined)) return this.sendMessage(msg);
+      if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, this.params.target, msg.target);
+      return;
+    }
+    // Handle 'echo' message internally.
+    if (msg.kind === constants.KIND_ECHO) {
+      return Promise.resolve({
+        msg: msg,
+        sender: sender
       });
-      return r;
+    } else if (msg.kind === constants.KIND_REGISTER_PORT) {
+      this.registerPort(sender, msg.name);
+      return;
+    }
+    var r;
+    // Enforce Promise, so that we handle both synchronous/asynchronous reply.
+    // This is also needed to that the response content (if not a Promise) is
+    // properly transmitted to the sender in all cases.
+    try {
+      r = Promise.resolve(this.params.onMessage(this, msg, actualSender));
+    } catch (error) {
+      r = Promise.reject(error);
+    }
+    // Sender only handle/expect success Promise: failure is given through
+    // 'error' field when applicable.
+    r = r.catch(error => {
+      console.error('Could not handle sender %o message %o: %o', sender, msg, error);
+      // Format object: pure Errors are empty when sent.
+      return {error: util.formatObject(error)};
     });
+    return r;
   }
 
   isTarget(msg) {
     if (msg.target == null) delete(msg.target);
-    return (this.params.target === undefined) || (msg.target === undefined) || (msg.target == this.params.target);
+    return (msg.target === undefined) || (msg.target == this.params.target);
+  }
+
+  // Listens to incoming connections.
+  // Only used inside background script.
+  listenConnections() {
+    // Notes:
+    // To use objects as keys, we need a Map/WeakMap. We can use either due to
+    // the way we handle ports.
+    this.ports = new WeakMap();
+    this.targets = {};
+    browser.runtime.onConnect.addListener(this.registerPort.bind(this));
+  }
+
+  registerPort(port, target) {
+    // Create the handler the first time.
+    var handler = this.ports.get(port);
+    if (handler === undefined) {
+      handler = new PortHandler({
+        onMessage: this.onMessage.bind(this),
+        onDisconnect: this.unregisterPort.bind(this)
+      });
+      handler.setPort(port);
+      this.ports.set(port, handler);
+    }
+    // Remember the remote endpoint target kind once known (first message it
+    // should send).
+    handler.params.target = target;
+    if (target === undefined) return;
+    var targets = this.targets[target] || [];
+    targets.push(handler);
+    this.targets[target] = targets;
+  }
+
+  unregisterPort(port, handler) {
+    var target = handler.params.target;
+    // Note: explicitly delete because if we don't know the target, we have
+    // nothing else to do; and we don't want to keep the weak reference either.
+    this.ports.delete(port);
+    if (target === undefined) return;
+    var targets = this.targets[target];
+    // Belt and suspenders: we should know this target.
+    if (targets === undefined) return;
+    targets = targets.filter(v => v !== handler);
+    if (targets.length === 0) delete(this.targets[target]);
+    else this.targets[target] = targets;
+  }
+
+  // Connects (to background script).
+  // Only used from scripts other than the background.
+  connect() {
+    this.portHandler = new PortHandler({
+      target: this.params.target,
+      onMessage: this.onMessage.bind(this)
+    });
+    this.portHandler.connect();
   }
 
   sendMessage(msg) {
-    // Notes:
-    // Sends a message to all extensions pages currently listening, except the
-    // sender and content scripts.
-    // If no page is listening (e.g. if browser action or options pages are not
-    // running right now), an error is triggered:
-    //  Could not establish connection. Receiving end does not exist.
-    // In nominal cases, to prevent this we would need to detect when pages are
-    // running and not send message if no one is listening; we could even check
-    // if any msg.target is running.
-    // But since we don't use intensivel messaging in such cases, we can do with
-    // a few log errors for now.
+    // When the background script needs to send a message to given target(s),
+    // do find the concerned Ports to post the message on.
+    if ((this.targets !== undefined) && (msg.target !== undefined)) {
+      var ports = this.targets[msg.target] || [];
+      var promises = [];
+      for (var port of ports) {
+        promises.push(port.postRequest(msg));
+      }
+      return Promise.all(promises);
+    }
+
+    // Use dedicated Port when applicable.
+    // Belt and suspenders: fallback to 'broadcasting' otherwise. This actually
+    // should not be needed/useful, as only non-background scripts do use Ports,
+    // and if remote endpoint disconnects, it should mean it is not running
+    // anymore.
+    var usePort = (this.portHandler !== undefined) && this.portHandler.isConnected();
+    if (usePort) return this.portHandler.postRequest(msg);
     return browser.runtime.sendMessage(msg);
   }
 
   sendTabMessage(tabId, msg, options) {
     return browser.tabs.sendMessage(tabId, msg, options);
+  }
+
+}
+
+// Handles a webextension connection Port.
+//
+// Shares mechanisms with native application messaging (which also relies on
+// Port); native application messaging needs some more complex handling though.
+class PortHandler {
+
+  constructor(params) {
+    this.params = params;
+    this.requests = {};
+    this.defaultTimeout = constants.MESSAGE_RESPONSE_TIMEOUT;
+  }
+
+  isConnected() {
+    return (this.port !== undefined);
+  }
+
+  setPort(port) {
+    this.port = port;
+    this.port.onDisconnect.addListener(this.onDisconnect.bind(this));
+    this.port.onMessage.addListener(this.onMessage.bind(this));
+  }
+
+  connect() {
+    if (this.port !== undefined) return;
+
+    this.autoReconnect = true;
+    this.setPort(browser.runtime.connect());
+    this.postMessage({
+      kind: constants.KIND_REGISTER_PORT,
+      name: this.params.target
+    });
+  }
+
+  onDisconnect(port) {
+    var self = this;
+
+    if (port !== self.port) {
+      // This is not our connection; should not happen
+      console.warn('Received unknown extension port %o disconnection', port);
+      return;
+    }
+    // Only log if disconnection was due to an error.
+    // If script simply ends (e.g. browser action page is closed), we get a
+    // null error field.
+    if (port.error == null) delete(port.error);
+    var error = port.error;
+    if (port.error !== undefined) console.warn('Extension port %o disconnected: %o', port, port.error);
+    delete(self.port);
+    // Wipe out current requests; reject any pending Promise.
+    // Parent will either wipe us out (background script), or we should not
+    // expect to receive any response as the remote endpoint is supposedly
+    // dead.
+    for (var promise of Object.values(self.requests)) {
+      var msg = 'Remote script disconnected';
+      if (error !== undefined) msg += ' with error: ' + util.formatObject(error);
+      promise.reject(msg);
+    }
+    self.requests = {};
+    // Re-connect if needed.
+    if (self.autoReconnect) {
+      if (settings.debug.misc) console.warning('Extension port %o disconnected: wait and re-connect', port);
+      setTimeout(() => {
+        self.connect();
+      }, 1000);
+    }
+    // Notify parent if needed.
+    if (self.params.onDisconnect !== undefined) self.params.onDisconnect(port, self);
+  }
+
+  // Posts message without needing to get the reply.
+  postMessage(msg) {
+    if (this.port !== undefined) this.port.postMessage(msg);
+  }
+
+  // Posts request and return reply through Promise.
+  postRequest(msg, timeout) {
+    var self = this;
+    // Get a unique - non-used - id
+    var correlationId;
+    do {
+      correlationId = util.uuidv4();
+    } while ((self.requests[correlationId] !== undefined) && (correlationId !== self.lastRequestId));
+    // The caller may need the passed message to remain unaltered, especially
+    // the correlationId, which is used to reply to the original sender in case
+    // of (background script) forwarding.
+    // To prevent any altering, duplicate the message.
+    msg = Object.assign({}, msg, {correlationId: correlationId});
+
+    // Post message
+    self.postMessage(msg);
+
+    // Setup response handling
+    if (timeout === undefined) timeout = this.defaultTimeout;
+    var promise = new util.Deferred().promise;
+    self.requests[correlationId] = promise;
+    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
+      // Automatic cleanup of request
+      delete(self.requests[correlationId]);
+    });
+  }
+
+  onMessage(msg, sender) {
+    var correlationId = msg.correlationId;
+    var callback = true;
+    // Handle this message as a reponse when applicable.
+    if (correlationId !== undefined) {
+      var promise = this.requests[correlationId];
+      if (promise !== undefined) {
+        // Note: request will be automatically removed upon resolving the
+        // associated promise.
+        delete(msg.correlationId);
+        // We either expect a reply in the 'reply' field, or an error in the
+        // 'error' field. For simplicity, we don't transform an error into a
+        // failed Promise, but let caller check whether this in an error
+        // through the field.
+        if (msg.reply !== undefined) promise.resolve(msg.reply);
+        else promise.resolve(msg);
+        callback = false;
+      }
+    }
+    // Otherwise, notify parent of this new message to handle.
+    if (callback) this.handleMessage(msg, sender);
+  }
+
+  async handleMessage(msg, sender) {
+    var self = this;
+
+    // Take care of a possible endless request/response loop:
+    //  - A sends a query to B
+    //  - A forgets the correlationId, or B wrongly replaces it (e.g. while
+    //    forwarding it)
+    //  - B finally sends the response to A
+    //  - A doesn't know the received correlationId, thus believing it is a
+    //    request
+    //  - A responds to B
+    //  - B doesn't know (anymore) the correlationId, thus believing it is a
+    //    request
+    //  - B responds to A
+    //  - ...
+    // In this specific case, break out of the loop by remembering the last
+    // received correlationId: if we see it again, assume this is a loop.
+    if ((msg.correlationId !== undefined) && (msg.correlationId === self.lastRequestId)) {
+      console.warn(`Detected request/response loop on correlationId=<${msg.correlationId}>`);
+      return;
+    }
+
+    var r;
+    // Enforce Promise, so that we handle both synchronous/asynchronous reply.
+    try {
+      r = Promise.resolve(self.params.onMessage(msg, sender));
+    } catch (error) {
+      r = Promise.reject(error);
+    }
+    // Don't handle reply if caller don't expect it.
+    if (msg.correlationId === undefined) return;
+    self.lastRequestId = msg.correlationId;
+    // Embed reply in 'reply' field, or error in 'error' field.
+    r.then(v => {
+      self.postMessage({reply: v, correlationId: msg.correlationId});
+    }).catch(error => {
+      console.error('Could not handle message %o: %o', msg, error);
+      // Format object: pure Errors are empty when sent.
+      self.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
+    });
   }
 
 }
@@ -96,126 +374,83 @@ const FRAGMENT_KIND_CONT = 'cont';
 //const FRAGMENT_KIND_END = 'end';
 
 // Native application messages handler.
-export class NativeApplication {
+export class NativeApplication extends PortHandler {
 
-  constructor(appId, handlers) {
+  constructor(appId, params) {
+    super(params);
     this.appId = appId;
-    this.cnx = undefined;
-    this.handlers = handlers;
-    this.requests = {};
     this.fragments = {};
     this.idleId = undefined;
     this.lastJanitoring = util.getTimestamp();
-    if (handlers.onMessage === undefined) {
+    this.defaultTimeout = constants.NATIVE_RESPONSE_TIMEOUT;
+    if (params.onMessage === undefined) {
       throw new Error('Native application client must have an onMessage handler');
     }
   }
 
   connect() {
-    if (this.cnx !== undefined) return;
+    if (this.port !== undefined) return;
     try {
-      this.cnx = browser.runtime.connectNative(this.appId);
+      this.setPort(browser.runtime.connectNative(this.appId));
     } catch (error) {
       console.error('Failed to connect to native application %s: %o', this.appdId, error);
       throw error;
     }
-    this.cnx.onDisconnect.addListener(this.onDisconnect.bind(this));
-    this.cnx.onMessage.addListener(this.onMessage.bind(this));
     this.lastActivity = util.getTimestamp();
     this.scheduleIdleCheck();
   }
 
   disconnect() {
-    if (this.cnx === undefined) return;
-    this.cnx.disconnect();
-    this.cnx = undefined;
+    if (this.port === undefined) return;
+    this.port.disconnect();
+    delete(this.port);
   }
 
   // Posts message without needing to get the reply.
   // Takes care of (re)connecting if needed.
   postMessage(msg) {
     this.connect();
-    this.cnx.postMessage(msg);
+    super.postMessage(msg);
     this.lastActivity = util.getTimestamp();
   }
 
-  // Posts request and return reply through Promise.
-  postRequest(msg, timeout) {
-    var self = this;
-    // Get a unique - non-used - id
-    var correlationId;
-    do {
-      correlationId = util.uuidv4();
-    } while(self.requests[correlationId] !== undefined);
-    msg.correlationId = correlationId;
-
-    // Post message
-    self.postMessage(msg);
-
-    // Setup response handling
-    if (timeout === undefined) timeout = constants.NATIVE_RESPONSE_TIMEOUT;
-    var promise = new util.Deferred().promise;
-    self.requests[correlationId] = promise;
-    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
-      // Automatic cleanup of request
-      delete(self.requests[correlationId]);
-    });
-  }
-
-  onDisconnect(cnx) {
-    var self = this;
-    if ((self.cnx !== undefined) && (cnx !== self.cnx)) {
+  onDisconnect(port) {
+    // Note: this.port is undefined if *we* asked to disconnect.
+    if ((this.port !== undefined) && (port !== this.port)) {
       // This is not our connection; should not happen
-      console.warn('Received unknown native application %s connection disconnection: %o', nativeApp.appId, cnx.error);
+      console.warn('Received unknown native application %s port %o disconnection', nativeApp.appId, port);
       return;
     }
     var error = undefined;
-    if (self.cnx !== undefined) {
-      error = cnx.error;
-      console.warn('Native application %s disconnected: %o', nativeApp.appId, cnx.error);
+    if (this.port !== undefined) {
+      // We don't expect the native application (port) to close itself: this
+      // should mean an error was encoutered.
+      error = port.error;
+      console.warn('Native application %s port disconnected: %o', nativeApp.appId, port.error);
     }
-    // else: we asked to disconnect
-    self.cnx = undefined;
-    self.fragments = {};
-    for (var promise of Object.values(self.requests)) {
+    delete(this.port);
+    this.fragments = {};
+    for (var promise of Object.values(this.requests)) {
       var msg = 'Native application disconnected';
       if (error !== undefined) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
-    self.requests = {};
-    if (self.handlers.onDisconnect !== undefined) {
-      util.defer.then(() => self.handlers.onDisconnect(self));
-    }
+    this.requests = {};
+    if (this.params.onDisconnect !== undefined) this.params.onDisconnect(this);
   }
 
-  onMessage(msg) {
-    var self = this;
-    self.lastActivity = util.getTimestamp();
+  onMessage(msg, sender) {
+    this.lastActivity = util.getTimestamp();
     if (msg.fragment !== undefined) {
-      self.addFragment(msg);
+      this.addFragment(msg);
     } else {
-      var correlationId = msg.correlationId;
-      var callback = true;
-      if (correlationId !== undefined) {
-        var promise = self.requests[correlationId];
-        if (promise !== undefined) {
-          // Note: request will be automatically removed upon resolving the
-          // associated promise.
-          delete(msg.correlationId);
-          // We either expect a reply in the 'reply' field, or an error in the
-          // 'error' field. For simplicity, we don't transform an error into a
-          // failed Promise, but let caller check whether this in an error
-          // through the field.
-          if (msg.reply !== undefined) promise.resolve(msg.reply);
-          else promise.resolve(msg);
-          callback = false;
-        }
-      }
-      if (callback) {
-        util.defer.then(() => self.handlers.onMessage(self, msg));
-      }
+      super.onMessage(msg, sender);
     }
-    self.janitoring();
+    this.janitoring();
+  }
+
+  async handleMessage(msg, sender) {
+    this.params.onMessage(this, msg);
   }
 
   addFragment(msg) {
