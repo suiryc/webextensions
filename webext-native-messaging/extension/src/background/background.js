@@ -15,7 +15,7 @@ import { TabsHandler } from './tabs.js';
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind) {
+  switch (msg.kind || '') {
     case constants.KIND_CHECK_NATIVE_APP:
       return ext_checkNativeApp(msg);
       break;
@@ -57,7 +57,7 @@ async function onMessage(extension, msg, sender) {
 
 // Handles messages received from native application.
 function onNativeMessage(app, msg) {
-  switch (msg.kind) {
+  switch (msg.kind || '') {
     case constants.KIND_CONSOLE:
       return app_console(app, msg);
       break;

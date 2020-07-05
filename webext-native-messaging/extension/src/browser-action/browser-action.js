@@ -12,7 +12,7 @@ waitForSettings().then(() => trackFields());
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind) {
+  switch (msg.kind || '') {
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
       break;

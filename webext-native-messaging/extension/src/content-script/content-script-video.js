@@ -11,7 +11,7 @@ util.checkContentScriptSetup('video');
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind) {
+  switch (msg.kind || '') {
     default:
       return unhandledMessage(msg, sender);
       break;
