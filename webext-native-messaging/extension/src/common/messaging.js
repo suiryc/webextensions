@@ -107,7 +107,7 @@ export class NativeApplication {
     this.idleId = undefined;
     this.lastJanitoring = util.getTimestamp();
     if (handlers.onMessage === undefined) {
-      throw Error('Native application client must have an onMessage handler');
+      throw new Error('Native application client must have an onMessage handler');
     }
   }
 

@@ -222,7 +222,7 @@ class ExtensionSetting {
         // Belt and suspenders: ensure we did not accidentally assigned a
         // setting to the subfield itself.
         if (target[leaf] instanceof ExtensionSetting) {
-          throw Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
+          throw new Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
         }
         // Recursively create a Settings Proxy for subfield if needed.
         if (target[leaf] === undefined) target[leaf] = new SettingsBranch().proxy;
