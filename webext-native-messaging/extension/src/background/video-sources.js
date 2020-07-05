@@ -202,6 +202,26 @@ class VideoSource {
     return title;
   }
 
+  getDownload() {
+    return {
+      details: {
+        url: this.getUrl(),
+        referrer: this.frameUrl,
+        cookie: this.cookie,
+        userAgent: this.userAgent,
+        file: this.getDownloadFile().filename,
+        size: this.size
+      },
+      params: {
+        addCookie: !this.seenRequest,
+        addUserAgent: !this.seenRequest,
+        addComment: true,
+        mimeFilename: this.filename,
+        tabTitle: this.tabTitle
+      }
+    }
+  }
+
   // Creates manu entry.
   // Notes:
   // This will be called each time the owning tab is activated, which is not
@@ -224,32 +244,22 @@ class VideoSource {
         // extracted those).
         // Auto-download enabled by default, unless using non-main button
         // or 'Ctrl' key.
-        dlMngr.download({
-          url: self.getUrl(),
-          referrer: self.frameUrl,
-          cookie: self.cookie,
-          userAgent: self.userAgent,
-          file: self.getDownloadFile().filename,
-          size: self.size,
+        var { details, params } = self.getDownload();
+        dlMngr.download(Object.assign(details, {
           auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
-        }, {
-          addCookie: !self.seenRequest,
-          addUserAgent: !self.seenRequest,
-          addComment: true,
-          mimeFilename: this.filename,
-          tabTitle: self.tabTitle
-        });
+        }), params);
       }
     });
   }
 
   refreshMenuEntry(menuHandler) {
-    if ((this.menuEntryId === undefined) || !this.needRefresh) return;
+    if ((this.menuEntryId === undefined) || !this.needRefresh) return false;
     this.needRefresh = false;
     browser.contextMenus.update(this.menuEntryId, {
       title: this.getMenuEntryTitle()
     });
     browser.contextMenus.refresh();
+    return true;
   }
 
   removeMenuEntry(menuHandler) {
@@ -302,7 +312,8 @@ class VideoSource {
 // known in the new source.
 class VideoSourceTabHandler {
 
-  constructor(tabHandler, menuHandler) {
+  constructor(callbacks, tabHandler, menuHandler) {
+    this.callbacks = callbacks;
     this.tabHandler = tabHandler;
     this.menuHandler = menuHandler;
     this.sources = [];
@@ -318,6 +329,7 @@ class VideoSourceTabHandler {
       this.removeMenuEntries();
       this.sources = [];
       this.ignoredUrls.clear();
+      if (this.tabHandler.isActive()) this.updateVideos();
     }
     this.bufferedRequests = {};
   }
@@ -427,6 +439,7 @@ class VideoSourceTabHandler {
     var source = new VideoSource(details);
     this.sources.push(source);
     if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
+    if (tabHandler.isActive()) this.updateVideos();
 
     // Process buffered requests.
     var buffered = this.getBufferedRequests(url, true);
@@ -515,7 +528,7 @@ class VideoSourceTabHandler {
     // Merge same sources.
     this.mergeSources(source);
 
-    source.refreshMenuEntry(this.menuHandler);
+    if (source.refreshMenuEntry(this.menuHandler) && this.tabHandler.isActive()) this.updateVideos();
   }
 
   // Takes into account given download information to ignore.
@@ -538,6 +551,13 @@ class VideoSourceTabHandler {
     if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> video url=<%s>: %s', details.tabId, details.frameId, details.url, reason);
   }
 
+  updateVideos() {
+    this.callbacks.onVideosUpdate({
+      windowId: this.tabHandler.windowId,
+      sources: this.sources
+    });
+  }
+
 }
 
 const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
@@ -553,8 +573,9 @@ const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
 // For simplicity, we normalize urls in source/request/response.
 export class VideoSourceHandler {
 
-  constructor(tabsHandler, menuHandler) {
+  constructor(callbacks, tabsHandler, menuHandler) {
     var self = this;
+    self.callbacks = callbacks;
     self.tabsHandler = tabsHandler;
     self.menuHandler = menuHandler;
     // Buffered requests, per tab frame.
@@ -587,13 +608,28 @@ export class VideoSourceHandler {
     if (frameHandler === undefined) return {};
     var handler = frameHandler.tabHandler.getExtensionProperty({
       key: TAB_EXTENSION_PROPERTY,
-      create: create ? (tabHandler => new VideoSourceTabHandler(tabHandler, self.menuHandler)) : undefined,
+      create: create ? (tabHandler => new VideoSourceTabHandler(self.callbacks, tabHandler, self.menuHandler)) : undefined,
       keepOnReset: true
     });
     return {
       handler: handler,
       frameUrl: frameHandler.url
     };
+  }
+
+  getSources(sources) {
+    if (sources === undefined) {
+      var tabHandler = this.tabsHandler.getActiveTab().handler;
+      if (tabHandler === undefined) return [];
+      var handler = tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+      if (handler === undefined) return [];
+      sources = handler.sources;
+    }
+    return sources.map(source => {
+      source.menuTitle = source.getMenuEntryTitle();
+      source.download = source.getDownload();
+      return source;
+    });
   }
 
   addSource(details) {
@@ -763,6 +799,8 @@ export class VideoSourceHandler {
 
   tabFocused(details) {
     // Remove entries from previous focused tab, if there really was a change.
+    // We still need to (re)apply the newly focused tab, because at the previous
+    // change the handler may have been not known yet.
     if ((details.previousTabId !== details.tabId) && (details.previousTabHandler !== undefined)) {
       var handler = details.previousTabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
       if (handler !== undefined) handler.removeMenuEntries();
@@ -772,6 +810,20 @@ export class VideoSourceHandler {
     if (details.tabHandler === undefined) return;
     var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
     if (handler !== undefined) handler.addMenuEntries();
+  }
+
+  // While tabFocused is used to update menu entries, tabActivated is used to
+  // update the browser action status (which is per window).
+  tabActivated(details) {
+    var sources = [];
+    if (details.tabHandler !== undefined) {
+      var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+    }
+    if (handler !== undefined) sources = handler.sources;
+    this.callbacks.onVideosUpdate({
+      windowId: details.windowId,
+      sources: sources
+    });
   }
 
 }

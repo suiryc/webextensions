@@ -34,6 +34,14 @@ async function onMessage(extension, msg, sender) {
       return dl_ignoreNext(msg);
       break;
 
+    case constants.KIND_DOWNLOAD:
+      return dl_download(msg);
+      break;
+
+    case constants.KIND_GET_DL_VIDEOS:
+      return dl_getVideos(msg);
+      break;
+
     case constants.KIND_CLEAR_MESSAGES:
       return ext_clearMessages();
       break;
@@ -116,11 +124,20 @@ function dl_ignoreNext(msg) {
   requestsHandler.ignoreNext(msg.ttl);
 }
 
+// Triggers download.
+function dl_download(msg) {
+  return dlMngr.download(msg.details, msg.params);
+}
+
+// Gets videos found in currently focused tab.
+function dl_getVideos(msg) {
+  return videoSourceHandler.getSources();
+}
+
 // Clears extension messages.
 function ext_clearMessages() {
   applicationMessages = [];
-  browser.browserAction.setBadgeText({text: null});
-  browser.browserAction.setBadgeBackgroundColor({color: null});
+  updateStatus();
 }
 
 // Gets extension messages to display.
@@ -202,7 +219,6 @@ function notification(label, details) {
 }
 
 function addExtensionMessage(details) {
-  var level = '';
   webext.sendMessage({
     target: constants.TARGET_BROWSER_ACTION,
     kind: constants.KIND_EXT_MESSAGE,
@@ -210,20 +226,48 @@ function addExtensionMessage(details) {
   });
   applicationMessages.push(details);
 
+  updateStatus();
+}
+
+function updateStatus(windowId) {
   // Messages are kept until dismissed, and we set a visual hint.
+  // Note: 0 and '' are both considered false.
+  var hasMessages = applicationMessages.length ? 'i' : '';
+  var badgeBackgroundColor = hasMessages ? 'yellow' : 'blue';
   for (details of applicationMessages) {
     if (details.level == 'error') {
-      level = details.level;
+      hasMessages = '!';
+      badgeBackgroundColor = 'red';
       break;
-    }
-    if (details.level == 'warn') {
-      level = details.level;
-      continue;
     }
   }
 
-  browser.browserAction.setBadgeText({text: (level === '') ? 'i' : '!'});
-  browser.browserAction.setBadgeBackgroundColor({color: (level === 'error') ? 'red' : 'yellow'});
+  // Update the requested window, or update all known windows.
+  var obj = {};
+  if (windowId !== undefined) {
+    obj[windowId] = videosSources[windowId]
+  } else {
+    obj = videoSources;
+  }
+  for (var [windowId, sources] of Object.entries(obj)) {
+    // Reminder: object keys are strings, we need to windowId as an integer.
+    windowId = Number(windowId);
+    var hasVideos = sources.length;
+    if (!hasVideos) hasVideos = '';
+
+    if (!hasMessages && !hasVideos) {
+      browser.browserAction.setBadgeText({windowId: windowId, text: null});
+      browser.browserAction.setBadgeBackgroundColor({windowId: windowId, color: null});
+      continue;
+    }
+
+    browser.browserAction.setBadgeText({windowId: windowId, text: `${hasVideos}${hasMessages}`});
+    browser.browserAction.setBadgeBackgroundColor({windowId: windowId, color: badgeBackgroundColor});
+  }
+}
+
+function windowRemoved(windowId) {
+  delete(videosSources[windowId]);
 }
 
 
@@ -321,6 +365,7 @@ var requestsHandler;
 var videoSourceHandler;
 var nativeApp;
 var applicationMessages = [];
+var videosSources = {};
 waitForSettings(true).then(() => {
   // Extension handler
   webext = new WebExtension({ target: constants.TARGET_BACKGROUND_PAGE, onMessage: onMessage });
@@ -349,6 +394,18 @@ waitForSettings(true).then(() => {
   // Handle content script injection.
   tabsHandler.addObserver(new ContentScriptHandler());
   // Handle video sources.
-  videoSourceHandler = new VideoSourceHandler(tabsHandler, menuHandler);
+  var callbacks = {
+    onVideosUpdate: details => {
+      videosSources[details.windowId] = details.sources;
+      webext.sendMessage({
+        target: constants.TARGET_BROWSER_ACTION,
+        kind: constants.KIND_DL_UPDATE_VIDEOS,
+        sources: videoSourceHandler.getSources(details.sources)
+      });
+      updateStatus(details.windowId);
+    }
+  };
+  videoSourceHandler = new VideoSourceHandler(callbacks, tabsHandler, menuHandler);
   tabsHandler.addObserver(videoSourceHandler);
+  tabsHandler.addObserver({windowRemoved: windowRemoved});
 });

@@ -17,6 +17,10 @@ async function onMessage(extension, msg, sender) {
       return dl_ignoreNext(msg);
       break;
 
+    case constants.KIND_DL_UPDATE_VIDEOS:
+      return dl_updateVideos(msg.sources);
+      break;
+
     case constants.KIND_EXT_MESSAGE:
       return ext_addMessage(msg);
       break;
@@ -45,6 +49,70 @@ function dl_ignoreNext(msg) {
   else ignoreNextButton.textContent = ignoreNextText;
 }
 
+async function dl_updateVideos(sources, showTab) {
+  // Get sources if not given.
+  if (sources === undefined) {
+    // Note: we don't need to bother about the window we belong to, since we
+    // only run when popup is displayed which means our window is the focused
+    // window, and requested sources are those of the focused window.
+    sources = await webext.sendMessage({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_GET_DL_VIDEOS
+    });
+  }
+  videosNode.querySelectorAll(':scope > .list-item').forEach(node => {
+    node.remove();
+  });
+  if ((sources === undefined) || !Array.isArray(sources) || !sources.length) {
+    videosItemNode.classList.toggle('badge', false);
+    videosItemNode.removeAttribute('data-badge');
+    return;
+  }
+  sources.forEach(source => {
+    var node = cloneNode(listItemNode);
+    node.classList.add('clickable');
+    var { name, extension } = util.getFilenameExtension(source.download.details.file);
+    util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
+    var subtitle = [];
+    var tooltip = [];
+    if (source.size !== undefined) subtitle.push(util.getSizeText(source.size));
+    if (extension !== undefined) subtitle.push(extension);
+    var hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
+    subtitle.push(hostname);
+    tooltip.push(util.limitText(source.url, 120));
+    subtitle = subtitle.join(' - ');
+    if (source.actualUrl !== undefined) {
+      var actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
+      if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+        subtitle = `${subtitle}\nActual host: ${actualHostname}`;
+      }
+      tooltip.push(util.limitText(source.actualUrl, 120));
+    }
+    util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
+    // Don't use a CSS tooltip, as it would likely not be displayed correctly
+    // (if at all) in the browser action popup view. Instead use some simple
+    // 'title' to let the browser display it.
+    node.setAttribute('title', tooltip.join('\n'));
+    node.addEventListener('click', data => {
+      var details = source.download.details;
+      // Auto-download enabled by default, unless using non-main button
+      // or 'Ctrl' key.
+      details.auto = (data.button == 0) && !data.ctrlKey;
+      webext.sendMessage({
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_DOWNLOAD,
+        details: details,
+        params: source.download.params
+      });
+      window.close();
+    });
+    videosNode.appendChild(node);
+  });
+  videosItemNode.setAttribute('data-badge', sources.length);
+  videosItemNode.classList.toggle('badge', true);
+  if (showTab) document.querySelector('#tab-videos-item').click();
+}
+
 // Adds message to display.
 function ext_addMessage(msg) {
   addMessage(msg.details);
@@ -56,6 +124,8 @@ var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessa
 var ignoreNextButton = document.querySelector('#ignoreNext');
 var ignoreNextText = ignoreNextButton.textContent;
 var ignoringNext = false;
+var videosItemNode = document.querySelector('#videos-item');
+var videosNode = document.querySelector('#videos');
 var clearMessagesButton = document.querySelector('#clearMessages');
 var messagesItemNode = document.querySelector('#messages-item');
 var messagesNode = document.querySelector('#messages');
@@ -124,7 +194,7 @@ clearMessagesButton.addEventListener('click', () => {
   });
 });
 
-// Get+add application messages.
+// Get+add videos and application messages.
 (async () => {
   var r = await webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
@@ -136,4 +206,6 @@ clearMessagesButton.addEventListener('click', () => {
     }
     document.querySelector('#tab-messages-item').click();
   }
+
+  dl_updateVideos(undefined, true);
 })();

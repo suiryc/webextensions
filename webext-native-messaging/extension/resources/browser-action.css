@@ -73,6 +73,10 @@ html, body {
   font-weight: bold;
 }
 
+.list-item .list-item-subtitle {
+  font-style: italic;
+}
+
 .clickable, .clickable * {
   cursor: pointer;
   user-select: none;

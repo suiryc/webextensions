@@ -19,6 +19,7 @@
       <div class="icon"></div>
       <div>
         <div class="list-item-text list-item-title"></div>
+        <div class="list-item-text list-item-subtitle"></div>
         <div class="list-item-text list-item-content"></div>
       </div>
     </div>
@@ -38,10 +39,14 @@
     <!-- For the full-CSS tab trick to work, the 'tab-locator' inputs must be
       -- at the same level than the 'tabs-items' and 'tabs-content'.
       -->
+    <input type="radio" id="tab-videos-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-messages-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-options-item" name="tabs" class="tab-locator" hidden checked>
     <div class="panel-nav tabs-items">
       <ul class="tab">
+        <li class="tab-item">
+          <label for="tab-videos-item" class="clickable"><a id="videos-item">Videos</a></label>
+        </li>
         <li class="tab-item">
           <label for="tab-messages-item" class="clickable"><a id="messages-item">Messages</a></label>
         </li>
@@ -51,6 +56,9 @@
       </ul>
     </div>
     <div class="panel-body tabs-content">
+      <div id="tab-videos" class="tab-content">
+        <div id="videos"></div>
+      </div>
       <div id="tab-messages" class="tab-content">
         <div id="messages" class="hidden">
           <div class="center-content"><button id="clearMessages" class="btn btn-primary">Clear messages</button></div>
