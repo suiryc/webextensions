@@ -222,7 +222,8 @@ class VideoSource {
       onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
         // extracted those).
-        // Right-click or Ctrl triggers auto download.
+        // Auto-download enabled by default, unless using non-main button
+        // or 'Ctrl' key.
         dlMngr.download({
           url: self.getUrl(),
           referrer: self.frameUrl,
@@ -230,7 +231,7 @@ class VideoSource {
           userAgent: self.userAgent,
           file: self.getDownloadFile().filename,
           size: self.size,
-          auto: (data.button == 2) || (data.modifiers.includes('Ctrl'))
+          auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
         }, {
           addCookie: !self.seenRequest,
           addUserAgent: !self.seenRequest,
