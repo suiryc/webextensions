@@ -55,13 +55,11 @@
 
   "browser_action": {
     "default_icon": "/resources/icon.svg",
-    "default_popup": "/resources/browser-action.html",
-    "browser_style": true
+    "default_popup": "/resources/browser-action.html"
   },
 
   // We do the same in browser action and options
   "options_ui": {
-    "page": "/resources/browser-action.html",
-    "browser_style": true
+    "page": "/resources/browser-action.html"
   }
 }

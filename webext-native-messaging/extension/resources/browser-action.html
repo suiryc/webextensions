@@ -3,20 +3,23 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="/resources/browser-action.css"/>
-  <!-- "browser_style" enabled -->
-  <!-- See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Browser_styles -->
-  <!-- See: chrome://browser/content/extension.css -->
+  <link rel="stylesheet" href="/resources/spectre.min.css">
+  <link rel="stylesheet" href="/resources/browser-action.css">
 </head>
+
+<!-- Notes:
+  -- For switches, use inline-block display, so that only clicking on the switch
+  -- and label text does check/uncheck the input, not the full block.
+  -->
 
 <body>
   <!-- Hidden resources -->
   <div class="hidden">
-    <div id="message" class="message">
+    <div id="list-item" class="list-item">
       <div class="icon"></div>
       <div>
-        <div class="text title"></div>
-        <div class="text content"></div>
+        <div class="list-item-text list-item-title"></div>
+        <div class="list-item-text list-item-content"></div>
       </div>
     </div>
 
@@ -27,35 +30,81 @@
     <!-- Source: https://fontawesome.com/icons/info-circle?style=solid -->
     <div id="icon-info-circle" class="icon"><svg aria-hidden="true" focusable="false" data-prefix="fas" data-icon="info-circle" class="svg-inline--fa fa-info-circle fa-w-16" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="currentColor" d="M256 8C119.043 8 8 119.083 8 256c0 136.997 111.043 248 248 248s248-111.003 248-248C504 119.083 392.957 8 256 8zm0 110c23.196 0 42 18.804 42 42s-18.804 42-42 42-42-18.804-42-42 18.804-42 42-42zm56 254c0 6.627-5.373 12-12 12h-88c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h12v-64h-12c-6.627 0-12-5.373-12-12v-24c0-6.627 5.373-12 12-12h64c6.627 0 12 5.373 12 12v100h12c6.627 0 12 5.373 12 12v24z"></path></svg></div>
   </div>
-  <div id="settings">
-    <div class="header">
-      <button id="ignoreNext" class="default">Ignore next</button>
+
+
+  <div class="center-content"><button id="ignoreNext" class="btn btn-primary">Ignore next download</button></div>
+
+  <div class="panel">
+    <!-- For the full-CSS tab trick to work, the 'tab-locator' inputs must be
+      -- at the same level than the 'tabs-items' and 'tabs-content'.
+      -->
+    <input type="radio" id="tab-messages-item" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-options-item" name="tabs" class="tab-locator" hidden checked>
+    <div class="panel-nav tabs-items">
+      <ul class="tab">
+        <li class="tab-item">
+          <label for="tab-messages-item" class="clickable"><a id="messages-item">Messages</a></label>
+        </li>
+        <li class="tab-item">
+          <label for="tab-options-item" class="clickable"><a>Options</a></label>
+        </li>
+      </ul>
     </div>
-    <div class="panel-section-separator"></div>
-    <div class="panel-section-formElements">
-      <div class="browser-style panel-formElements-item">
-        <span>Debug: </span>
-        <input type="checkbox" id="debug.misc"><label for="debug.misc">Misc</label>
-        <input type="checkbox" id="debug.downloads"><label for="debug.downloads">Requests</label>
-        <input type="checkbox" id="debug.video"><label for="debug.video">Video</label>
+    <div class="panel-body tabs-content">
+      <div id="tab-messages" class="tab-content">
+        <div id="messages" class="hidden">
+          <div class="center-content"><button id="clearMessages" class="btn btn-primary">Clear messages</button></div>
+        </div>
       </div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptRequests"><label for="interceptRequests">Intercept requests</label></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptDownloads"><label for="interceptDownloads">Intercept downloads</label></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="clearDownloads"><label for="clearDownloads">Clear downloads</label></div>
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="interceptVideo"><label for="interceptVideo">Intercept video</label></div>
-      <div class="browser-style panel-formElements-item"><label for="interceptSize">Intercept minimum size:</label><br><input type="text" id="interceptSize"/></div>
+      <div id="tab-options" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title text-bold">Debug</div>
+          </div>
+          <div class="panel-body">
+            <div class="columns">
+              <div class="column">
+                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.misc"><i class="form-icon"></i><span>Misc</span></label>
+              </div>
+              <div class="column">
+                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.downloads"><i class="form-icon"></i><span>Downloads</span></label>
+              </div>
+              <div class="column">
+                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Video</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title text-bold">Download interception</div>
+          </div>
+          <div class="panel-body container">
+            <div class="columns">
+              <div class="column col-6">
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptRequests"><i class="form-icon"></i><span>Intercept requests</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptDownloads"><i class="form-icon"></i><span>Intercept downloads</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="clearDownloads"><i class="form-icon"></i><span>Clear downloads</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="notifyIntercept"><i class="form-icon"></i><span>Interception notification</span></label></div>
+              </div>
+              <div class="column col-6">
+                <label class="form-label"><span>Intercept minimum size:</span><input type="text" id="interceptSize" class="form-input"></label>
+                <label class="form-label"><span>Notification TTL:</span><input type="text" id="notifyTtl" class="form-input"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title text-bold">Video</div>
+          </div>
+          <div class="panel-body">
+            <label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="panel-section-separator"></div>
-    <div class="panel-section-formElements">
-      <div class="browser-style panel-formElements-item"><input type="checkbox" id="notifyIntercept"><label for="notifyIntercept">Interception notification</label></div>
-      <div class="browser-style panel-formElements-item"><label for="notifyTtl">Notification TTL:</label><br><input type="text" id="notifyTtl"/></div>
-    </div>
-  </div>
-  <div id="messages" class="hidden">
-    <div class="panel-section-separator"></div>
-    <div class="header">
-      <button id="clearMessages" class="default">Clear messages</button>
-    </div>
+    <p><!-- Forces some padding at the bottom of the panel --></p>
   </div>
   <script src="/dist/browser-action.bundle.js"></script>
 </body>

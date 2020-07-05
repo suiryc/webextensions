@@ -57,10 +57,11 @@ var ignoreNextButton = document.querySelector('#ignoreNext');
 var ignoreNextText = ignoreNextButton.textContent;
 var ignoringNext = false;
 var clearMessagesButton = document.querySelector('#clearMessages');
+var messagesItemNode = document.querySelector('#messages-item');
 var messagesNode = document.querySelector('#messages');
 var iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
 var iconInfoCircle = document.querySelector('#icon-info-circle');
-var messageNode = document.querySelector('#message');
+var listItemNode = document.querySelector('#list-item');
 
 function cloneNode(node) {
   var cloned = node.cloneNode(true);
@@ -74,7 +75,7 @@ function replaceNode(node1, node2) {
 
 function addMessage(details) {
   var level = details.level;
-  var node = cloneNode(messageNode);
+  var node = cloneNode(listItemNode);
   var icon;
   var message = util.formatApplicationMessage(details);
 
@@ -88,12 +89,14 @@ function addMessage(details) {
     icon = cloneNode(iconInfoCircle);
   }
   replaceNode(node.querySelector('.icon'), icon);
-  util.setHtml(node.querySelector('.title'), details.title);
+  util.setHtml(node.querySelector('.list-item-title'), details.title);
   message = util.textToHtml(message);
-  util.setHtml(node.querySelector('.content'), message);
+  util.setHtml(node.querySelector('.list-item-content'), message);
 
   messagesNode.appendChild(node);
   messagesNode.classList.remove('hidden');
+  messagesItemNode.setAttribute('data-badge', messagesNode.children.length - 1);
+  messagesItemNode.classList.toggle('badge', true);
 }
 
 // Ignore next interception when requested.
@@ -113,17 +116,24 @@ clearMessagesButton.addEventListener('click', () => {
     kind: constants.KIND_CLEAR_MESSAGES
   }).then(() => {
     messagesNode.classList.add('hidden');
+    messagesNode.querySelectorAll(':scope > .list-item').forEach(node => {
+      node.remove();
+    });
+    messagesItemNode.classList.toggle('badge', false);
+    messagesItemNode.removeAttribute('data-badge');
   });
 });
 
-// Get and add application messages.
-webext.sendMessage({
-  target: constants.TARGET_BACKGROUND_PAGE,
-  kind: constants.KIND_GET_EXT_MESSAGES
-}).then(r => {
-  if ((r === undefined) || !Array.isArray(r) || !r.length) return;
-
-  for (var details of r) {
-    addMessage(details);
+// Get+add application messages.
+(async () => {
+  var r = await webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    kind: constants.KIND_GET_EXT_MESSAGES
+  });
+  if ((r !== undefined) && Array.isArray(r) && r.length) {
+    for (var details of r) {
+      addMessage(details);
+    }
+    document.querySelector('#tab-messages-item').click();
   }
-});
+})();
