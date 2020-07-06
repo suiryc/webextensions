@@ -83,6 +83,16 @@ function getStorageValue(key, value) {
   });
 }
 
+async function setStorageValue(key, value) {
+  var keys = {};
+  keys[key] = value;
+  return await browser.storage.local.set(keys);
+}
+
+async function removeStorageValue(keys) {
+  return browser.storage.local.remove(keys);
+}
+
 class SettingsBranch {
 
   constructor() {
@@ -145,17 +155,43 @@ class Settings extends SettingsBranch {
   }
 
   async migrate_v1() {
-    var debug = await getStorageValue('debug');
-    if (debug !== undefined) {
-      settings.debug.misc = debug;
-      settings.debug.downloads = debug;
-      settings.debug.video = debug;
+    await this.migrateKeys({
+      'debug': ['debug.misc', 'debug.downloads', 'debug.video']
+    });
+  }
+
+  // Code to rename/drop settings keys.
+  async migrateKeys(keys) {
+    for (var key of Object.keys(keys)) {
+      var newKey = keys[key];
+      try {
+        if ((newKey === undefined) || (newKey === null)) {
+          await removeStorageValue(key);
+          console.log(`Deleted oldKey=<${key}>`);
+          continue;
+        }
+        var value = await getStorageValue(key);
+        if (value === undefined) {
+          console.log(`Not migrating undefined oldKey=<${key}> newKey=<${newKey}>`);
+          continue;
+        }
+        var newKeys = newKey;
+        if (!Array.isArray(newKeys)) newKeys = [newKeys];
+        for (newKey of newKeys) {
+          await setStorageValue(newKey, value);
+          console.log(`Migrated oldKey=<${key}> newKey=<${newKey}> value=<%o>`, value);
+        }
+        await removeStorageValue(key);
+      } catch (error) {
+        console.log(`Failed to migrate oldKey=<${key}> newKey=<${newKey}>:`, error);
+      }
     }
-    // else: default value
-    await browser.storage.local.remove('debug');
   }
 
   async migrate() {
+    // Note: we don't refresh all settings now, because only latest version
+    // settings are registered, and migration mainly deals with legacy settings
+    // which we have to grab explicitely.
     var setting = this.settingsVersion;
     var settingsVersion = await setting.initValue();
 
@@ -302,10 +338,7 @@ class ExtensionSetting {
 
   // Persists the setting value.
   persistValue() {
-    var self = this;
-    var keys = {};
-    keys[self.key] = self.value;
-    return browser.storage.local.set(keys);
+    return setStorageValue(this.key, this.value);
   }
 
 }
