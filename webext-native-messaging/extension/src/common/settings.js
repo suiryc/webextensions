@@ -134,7 +134,7 @@ class Settings extends SettingsBranch {
   constructor() {
     super();
     // The latest settings version.
-    this.latestSettingsVersion = 1;
+    this.latestSettingsVersion = 2;
   }
 
   registerSettings() {
@@ -148,10 +148,16 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('interceptRequests', true);
     new ExtensionBooleanSetting('interceptVideo', true);
     new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
-    new ExtensionBooleanSetting('notifyIntercept', true);
+    new ExtensionBooleanSetting('notifyDownload', true);
     new ExtensionIntSetting('notifyTtl', 4000);
 
     return this;
+  }
+
+  async migrate_v2() {
+    await this.migrateKeys({
+      'notifyIntercept': 'notifyDownload'
+    });
   }
 
   async migrate_v1() {

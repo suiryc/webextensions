@@ -461,10 +461,10 @@ export class RequestsHandler {
     console.info('Intercepting request %o: %s', requestDetails, reason);
 
     var url = requestDetails.url;
-    if (settings.notifyIntercept) {
+    if (settings.notifyDownload) {
       util.browserNotification({
         'type': 'basic',
-        'title': 'Intercepted request',
+        'title': 'Download (request)',
         'message': `${util.getFilename(url, requestDetails.filename)}\n${url}`
       }, settings.notifyTtl);
     }
@@ -631,10 +631,10 @@ export class RequestsHandler {
 
     // While entry is being erased from list and history, we can hand over the
     // download.
-    if (settings.notifyIntercept) {
+    if (settings.notifyDownload) {
       util.browserNotification({
         'type': 'basic',
-        'title': 'Intercepted download',
+        'title': 'Download (intercepted)',
         'message': `${download.filename}\n${download.url}`
       }, settings.notifyTtl);
     }
@@ -661,20 +661,20 @@ export class RequestsHandler {
     var url = (info.mediaType !== undefined) ? info.srcUrl : info.linkUrl;
 
     if (!http.canDownload(url)) {
-      if (settings.notifyIntercept) {
+      if (settings.notifyDownload) {
         util.browserNotification({
           'type': 'basic',
-          'title': 'Cannot intercept link',
+          'title': 'Cannot download link',
           'message': url
         }, settings.notifyTtl);
       }
       return;
     }
 
-    if (settings.notifyIntercept) {
+    if (settings.notifyDownload) {
       util.browserNotification({
         'type': 'basic',
-        'title': 'Intercepted link',
+        'title': 'Download (link)',
         'message': url
       }, settings.notifyTtl);
     }
