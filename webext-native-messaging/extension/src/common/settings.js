@@ -202,7 +202,7 @@ class Settings extends SettingsBranch {
     var settingsVersion = await setting.initValue();
 
     // Only migrate if necessary.
-    if (settingsVersion == this.latestSettingsVersion) return;
+    if (settingsVersion >= this.latestSettingsVersion) return;
 
     if (settingsVersion === 0) {
       // We need to distinguish two cases (v0 being the default value when
