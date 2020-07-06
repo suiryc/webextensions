@@ -243,7 +243,7 @@ class ExtensionSetting {
 
   constructor(key, value) {
     this.key = key;
-    this.value = value;
+    this.value = this.defaultValue = value;
     this.listeners = [];
 
     // Remember the setting by its full key.
@@ -296,6 +296,7 @@ class ExtensionSetting {
   // Also refreshes any associated field and persists value.
   async setValue(v, updated) {
     var self = this;
+    if (v === undefined) v = self.defaultValue;
     var oldValue = self.value;
     // Nothing to do if value is not changed.
     if (v === oldValue) return;
@@ -317,6 +318,7 @@ class ExtensionSetting {
     //  4. We are notified of 'v2' from storage, and push it back because
     //     the current value is different ('v1')
     //  ... (loop on 3. and 4.)
+    if (updated) self.notifyListeners(oldValue, v);
   }
 
   // Tracks associated field.
@@ -452,8 +454,6 @@ browser.storage.onChanged.addListener((changes, area) => {
   for (var key of Object.keys(changes)) {
     var setting = settings.inner.perKey[key];
     if (!(setting instanceof ExtensionSetting)) return;
-    var {oldValue, newValue} = changes[key];
-    setting.setValue(newValue, true);
-    setting.notifyListeners(oldValue, newValue);
+    setting.setValue(changes[key].newValue, true);
   }
 });
