@@ -217,7 +217,8 @@ class VideoSource {
         addUserAgent: !this.seenRequest,
         addComment: true,
         mimeFilename: this.filename,
-        tabTitle: this.tabTitle
+        tabTitle: this.tabTitle,
+        notify: true
       }
     }
   }

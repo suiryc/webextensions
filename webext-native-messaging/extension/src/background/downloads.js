@@ -53,6 +53,15 @@ class DlMngrClient {
   async download(details, params) {
     var self = this;
 
+    params = params || {};
+    if (params.notify && settings.notifyDownload) {
+      util.browserNotification({
+        'type': 'basic',
+        'title': 'Download',
+        'message': `${details.file}\n${details.url}`
+      }, settings.notifyTtl);
+    }
+
     // Drop undefined (or null) fields.
     util.cleanupFields(details);
     util.cleanupFields(params);
@@ -60,7 +69,6 @@ class DlMngrClient {
     // Set 'kind' field, in case we pass this message to the native app.
     details.kind = constants.KIND_DOWNLOAD;
     // Fill requested fields.
-    params = params || {};
     if (params.addCookie && (details.cookie === undefined)) {
       try {
         details.cookie = await http.getCookie(details.url);

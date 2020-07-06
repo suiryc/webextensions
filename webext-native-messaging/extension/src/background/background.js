@@ -126,13 +126,6 @@ function dl_ignoreNext(msg) {
 
 // Triggers download.
 function dl_download(msg) {
-  if (settings.notifyDownload) {
-    util.browserNotification({
-      'type': 'basic',
-      'title': 'Download (triggered)',
-      'message': `${msg.details.file}\n${msg.details.url}`
-    }, settings.notifyTtl);
-  }
   return dlMngr.download(msg.details, msg.params);
 }
 
