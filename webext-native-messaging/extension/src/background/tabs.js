@@ -753,10 +753,14 @@ export class TabsHandler {
     });
 
     // Listen to frame changes.
+    // Usually we only want to track file/http(s) pages. But in the case of
+    // onBeforeNavigate which we listen to reset known tabs/frames, it is better
+    // to track all pages so that we do reset whenever the url do change, even
+    // in 'about:blank'/'about:home'/etc. cases.
     var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
     browser.webNavigation.onBeforeNavigate.addListener(details => {
       self.resetFrame(details);
-    }, webNavigationFilter);
+    });
     browser.webNavigation.onDOMContentLoaded.addListener(details => {
       self.addFrame(details);
     }, webNavigationFilter);
