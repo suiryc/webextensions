@@ -88,6 +88,26 @@ const VIDEO_EVENTS = ['loadstart', 'loadeddata', 'canplay', 'canplaythrough', 'p
 // To workaround this we prevent sending messages until a given amount of time
 // has elapsed since the content script execution started: 100ms appear to be
 // enough most of the time.
+//
+// Important:
+// When the tab is not active, timer related things have their precision highly
+// degraded: setTimeout will have a minimum delay/precision of 1s.
+// See: https://bugzilla.mozilla.org/show_bug.cgi?id=633421
+// See: https://codereview.chromium.org/6577021
+// To workaround this, we would need to either:
+//  - use requestAnimationFrame is possible
+//    See: https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
+//  - use a WebWorker, or SharedWorker, to actually do the waiting, relying on
+//    messaging with the script: unlike the content script it is not impacted
+//    by tab activity
+//  - use the background script instead of a dedicated WebWorker for this ?
+//  - adapt the initial behaviour depending on whether the tab is supposed to
+//    be active (through page visibility) ?
+//    See: https://www.w3.org/TR/page-visibility/#onvisiblitychange-event-handler
+// In our specific case, we don't really need to workaround it: if the tab is
+// not active, we are not seeing it right now, neither the browser action icon
+// or context menu in which we show found videos. As such we are not really in
+// need for this code to have a precise timing when tab is inactive.
 const delayed = util.delayPromise(100);
 
 function processVideo(node) {
