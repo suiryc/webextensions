@@ -152,11 +152,13 @@ class VideoSource {
       stripEnd(host.slice(0, 1).join('.'));
     }
 
+    // Strip title matching regexps.
+    // Note: do this first as some cases overlap with TITLE_END_PART_REGEXPS
+    // while the latter do strip more (and sometimes too much).
+    TITLE_REGEXPS.forEach(stripRegexp);
+
     // Strip end of title matching regexps.
     TITLE_END_PART_REGEXPS.forEach(stripEndPartRegexp);
-
-    // Strip title matching regexps.
-    TITLE_REGEXPS.forEach(stripRegexp);
 
     return title;
   }
