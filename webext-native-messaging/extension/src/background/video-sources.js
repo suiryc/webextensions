@@ -15,10 +15,10 @@ function checkVideoContentType(contentType) {
 
 const TITLE_SEPARATORS = [' - ', ' | '];
 const TITLE_END_PART_REGEXPS = [
-  / Online(?: Free)?$/i
+  /^(?:Watch|Free)[^|-]*Online(?: Free)?$/i
 ];
 const TITLE_REGEXPS = [
-  /(?: Subbed)? Online Free$/i
+  /(?: Subbed| Watch)? Online Free$/i
 ];
 
 class VideoSource {
@@ -152,13 +152,11 @@ class VideoSource {
       stripEnd(host.slice(0, 1).join('.'));
     }
 
-    // Strip title matching regexps.
-    // Note: do this first as some cases overlap with TITLE_END_PART_REGEXPS
-    // while the latter do strip more (and sometimes too much).
-    TITLE_REGEXPS.forEach(stripRegexp);
-
     // Strip end of title matching regexps.
     TITLE_END_PART_REGEXPS.forEach(stripEndPartRegexp);
+
+    // Strip title matching regexps.
+    TITLE_REGEXPS.forEach(stripRegexp);
 
     return title;
   }
