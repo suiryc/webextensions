@@ -24,8 +24,7 @@
     "run_at": "document_start",
     "js": [
       "src/util.js",
-      "src/LinksCatcher.js",
-      "src/LinkHandler.js",
+      "src/links-catcher.js",
       "src/content-script.js"
      ],
     "css": [ "src/content-script.css" ]
