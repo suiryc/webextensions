@@ -5,7 +5,9 @@
 
   "description": "Catches links in selected zone.",
 
-  "permissions": [],
+  "permissions": [
+    "clipboardWrite"
+  ],
 
   "icons": {
     "48": "src/icon.svg",

@@ -69,20 +69,3 @@
 body.linksCatcher_noUserSelect {
   user-select: none;
 }
-
-/* Hide the text input used to interact with clipboard.
- * We cannot set the element invisible (display: none) because we could not use
- * it to select its content.
- */
-.linksCatcher_clipboard {
-  position: absolute;
-  z-index: -2147483648;
-  top: 0px;
-  left: 0px;
-  height: 0px;
-  width: 0px;
-  margin: 0px;
-  padding: 0px;
-  overflow: visible;
-  opacity: 0;
-}

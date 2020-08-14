@@ -440,15 +440,7 @@ class LinksCatcher {
       }
     }
     if (caught.length) {
-      // To put text in clipboard, we need to 'select' it from a text input.
-      // Only a 'textarea' handles multi-line text.
-      var input = document.createElement('textarea');
-      input.classList.add('linksCatcher_clipboard');
-      input.value = caught.join('\n');
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('Copy');
-      document.body.removeChild(input);
+      navigator.clipboard.writeText(`${caught.join('\n')}\n`);
     }
   }
 
