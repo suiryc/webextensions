@@ -7,6 +7,8 @@ class LinkHandler {
   constructor(link) {
     // The link itself
     this.link = link;
+    // The whole link rect.
+    this.rect = new DOMRect(0, 0, 0, 0);
     // The highlight zones, if any
     this.highlights = [];
   }
@@ -81,6 +83,20 @@ class LinkHandler {
           this.rects.push(rect);
         }
       }
+    }
+
+    if (this.rects.length > 0) {
+      var xMin = Number.MAX_SAFE_INTEGER;
+      var yMin = Number.MAX_SAFE_INTEGER;
+      var xMax = Number.MIN_SAFE_INTEGER;
+      var yMax = Number.MIN_SAFE_INTEGER;
+      for (var rect of this.rects) {
+        if (rect.left < xMin) xMin = rect.left;
+        if (rect.right > xMax) xMax = rect.right;
+        if (rect.top < yMin) yMin = rect.top;
+        if (rect.bottom > yMax) yMax = rect.bottom;
+      }
+      this.rect = new DOMRect(xMin, yMin, xMax - xMin, yMax - yMin);
     }
 
     return this.rects.length != 0;
@@ -317,6 +333,9 @@ class LinksCatcher {
     this.catchZone.bottom = Math.min(Math.max(startPos.y, endPos.y), pageHeight);
     this.catchZone.width = this.catchZone.right - this.catchZone.left;
     this.catchZone.height = this.catchZone.bottom - this.catchZone.top;
+    // Determine catch zone vertical/horizontal direction.
+    this.catchZone.topToBottom = endPos.y >= startPos.y;
+    this.catchZone.leftToRight = endPos.x >= startPos.x;
     // Disable the catch zone if the mouse is almost at the starting point.
     // This way we don't do or override anything (especially the context menu)
     // when a simple click has been done for example.
@@ -433,16 +452,27 @@ class LinksCatcher {
 
   // Processes caught links
   processLinks() {
+    var handlers = [];
     var caught = [];
+    // Keep caught links.
     for (var handler of (this.linkHandlers || [])) {
-      // Keep caught links and skip duplicates
-      if (handler.isCaught() && !caught.includes(handler.link.href)) {
-        caught.push(handler.link.href);
-      }
+      if (handler.isCaught()) handlers.push(handler);
     }
-    if (caught.length) {
-      navigator.clipboard.writeText(`${caught.join('\n')}\n`);
+    // Sort links depending on catch zone direction (from top or bottom, and
+    // from left or right).
+    var topToBottom = this.catchZone.topToBottom;
+    var leftToRight = this.catchZone.leftToRight;
+    handlers.sort((h1, h2) => {
+      var vertical = topToBottom ? (h1.rect.top - h2.rect.top) : (h2.rect.bottom - h1.rect.bottom);
+      if (vertical != 0) return vertical;
+      var horizontal = leftToRight ? (h1.rect.left - h2.rect.left) : (h2.rect.right - h1.rect.right);
+      if (horizontal != 0) return horizontal;
+    });
+    // Keep unique links.
+    for (var handler of handlers) {
+      if (!caught.includes(handler.link.href)) caught.push(handler.link.href);
     }
+    if (caught.length) navigator.clipboard.writeText(`${caught.join('\n')}\n`);
   }
 
   // Handles (document) mutation: update known links in document
