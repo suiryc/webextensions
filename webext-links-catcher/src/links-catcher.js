@@ -342,9 +342,11 @@ class LinksCatcher {
 
     if (this.catchZone.enabled) {
       if (this.linkHandlers === undefined) {
-        // Detect current links and observe mutations
-        this.detectLinks();
+        this.linkHandlers = [];
+        // Detect current links and observe mutations.
+        // Handle mutations first, to ensure we will not miss any link.
         this.mutationObserver.observe(document.body, { childList: true, subtree: true });
+        this.detectLinks();
       }
       this.catchZone.node.style.left = this.catchZone.left + 'px';
       this.catchZone.node.style.top = this.catchZone.top + 'px';
@@ -417,9 +419,8 @@ class LinksCatcher {
 
   // Detects all links in current document
   detectLinks() {
-    this.linkHandlers = [];
     for (var node of searchLinks(document.body)) {
-      this.handleLink(node);
+      this.linksCount.value += this.handleLink(node);
     }
   }
 
