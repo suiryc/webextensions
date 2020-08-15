@@ -15,7 +15,6 @@ class LinkHandler {
 
   // Whether this link can be caught
   canCatch() {
-    this.rects = [];
     // See: https://stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
     // See: https://stackoverflow.com/questions/178325/how-do-i-check-if-an-element-is-hidden-in-jquery/8266879#8266879
 
@@ -47,11 +46,27 @@ class LinkHandler {
     var style = getComputedStyle(this.link);
     if ((style.display == 'none') || (style.visibility == 'hidden')) return false;
 
+    var rect = getNodeRect(this.link);
+    this.hint = rect;
+    this.refreshPosition(rect);
+    return this.rects.length != 0;
+  }
+
+  refreshPosition(rect) {
+    this.refresh = false;
+    if (rect === undefined) {
+      rect = getNodeRect(this.link);
+      var hint = this.hint;
+      this.hint = rect;
+      var modified = (rect.top != hint.top) || (rect.bottom != hint.bottom) || (rect.left != hint.left) || (rect.right != hint.right);
+      if (!modified) return modified;
+    }
+
+    this.rects = [];
     var rects = [];
     var useLink = true;
     if (this.link.childElementCount) {
       // If one child does not fit the link, use the children.
-      var rect = getNodeRect(this.link);
       for (var child of this.link.children) {
         var childRect = getNodeRect(child);
         if ((childRect.top < rect.top) || (childRect.bottom > rect.bottom) || (childRect.left < rect.left) || (childRect.right > rect.right)) {
@@ -68,7 +83,7 @@ class LinkHandler {
         rects = rects.concat(getNodeRects(child));
       }
     }
-    for (var rect of rects) {
+    for (rect of rects) {
       var merged = undefined;
       if (rect.width || rect.height) {
         for (var rect0 of this.rects) {
@@ -90,7 +105,7 @@ class LinkHandler {
       var yMin = Number.MAX_SAFE_INTEGER;
       var xMax = Number.MIN_SAFE_INTEGER;
       var yMax = Number.MIN_SAFE_INTEGER;
-      for (var rect of this.rects) {
+      for (rect of this.rects) {
         if (rect.left < xMin) xMin = rect.left;
         if (rect.right > xMax) xMax = rect.right;
         if (rect.top < yMin) yMin = rect.top;
@@ -99,7 +114,7 @@ class LinkHandler {
       this.rect = new DOMRect(xMin, yMin, xMax - xMin, yMax - yMin);
     }
 
-    return this.rects.length != 0;
+    return modified;
   }
 
   // Whether this link was caught (highlighted)
@@ -123,16 +138,18 @@ class LinkHandler {
   // Catches link in zone
   catch(catchZone) {
     var intersect = false;
+    // Update position if needed and applicable.
+    var updated = this.refresh && this.refreshPosition();
     for (var rect of this.rects) {
       intersect = intersect || ((rect.right > catchZone.left) && (rect.left < catchZone.right) &&
         (rect.bottom > catchZone.top) && (rect.top < catchZone.bottom));
       if (intersect) break;
     }
-    return this.highlight(intersect ? this.rects : undefined);
+    return this.highlight(intersect ? this.rects : undefined, updated);
   }
 
   // Changes link highlighting
-  highlight(rects) {
+  highlight(rects, updated) {
     // Notes:
     // The easier would be to apply a CSS style with outline+background without
     // altering the layout. But either the outline may not be visible (or somehow
@@ -141,8 +158,11 @@ class LinkHandler {
     // better visual result.
     // The zones where to create highlighting have been given as argument, or
     // none to reset highlighting.
-    var caught = this.isCaught();
-    if (rects && !caught) {
+    var wasCaught = this.isCaught();
+    var caught = !!rects;
+    // Force redrawing link highlight when caught and its position was updated.
+    if (caught && updated) this.reset();
+    if (caught && (updated || !wasCaught)) {
       for (var rect of rects) {
         var node = document.createElement('div');
         this.highlights.push(node);
@@ -155,9 +175,11 @@ class LinkHandler {
         // to the body and not the catcher zone.
         document.body.appendChild(node);
       }
+    }
+    if (caught && !wasCaught) {
       // One more caught link
       return 1;
-    } else if (!rects && caught) {
+    } else if (!caught && wasCaught) {
       this.reset();
       // One less caught link
       return -1;
@@ -216,9 +238,13 @@ class LinksCatcher {
       }
     });
 
+    this.linksRefresh = {
+      last: 0
+    };
     // Create our catch zone
     this.catchZone = {
-      'node': document.createElement('div')
+      pos: {},
+      node: document.createElement('div')
     }
     this.catchZone.node.classList.add('linksCatcher_catchZone');
     this.catchZone.node.style.display = 'none';
@@ -226,8 +252,8 @@ class LinksCatcher {
 
     // Node to display number of caught links
     this.linksCount = {
-      'node': document.createElement('div'),
-      'value': 0
+      node: document.createElement('div'),
+      value: 0
     }
     this.linksCount.node.classList.add('linksCatcher_linksCount');
     this.linksCount.node.style.display = 'none';
@@ -235,9 +261,9 @@ class LinksCatcher {
 
     // Functions to dispatch events to
     this.eventHandlers = {
-      'mousedown': this.handleMouseDown.bind(this),
-      'mouseup': this.handleMouseUp.bind(this),
-      'mousemove': this.handleMouseMove.bind(this)
+      mousedown: this.handleMouseDown.bind(this),
+      mouseup: this.handleMouseUp.bind(this),
+      mousemove: this.handleMouseMove.bind(this)
     };
     // Wrap handlers for debugging
     if (settings.debug.enabled) {
@@ -291,16 +317,16 @@ class LinksCatcher {
     // Reset catch zone
     this.lastMouseEvent = undefined;
     this.updateCatchZone();
-    delete(this.catchZone.startPos);
+    this.catchZone.pos = {};
 
     // Re-enable user selection
     document.body.classList.remove('linksCatcher_noUserSelect');
   }
 
-  // Updates catch zone
+  // Updates catch zone: after mouse event etc.
   updateCatchZone() {
     var ev = this.lastMouseEvent;
-    var startPos = this.catchZone.startPos;
+    var startPos = this.catchZone.pos.start;
 
     // Page size.
     // See: http://ryanve.com/lab/dimensions/
@@ -321,12 +347,13 @@ class LinksCatcher {
       // (displaying an element outside the current page size will make the page
       // grow, which would get ugly with our auto-scrolling triggering)
       var endPos = {
-        'x': Math.min(Math.max(window.scrollX + ev.clientX, 0), pageWidth),
-        'y': Math.min(Math.max(window.scrollY + ev.clientY, 0), pageHeight)
+        x: Math.min(Math.max(window.scrollX + ev.clientX, 0), pageWidth),
+        y: Math.min(Math.max(window.scrollY + ev.clientY, 0), pageHeight)
       };
     } else {
-      var endPos = { 'x': startPos.x, 'y': startPos.y };
+      var endPos = { x: startPos.x, y: startPos.y };
     }
+    this.catchZone.pos.end = endPos;
     this.catchZone.left = Math.max(Math.min(startPos.x, endPos.x), 0);
     this.catchZone.top = Math.max(Math.min(startPos.y, endPos.y), 0);
     this.catchZone.right = Math.min(Math.max(startPos.x, endPos.x), pageWidth);
@@ -341,22 +368,8 @@ class LinksCatcher {
     // when a simple click has been done for example.
     this.catchZone.enabled = (this.catchZone.width >= 4) && (this.catchZone.height >= 4);
 
-    // Get viewport size.
-    // See: https://stackoverflow.com/questions/1248081/get-the-browser-viewport-dimensions-with-javascript
-    // Notes:
-    // 'clientWidth'/'clientHeight' should be the value we want.
-    // 'window' 'innerWidth'/'innerHeight' includes scroll bars.
-    // Depending on the situation 'document.body' has
-    //  - whole body size
-    //  - viewport size
-    //  - 0 value
-    // Depending on the situation 'document.documentElement' has
-    //  - whole body size (when 'document.body' has viewport size)
-    //  - viewport size (when 'document.body' has whole body size)
-    // So take the minimum of both elements, excluding unknown/0 values.
     if (this.catchZone.enabled || ev) {
-      var clientWidth = Math.min(document.body.clientWidth || Number.MAX_SAFE_INTEGER, document.documentElement.clientWidth || Number.MAX_SAFE_INTEGER);
-      var clientHeight = Math.min(document.body.clientHeight || Number.MAX_SAFE_INTEGER, document.documentElement.clientHeight || Number.MAX_SAFE_INTEGER);
+      var { viewWidth, viewHeight } = getViewportSize();
     }
 
     if (this.catchZone.enabled) {
@@ -374,24 +387,11 @@ class LinksCatcher {
       this.catchZone.node.style.display = 'block';
 
       this.catchLinks();
-      this.linksCount.node.textContent = this.linksCount.value;
-      var rect = getNodeRect(this.linksCount.node);
-      var left = endPos.x + LINKS_COUNT_MARGIN;
-      var top = endPos.y - LINKS_COUNT_MARGIN - rect.height;
-      if (left + rect.width + LINKS_COUNT_MARGIN > window.scrollX + clientWidth) {
-        left = window.scrollX + clientWidth - rect.width - LINKS_COUNT_MARGIN;
-      }
-      if (top - LINKS_COUNT_MARGIN < window.scrollY) {
-        top = window.scrollY + LINKS_COUNT_MARGIN;
-      }
-      this.linksCount.node.style.left = left + 'px';
-      this.linksCount.node.style.top = top + 'px';
-      this.linksCount.node.style.display = 'block';
     } else {
       this.catchZone.node.style.display = 'none';
-      this.linksCount.node.style.display = 'none';
       this.resetLinks();
     }
+    this.updateLinksCount();
 
     if (ev === undefined) return;
     // Check if we need to scroll (when the mouse is outside the view or near the screen edge).
@@ -402,8 +402,8 @@ class LinksCatcher {
     var scrollX = 0;
     if (ev.clientX < 0) {
       scrollX = ev.clientX;
-    } else if (ev.clientX > clientWidth) {
-      scrollX = ev.clientX - clientWidth;
+    } else if (ev.clientX > viewWidth) {
+      scrollX = ev.clientX - viewWidth;
     } else if (WINDOW_SCROLL_EDGE && (ev.screenX < WINDOW_SCROLL_EDGE)) {
       scrollX = (ev.screenX - WINDOW_SCROLL_EDGE);
     } else if (WINDOW_SCROLL_EDGE && (ev.screenX > screenWidth - WINDOW_SCROLL_EDGE)) {
@@ -413,8 +413,8 @@ class LinksCatcher {
     var scrollY = 0;
     if (ev.clientY < 0) {
       scrollY = ev.clientY;
-    } else if (ev.clientY > clientHeight) {
-      scrollY = ev.clientY - clientHeight;
+    } else if (ev.clientY > viewHeight) {
+      scrollY = ev.clientY - viewHeight;
     } else if (WINDOW_SCROLL_EDGE && (ev.screenY < WINDOW_SCROLL_EDGE)) {
       scrollY = (ev.screenY - WINDOW_SCROLL_EDGE);
     } else if (WINDOW_SCROLL_EDGE && (ev.screenY > screenHeight - WINDOW_SCROLL_EDGE)) {
@@ -424,6 +424,30 @@ class LinksCatcher {
     if ((scrollX != 0) || (scrollY != 0)) {
       debugSample('scroll')('[LinksCacther] Scroll x=<%d> y=<%d>', scrollX, scrollY);
       window.scrollBy(scrollX, scrollY);
+      this.refreshLinksPosition();
+    }
+  }
+
+  // Updates displayed caught links count.
+  updateLinksCount() {
+    if (this.catchZone.enabled) {
+      var endPos = this.catchZone.pos.end;
+      var { viewWidth } = getViewportSize();
+      this.linksCount.node.textContent = this.linksCount.value;
+      var rect = getNodeRect(this.linksCount.node);
+      var left = endPos.x + LINKS_COUNT_MARGIN;
+      var top = endPos.y - LINKS_COUNT_MARGIN - rect.height;
+      if (left + rect.width + LINKS_COUNT_MARGIN > window.scrollX + viewWidth) {
+        left = window.scrollX + viewWidth - rect.width - LINKS_COUNT_MARGIN;
+      }
+      if (top - LINKS_COUNT_MARGIN < window.scrollY) {
+        top = window.scrollY + LINKS_COUNT_MARGIN;
+      }
+      this.linksCount.node.style.left = left + 'px';
+      this.linksCount.node.style.top = top + 'px';
+      this.linksCount.node.style.display = 'block';
+    } else {
+      this.linksCount.node.style.display = 'none';
     }
   }
 
@@ -448,6 +472,45 @@ class LinksCatcher {
     for (var handler of this.linkHandlers) {
       this.linksCount.value += handler.catch(this.catchZone);
     }
+  }
+
+  // Refreshes links position, for elements that do move inside page.
+  // For uncaught links, ensure a minimal delay between two refresh: prevents
+  // consuming too much CPU/time when there are hundreds of links in the page.
+  refreshLinksPosition() {
+    var self = this;
+    var now = getTimestamp();
+    if (now - self.linksRefresh.last >= LINKS_REFRESH_DELAY) {
+      self._refreshLinksPosition(false);
+      return;
+    }
+    // Immediately refresh caught links only, and enforce delay for other links.
+    // This makes it visually nicer, while limiting CPU usage (and time needed).
+    self._refreshLinksPosition(true);
+    if (self.linksRefresh.timer) return;
+    self.linksRefresh.timer = setTimeout(
+      () => self._refreshLinksPosition(false),
+      self.linksRefresh.last + LINKS_REFRESH_DELAY - now
+    );
+  }
+
+  _refreshLinksPosition(fast) {
+    var updated = false;
+    if (!fast) {
+      this.linksRefresh.last = getTimestamp();
+      if (this.linksRefresh.timer) {
+        clearTimeout(this.linksRefresh.timer);
+        delete(this.linksRefresh.timer);
+      }
+    }
+    for (var handler of this.linkHandlers) {
+      if (fast && !handler.isCaught()) continue;
+      handler.refresh = true;
+      var diff = handler.catch(this.catchZone);
+      this.linksCount.value += diff;
+      if (diff) updated = true;
+    }
+    if (updated) this.updateLinksCount();
   }
 
   // Processes caught links
@@ -521,8 +584,8 @@ class LinksCatcher {
     }
 
     this.lastMouseEvent = ev;
-    this.catchZone.startPos = { 'x': ev.pageX, 'y': ev.pageY };
-    debug('[LinksCatcher.handleMouseDown] startPos=<%o>', this.catchZone.startPos);
+    this.catchZone.pos.start = { x: ev.pageX, y: ev.pageY };
+    debug('[LinksCatcher.handleMouseDown] startPos=<%o>', this.catchZone.pos.start);
     this.updateCatchZone();
 
     // Note: setting capture on 'document.documentElement' is necessary to
@@ -545,7 +608,7 @@ class LinksCatcher {
 
   // Handles 'mouseup': processes catch zone and resets catcher
   handleMouseUp(ev) {
-    if (this.catchZone.startPos === undefined) {
+    if (this.catchZone.pos.start === undefined) {
       // No catch zone.
       return;
     }

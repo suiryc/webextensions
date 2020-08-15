@@ -43,6 +43,9 @@ const NODE_MERGE_EDGE_SIZE = 5;
 // Start scrolling before reaching the edge (when it matches the screen edge)
 const WINDOW_SCROLL_EDGE = 10;
 
+// How many ms between links refresh (to limit CPU usage when scrolling)
+const LINKS_REFRESH_DELAY = 100;
+
 // Margin (pixels) around links count hint
 const LINKS_COUNT_MARGIN = 5;
 
@@ -50,6 +53,37 @@ function searchLinks(node) {
   // We want to get all 'a' nodes which have a non-empty 'href' attribute.
   // See: CSS selectors
   return node.querySelectorAll ? node.querySelectorAll('a[href]:not([href=""])') : [];
+}
+
+function getViewportSize() {
+  // Get viewport size.
+  // See:
+  //  - https://stackoverflow.com/questions/1248081/get-the-browser-viewport-dimensions-with-javascript
+  //  - https://github.com/ryanve/verge/issues/22#issuecomment-341944009
+  // Notes:
+  // 'clientWidth'/'clientHeight' should be the value we want.
+  // 'window' 'innerWidth'/'innerHeight' includes scroll bars.
+  // Depending on the situation 'document.body' has
+  //  - whole body size
+  //  - viewport size
+  //  - 0 value
+  // Depending on the situation 'document.documentElement' has
+  //  - whole body size (when 'document.body' has viewport size)
+  //  - viewport size (when 'document.body' has whole body size)
+  // jQuery uses 'documentElement'.
+  // It appears 'documentElement' is right when there is a DOCTYPE, otherwise it's 'body'.
+  var viewWidth = document.documentElement.clientWidth;
+  var viewHeight = document.documentElement.clientHeight;
+  if ((document.doctype === null) || (document.doctype === undefined)) {
+    // When there is no DOCTYPE, use 'body' if it has a non-0 value.
+    if (document.body.clientWidth > 0) viewWidth = document.body.clientWidth;
+    if (document.body.clientHeight > 0) viewHeight = document.body.clientHeight;
+  }
+
+  return {
+    viewWidth: viewWidth,
+    viewHeight: viewHeight
+  };
 }
 
 function getNodeRect(node) {
@@ -126,6 +160,10 @@ function debugSample(kind) {
   }
 }
 
+function getTimestamp() {
+  return (new Date()).getTime();
+}
+
 function epoch() {
-  return Math.round((new Date()).getTime() / 1000);
+  return Math.round(getTimestamp() / 1000);
 }
