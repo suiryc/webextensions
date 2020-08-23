@@ -71,6 +71,7 @@ async function dl_updateVideos(sources, showTab) {
   sources.forEach(source => {
     var node = cloneNode(listItemNode);
     node.classList.add('clickable');
+    // Note: a default extension was chosen when applicable.
     var { name, extension } = util.getFilenameExtension(source.download.details.file);
     util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
     var subtitle = [];

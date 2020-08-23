@@ -142,11 +142,15 @@ export function getFilename(url, filename) {
 
 // Gets file name and extension.
 // Extension is lowercased.
-export function getFilenameExtension(filename) {
+export function getFilenameExtension(filename, defaultExtension) {
   var idx = filename.lastIndexOf('.');
+  var name = (idx > 0) ? filename.slice(0, idx) : filename;
+  var extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : undefined;
+  if (extension === '') extension = undefined;
+  if (extension === undefined) extension = defaultExtension;
   return {
-    name: (idx > 0) ? filename.slice(0, idx) : filename,
-    extension: (idx > 0) ? filename.slice(idx + 1).toLowerCase() : undefined
+    name: name,
+    extension: extension
   };
 }
 

@@ -163,7 +163,8 @@ class VideoSource {
 
   getDownloadFile() {
     var filename = util.getFilename(this.getUrl(), this.filename);
-    var { name, extension } = util.getFilenameExtension(filename);
+    // Use 'mp4' as default extension if none could be determined.
+    var { name, extension } = util.getFilenameExtension(filename, 'mp4');
     // Most sources don't have a filename, nor a proper name in the url.
     // So use the tab title as base to name the downloaded file.
     name = this.sanitizeTitle();
