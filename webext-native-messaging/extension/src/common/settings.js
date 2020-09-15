@@ -393,6 +393,28 @@ class ExtensionIntSetting extends ExtensionSetting {
 
 }
 
+// Manages a string setting.
+class ExtensionStringSetting extends ExtensionSetting {
+
+  constructor(key, value) {
+    super(key, value);
+  }
+
+  updateField() {
+    if ((this.value === undefined) || (this.value === null)) this.field.value = '';
+    else this.field.value = this.value;
+  }
+
+  trackField() {
+    var self = this;
+    if (!super.trackField()) return;
+    self.field.addEventListener('change', () => {
+      self.setValue(self.field.value);
+    });
+  }
+
+}
+
 // The settings.
 export var settings = new Settings().proxy;
 settings.registerSettings();
