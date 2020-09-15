@@ -168,6 +168,8 @@ export class WebExtension {
       for (var port of ports) {
         promises.push(port.postRequest(msg));
       }
+      // Message actually sent to self.
+      if (this.isTarget(msg)) promises.push(this.onMessage(msg, this));
       return Promise.all(promises);
     }
 
