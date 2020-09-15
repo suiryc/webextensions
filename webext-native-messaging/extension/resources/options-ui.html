@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/resources/spectre.min.css">
+  <link rel="stylesheet" href="/resources/browser-action.css">
+</head>
+
+<!-- Notes:
+  -- See browser action page for some more dztails.
+  -->
+
+<body>
+  <div class="hidden">
+    <div id="list-item" class="list-item">
+      <div class="icon"></div>
+      <div>
+        <div class="list-item-text list-item-title"></div>
+        <div class="list-item-text list-item-subtitle"></div>
+        <div class="list-item-text list-item-content"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="panel">
+    <input type="radio" id="tab-options-downloads-item" name="tabs" class="tab-locator" hidden checked>
+    <input type="radio" id="tab-options-videos-item" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-options-misc-item" name="tabs" class="tab-locator" hidden>
+
+    <div class="panel-nav tabs-items">
+      <ul class="tab">
+        <li class="tab-item">
+          <label for="tab-options-downloads-item" class="clickable"><a>Downloads</a></label>
+        </li>
+        <li class="tab-item">
+          <label for="tab-options-videos-item" class="clickable"><a>Videos</a></label>
+        </li>
+        <li class="tab-item">
+          <label for="tab-options-misc-item" class="clickable"><a>Misc</a></label>
+        </li>
+      </ul>
+    </div>
+
+    <div class="panel-body tabs-content">
+
+      <div id="tab-options-downloads" class="tab-content">
+        <div class="panel">
+          <div class="panel-body container">
+            <div class="columns">
+              <div class="column col-6">
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.downloads"><i class="form-icon"></i><span>Debug</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptRequests"><i class="form-icon"></i><span>Intercept requests</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptDownloads"><i class="form-icon"></i><span>Intercept downloads</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="clearDownloads"><i class="form-icon"></i><span>Clear downloads</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="notifyDownload"><i class="form-icon"></i><span>Download notification</span></label></div>
+              </div>
+              <div class="column col-6">
+                <label class="form-label"><span>Intercept minimum size:</span><input type="text" id="interceptSize" class="form-input"></label>
+                <label class="form-label"><span>Notification TTL:</span><input type="text" id="notifyTtl" class="form-input"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-options-videos" class="tab-content">
+        <div class="panel">
+          <div class="panel-body">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Debug</span></label></div>
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-options-misc" class="tab-content">
+        <div class="panel">
+          <div class="panel-body">
+            <div class="columns">
+              <div class="column">
+                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.misc"><i class="form-icon"></i><span>Debug</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p>
+  </div>
+  <script src="/dist/options-ui.bundle.js"></script>
+</body>
+
+</html>

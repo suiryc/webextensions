@@ -58,8 +58,7 @@
     "default_popup": "/resources/browser-action.html"
   },
 
-  // We do the same in browser action and options
   "options_ui": {
-    "page": "/resources/browser-action.html"
+    "page": "/resources/options-ui.html"
   }
 }

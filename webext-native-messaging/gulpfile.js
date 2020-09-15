@@ -99,7 +99,8 @@ async function webpackBundle(mode) {
       'background': path.resolve(extensionPath, 'src', 'background', 'background.js'),
       'content-script-tw': path.resolve(extensionPath, 'src', 'content-script', 'content-script-tw.js'),
       'content-script-video': path.resolve(extensionPath, 'src', 'content-script', 'content-script-video.js'),
-      'browser-action': path.resolve(extensionPath, 'src', 'browser-action', 'browser-action.js')
+      'browser-action': path.resolve(extensionPath, 'src', 'browser-action', 'browser-action.js'),
+      'options-ui': path.resolve(extensionPath, 'src', 'options-ui', 'options-ui.js')
     },
     output: {
       // an absolute path is required for output.path
