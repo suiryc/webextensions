@@ -34,6 +34,7 @@ export const constants = {
   TARGET_BACKGROUND_PAGE: 'background page',
   TARGET_BROWSER_ACTION: 'browser action',
   TARGET_CONTENT_SCRIPT: 'content script',
+  TARGET_OPTIONS_UI: 'options ui',
   // Notes:
   // We handle 'options page' with the same code than 'browser action'.
   // We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
