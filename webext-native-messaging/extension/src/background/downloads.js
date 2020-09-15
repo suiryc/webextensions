@@ -100,7 +100,7 @@ class DlMngrClient {
           title: 'Failed to download',
           level: 'error',
           message: `${util.getFilename(url, filename)}\n${url}`,
-          error: r.error
+          error: util.formatObject(r.error)
         });
       }
       return r;
