@@ -161,7 +161,7 @@ function addMessage(details) {
   }
   replaceNode(node.querySelector('.icon'), icon);
   util.setHtml(node.querySelector('.list-item-title'), details.title);
-  message = util.textToHtml(message);
+  message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
 
   messagesNode.appendChild(node);

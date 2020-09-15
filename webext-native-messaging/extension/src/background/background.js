@@ -189,10 +189,14 @@ function app_console(app, msg) {
 function notification(label, details) {
   if (details.level == 'warning') details.level = 'warn';
   var level = details.level || 'info';
+  var html = details.html;
+  function stripHtml(s) {
+    return (html ? util.htmlToText(s) : s);
+  }
   // The title is mandatory for browser notifications.
   if (details.title === undefined) details.title = constants.EXTENSION_ID;
-  var title = util.htmlToText(details.title);
-  var message = util.htmlToText(details.message);
+  var title = stripHtml(details.title);
+  var message = stripHtml(details.message);
   var error = details.error;
 
   // Standard notification
@@ -201,7 +205,7 @@ function notification(label, details) {
   util.browserNotification({
     'type': 'basic',
     'title': notificationTitle,
-    'message': util.htmlToText(msg)
+    'message': stripHtml(msg)
   }, settings.notifyTtl);
 
   addExtensionMessage(details);
