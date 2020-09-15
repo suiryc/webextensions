@@ -232,7 +232,7 @@ function updateStatus(windowId) {
   // Note: 0 and '' are both considered false.
   var hasMessages = applicationMessages.length ? 'i' : '';
   var badgeBackgroundColor = hasMessages ? 'yellow' : 'blue';
-  for (details of applicationMessages) {
+  for (var details of applicationMessages) {
     if (details.level == 'error') {
       hasMessages = '!';
       badgeBackgroundColor = 'red';
@@ -245,7 +245,7 @@ function updateStatus(windowId) {
   if (windowId !== undefined) {
     obj[windowId] = videosSources[windowId]
   } else {
-    obj = videoSources;
+    obj = videosSources;
   }
   for (var [windowId, sources] of Object.entries(obj)) {
     // Reminder: object keys are strings, we need to windowId as an integer.
