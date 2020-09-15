@@ -155,12 +155,17 @@ function processVideo(node) {
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
-    webext.sendMessage({
+    var params = {
+      src: src
+    };
+    var scriptResult = await util.executeCode(webext, 'download refining', params, settings.scripts.video.downloadRefining);
+    util.cleanupFields(scriptResult);
+    webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_ADD_VIDEO_SOURCE,
       csUuid: csParams.uuid,
       src: src
-    });
+    }, scriptResult));
   }
 
   function processVideoSource() {

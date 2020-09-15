@@ -89,6 +89,13 @@ async function dl_updateVideos(sources, showTab) {
       }
       tooltip.push(util.limitText(source.actualUrl, 120));
     }
+    if (source.forceUrl !== undefined) {
+      var actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
+      if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+        subtitle = `${subtitle}\nForced host: ${actualHostname}`;
+      }
+      tooltip.push(util.limitText(source.forceUrl, 120));
+    }
     util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
     // Don't use a CSS tooltip, as it would likely not be displayed correctly
     // (if at all) in the browser action popup view. Instead use some simple

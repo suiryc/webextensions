@@ -150,6 +150,12 @@ class Settings extends SettingsBranch {
     new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
     new ExtensionBooleanSetting('notifyDownload', true);
     new ExtensionIntSetting('notifyTtl', 4000);
+    // 'download refining' script input 'params':
+    //  - src: the video source url
+    // Output object, merged with source information:
+    //  - forceUrl: url to force for download
+    //  - filenameFromUrl: whether to retrieve filename from url (instead of title)
+    new ExtensionStringSetting('scripts.video.downloadRefining');
 
     return this;
   }

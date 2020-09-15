@@ -30,6 +30,7 @@ class VideoSource {
     // multiple sources when applicable.
     this.urls = new Set();
     this.addUrl(this.url);
+    this.addUrl(this.forceUrl);
     this.needRefresh = true;
   }
 
@@ -39,6 +40,7 @@ class VideoSource {
   }
 
   getUrl() {
+    if (this.forceUrl !== undefined) return this.forceUrl;
     if (this.actualUrl !== undefined) return this.actualUrl;
     return this.url;
   }
@@ -166,7 +168,7 @@ class VideoSource {
     var { name, extension } = util.getFilenameExtension(filename, 'mp4');
     // Most sources don't have a filename, nor a proper name in the url.
     // So use the tab title as base to name the downloaded file.
-    name = this.sanitizeTitle();
+    if ((this.filename === undefined) && !this.filenameFromUrl) name = this.sanitizeTitle();
     return {
       name: name,
       extension: extension,

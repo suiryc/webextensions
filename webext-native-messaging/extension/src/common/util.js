@@ -311,6 +311,29 @@ export function extNotification(webext, details) {
   });
 }
 
+export async function executeCode(webext, label, params, code) {
+  try {
+    var toExecute = new Function('params', code);
+    return await Promise.resolve(toExecute(params)).catch(error => {
+      extNotification(webext, {
+        title: 'Script execution failed',
+        level: 'error',
+        message: `Script: ${label}`,
+        error: formatObject(error)
+      });
+      return {};
+    });
+  } catch (error) {
+    extNotification(webext, {
+      title: 'Script setup failed',
+      level: 'error',
+      message: `Script: ${label}`,
+      error: formatObject(error)
+    });
+  }
+  return {};
+}
+
 // Formats application message (optional content/error).
 export function formatApplicationMessage(details) {
   var message = details.message;
