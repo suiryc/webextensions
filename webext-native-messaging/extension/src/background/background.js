@@ -57,6 +57,10 @@ async function onMessage(extension, msg, sender) {
       return dl_addVideoSource(msg, sender);
       break;
 
+    case constants.KIND_NOTIFICATION:
+      return notification(msg.label, msg.details || {});
+      break;
+
     default:
       return unhandledMessage(msg, sender);
       break;
@@ -71,7 +75,7 @@ function onNativeMessage(app, msg) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return app_notification(app, msg);
+      return notification(msg.label || app.appId, msg.details || {});
       break;
 
     default:
@@ -180,12 +184,6 @@ function app_console(app, msg) {
   if (typeof(args[0]) == 'string') args[0] = `[${app.appId}] ${args[0]}`;
   else args.unshift(`[${app.appId}]`);
   console[level].apply(console, args);
-}
-
-// Notifies native application message.
-function app_notification(app, msg) {
-  var details = msg.details || {};
-  notification(app.appId, details);
 }
 
 function notification(label, details) {
@@ -385,7 +383,7 @@ waitForSettings(true).then(() => {
 
 
   // Listen to requests and downloads.
-  dlMngr.setup(nativeApp, notification);
+  dlMngr.setup(webext, nativeApp);
   requestsHandler = new RequestsHandler(webext);
   // Handle menus.
   var menuHandler = new MenuHandler(requestsHandler);

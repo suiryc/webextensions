@@ -45,9 +45,9 @@ function maybePageContent(url) {
 
 class DlMngrClient {
 
-  setup(nativeApp, notification) {
+  setup(webext, nativeApp) {
+    this.webext = webext;
     this.nativeApp = nativeApp;
-    this.notification = notification;
   }
 
   async download(details, params) {
@@ -96,7 +96,7 @@ class DlMngrClient {
       if (r.error) {
         var url = details.url;
         var filename = details.file;
-        self.notification(constants.EXTENSION_ID, {
+        util.extNotification(webext, {
           title: 'Failed to download',
           level: 'error',
           message: `${util.getFilename(url, filename)}\n${url}`,

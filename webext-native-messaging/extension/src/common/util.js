@@ -1,5 +1,7 @@
 'use strict';
 
+import { constants } from './constants.js';
+
 
 // Gets current timestamp (epoch in milliseconds).
 export function getTimestamp() {
@@ -299,6 +301,14 @@ export function browserNotification(notification, ttl) {
       }, ttl);
     });
   }
+}
+
+export function extNotification(webext, details) {
+  webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    kind: constants.KIND_NOTIFICATION,
+    details: details
+  });
 }
 
 // Formats application message (optional content/error).
