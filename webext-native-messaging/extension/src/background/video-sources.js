@@ -24,15 +24,12 @@ const TITLE_REGEXPS = [
 class VideoSource {
 
   constructor(details) {
-    this.url = details.url;
-    this.frameUrl = details.frameUrl;
-    this.tabUrl = details.tabUrl;
-    this.tabTitle = details.tabTitle;
+    Object.assign(this, details);
     // Even though for a single source we should only need to remember the
     // original url and any final redirection location, we manage merging
     // multiple sources when applicable.
     this.urls = new Set();
-    this.addUrl(details.url);
+    this.addUrl(this.url);
     this.needRefresh = true;
   }
 
@@ -42,7 +39,8 @@ class VideoSource {
   }
 
   getUrl() {
-    return (this.actualUrl !== undefined) ? this.actualUrl : this.url;
+    if (this.actualUrl !== undefined) return this.actualUrl;
+    return this.url;
   }
 
   getUrls() {
@@ -50,6 +48,7 @@ class VideoSource {
   }
 
   addUrl(url) {
+    if ((url === undefined) || (url === null)) return;
     this.urls.add(url);
   }
 
@@ -314,10 +313,10 @@ class VideoSource {
 // known in the new source.
 class VideoSourceTabHandler {
 
-  constructor(callbacks, tabHandler, menuHandler) {
-    this.callbacks = callbacks;
+  constructor(parent, tabHandler) {
+    this.callbacks = parent.callbacks;
     this.tabHandler = tabHandler;
-    this.menuHandler = menuHandler;
+    this.menuHandler = parent.menuHandler;
     this.sources = [];
     this.ignoredUrls = new Set();
     // Buffered requests, per url.
@@ -610,7 +609,7 @@ export class VideoSourceHandler {
     if (frameHandler === undefined) return {};
     var handler = frameHandler.tabHandler.getExtensionProperty({
       key: TAB_EXTENSION_PROPERTY,
-      create: create ? (tabHandler => new VideoSourceTabHandler(self.callbacks, tabHandler, self.menuHandler)) : undefined,
+      create: create ? (tabHandler => new VideoSourceTabHandler(self, tabHandler)) : undefined,
       keepOnReset: true
     });
     return {

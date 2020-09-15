@@ -150,12 +150,15 @@ function ext_getMessages(msg) {
 }
 
 function dl_addVideoSource(msg, sender) {
-  return videoSourceHandler.addSource({
+  msg = Object.assign({}, msg);
+  msg.url = msg.src;
+  delete(msg.target);
+  delete(msg.kind);
+  delete(msg.src);
+  return videoSourceHandler.addSource(Object.assign({
     tabId: sender.tab.id,
-    frameId: sender.frameId,
-    csUuid: msg.csUuid,
-    url: msg.src
-  });
+    frameId: sender.frameId
+  }, msg));
 }
 
 
