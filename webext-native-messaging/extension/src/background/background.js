@@ -152,6 +152,7 @@ function ext_getMessages(msg) {
 function dl_addVideoSource(msg, sender) {
   msg = Object.assign({}, msg);
   msg.url = msg.src;
+  delete(msg.correlationId);
   delete(msg.target);
   delete(msg.kind);
   delete(msg.src);
