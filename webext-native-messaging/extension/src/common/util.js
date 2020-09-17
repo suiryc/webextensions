@@ -312,9 +312,10 @@ export function extNotification(webext, details) {
 }
 
 export async function executeCode(webext, label, params, code) {
+  if ((code === undefined) || (code === null) || (code.trim() === '')) return {};
   try {
     var toExecute = new Function('params', code);
-    return await Promise.resolve(toExecute(params)).catch(error => {
+    var r = await Promise.resolve(toExecute(params)).catch(error => {
       extNotification(webext, {
         title: 'Script execution failed',
         level: 'error',
@@ -323,6 +324,7 @@ export async function executeCode(webext, label, params, code) {
       });
       return {};
     });
+    return r || {};
   } catch (error) {
     extNotification(webext, {
       title: 'Script setup failed',
