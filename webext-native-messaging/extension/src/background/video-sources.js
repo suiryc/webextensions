@@ -23,8 +23,9 @@ const TITLE_REGEXPS = [
 
 class VideoSource {
 
-  constructor(details) {
+  constructor(webext, details) {
     Object.assign(this, details);
+    this.webext = webext;
     // Even though for a single source we should only need to remember the
     // original url and any final redirection location, we manage merging
     // multiple sources when applicable.
@@ -114,8 +115,8 @@ class VideoSource {
     this.addUrls(from.getUrls());
   }
 
-  sanitizeTitle() {
-    var title = this.tabTitle;
+  sanitizeTitle(params) {
+    var title = params.title || this.tabTitle;
 
     function stripEnd(str) {
       TITLE_SEPARATORS.forEach(sep => {
@@ -169,13 +170,55 @@ class VideoSource {
 
     // Determine download filename.
     var filename = util.getFilename(this.getUrl(), this.filename);
-    // Use 'mp4' as default extension if none could be determined.
-    var { name, extension } = util.getFilenameExtension(filename, 'mp4');
-    filename = util.buildFilename(name, extension);
+    var name;
+    var extension;
+    function updateName() {
+      // Use 'mp4' as default extension if none could be determined.
+      ({ name, extension } = util.getFilenameExtension(filename, 'mp4'));
+      filename = util.buildFilename(name, extension);
+    }
+    updateName();
     // Most sources don't have a filename, nor a proper name in the url.
     // So use the tab title as base to name the downloaded file.
-    if ((this.filename === undefined) && !this.filenameFromUrl) {
-      name = this.sanitizeTitle();
+    var params = {};
+    if (!this.filenameFromUrl) {
+      var scriptParams = {
+        videoSource: this,
+        title: this.tabTitle,
+        tabUrl: this.tabUrl,
+        frameUrl: this.frameUrl,
+        url: this.getUrl(),
+        name: name,
+        extension: extension,
+        filename: filename
+      };
+      params = await util.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
+      util.cleanupFields(params);
+      var changes = false;
+      if (params.filename !== undefined) {
+        changes = true;
+        filename = params.filename;
+        updateName();
+      } else if ((params.name !== undefined) || (params.extension !== undefined)) {
+        changes = true;
+        if (params.name !== undefined) name = params.name;
+        if (params.extension !== undefined) extension = params.extension;
+        filename = util.buildFilename(name, extension);
+      }
+      if (changes) {
+        params.name = name;
+        params.extension = extension;
+        params.filename = filename;
+      }
+    } else {
+      params = {
+        name: name,
+        extension: extension,
+        filename: filename
+      };
+    }
+    if (params.name === undefined) {
+      name = this.sanitizeTitle(params);
       filename = util.buildFilename(name, extension);
     }
     var downloadFile = {
@@ -317,6 +360,7 @@ class VideoSource {
 class VideoSourceTabHandler {
 
   constructor(parent, tabHandler) {
+    this.webext = parent.webext;
     this.callbacks = parent.callbacks;
     this.tabHandler = tabHandler;
     this.menuHandler = parent.menuHandler;
@@ -440,7 +484,7 @@ class VideoSourceTabHandler {
     var tabHandler = this.tabHandler;
     details.tabUrl = tabHandler.url;
     details.tabTitle = tabHandler.title;
-    var source = new VideoSource(details);
+    var source = new VideoSource(this.webext, details);
     this.sources.push(source);
 
     // Process buffered requests.
@@ -584,8 +628,9 @@ const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
 // For simplicity, we normalize urls in source/request/response.
 export class VideoSourceHandler {
 
-  constructor(callbacks, tabsHandler, menuHandler) {
+  constructor(webext, callbacks, tabsHandler, menuHandler) {
     var self = this;
+    this.webext = webext;
     self.callbacks = callbacks;
     self.tabsHandler = tabsHandler;
     self.menuHandler = menuHandler;
@@ -637,9 +682,13 @@ export class VideoSourceHandler {
       sources = handler.sources;
     }
     // Caller only cares about field values.
-    // So create a dummy object with original fields.
+    // Trying to send VideoSource as message fails (cannot be cloned).
+    // So create a dummy object with original fields except those that cannot be
+    // cloned.
     return sources.map(source => {
-      return Object.assign({}, source);
+      return Object.assign({}, source, {
+        webext: undefined
+      });
     });
   }
 

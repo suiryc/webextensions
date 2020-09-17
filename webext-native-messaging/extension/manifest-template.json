@@ -37,6 +37,9 @@
     "<all_urls>"
   ],
 
+  // We need to allow 'Function' usage in background script
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self';",
+
   "icons": {
     "48": "/resources/icon.svg",
     "96": "/resources/icon.svg"

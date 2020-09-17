@@ -158,6 +158,20 @@ class Settings extends SettingsBranch {
     // Code is executed inside the frame containing the video source, and can
     // be synchronous or asynchronous (Promise).
     new ExtensionStringSetting('scripts.video.downloadRefining');
+    // 'filename refining' script input params:
+    //  - videoSource: the video source object
+    //  - title: the tab title
+    //  - tabUrl: the tab url
+    //  - frameUrl: the frame url
+    //  - url: the current (may have been redirected/forced) video source url
+    //  - name: the current file name, deduced from url or tab title
+    //  - extension: the current fil eextension
+    //  - filename: the current filename
+    // Output object can indicate parameters to take into account: name,
+    // extension and filename.
+    // Code is executed inside the background script and can be synchronous or
+    // asynchronous (Promise).
+    new ExtensionStringSetting('scripts.video.filenameRefining');
 
     return this;
   }

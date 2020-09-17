@@ -414,7 +414,7 @@ waitForSettings(true).then(() => {
       updateStatus(details.windowId);
     }
   };
-  videoSourceHandler = new VideoSourceHandler(callbacks, tabsHandler, menuHandler);
+  videoSourceHandler = new VideoSourceHandler(webext, callbacks, tabsHandler, menuHandler);
   tabsHandler.addObserver(videoSourceHandler);
   tabsHandler.addObserver({windowRemoved: windowRemoved});
 });
