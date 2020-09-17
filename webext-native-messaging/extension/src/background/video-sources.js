@@ -168,6 +168,7 @@ class VideoSource {
   async refresh(menuHandler) {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
+    var changes = false;
 
     // Determine download filename.
     var filename = util.getFilename(this.getUrl(), this.filename);
@@ -195,7 +196,6 @@ class VideoSource {
       };
       params = await unsafe.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
       util.cleanupFields(params);
-      var changes = false;
       if (params.filename !== undefined) {
         changes = true;
         filename = params.filename;
@@ -227,8 +227,8 @@ class VideoSource {
       extension: extension,
       filename: filename
     };
-    // Ensure something did change.
-    if (util.deepEqual(this.downloadFile, downloadFile)) return false;
+    // Detect changes in filename.
+    changes = !util.deepEqual(this.downloadFile, downloadFile);
     this.downloadFile = downloadFile;
 
     // Update determined download info.
@@ -272,17 +272,22 @@ class VideoSource {
     // A good average limit seems to be somewhere around 75 characters; 72 is
     // then a good value to avoid it in the majority of cases.
     title = `${title}${util.limitText(name, 72 - title.length)}`;
+    // Notes:
+    // If there were changes in filename, there should be changes in title too.
+    // If only the title changes, it should be due to a file size change.
+    // In either case, we want to update the menu entry if existing and notify
+    // caller there were changes.
+    changes = changes || (title !== this.menuEntryTitle);
     this.menuEntryTitle = title;
-
     // Refresh menu entry when applicable.
-    if (this.menuEntryId !== undefined) {
+    if (changes && (this.menuEntryId !== undefined)) {
       browser.contextMenus.update(this.menuEntryId, {
         title: this.menuEntryTitle
       });
       browser.contextMenus.refresh();
     }
 
-    return true;
+    return changes;
   }
 
   // Creates menu entry.
