@@ -100,6 +100,29 @@ export function uuidv4() {
   )
 }
 
+export function deepEqual(v1, v2) {
+  // First check strict equality.
+  if (v1 === v2) return true;
+  // If both values are not objects, they definitely are not equals.
+  // Beware: 'null' is considered as 'object' type.
+
+  // Take care of undefined/null/non-object values.
+  if ((v1 === undefined) || (v1 === null) || (v2 === undefined) || (v2 === null) || (typeof(v1) !== 'object') || (typeof(v2) !== 'object')) return false;
+  // We have got two non-null objects.
+
+  // There must be the same number of keys.
+  var keys = Object.keys(v1);
+  if (Object.keys(v2).length !== keys.length) return false;
+
+  // All fields must be equal.
+  for (var key of keys) {
+    if (!deepEqual(v1[key], v2[key])) return false;
+  }
+
+  // Deep equality has been verified.
+  return true;
+}
+
 // Remove undefined and null fields.
 export function cleanupFields(obj) {
   for (var f in obj) {
@@ -154,6 +177,10 @@ export function getFilenameExtension(filename, defaultExtension) {
     name: name,
     extension: extension
   };
+}
+
+export function buildFilename(name, extension) {
+  return ((extension !== undefined) && (extension !== null)) ? `${name}.${extension}` : name;
 }
 
 // Round number to the requested precision (3 digits by default).

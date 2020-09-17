@@ -69,6 +69,7 @@ class VideoSource {
     if ((url == this.url) || (url == this.actualUrl)) return;
     this.actualUrl = url;
     this.addUrl(url);
+    this.needRefresh = true;
   }
 
   // Indicates that the final url was reached.
@@ -162,30 +163,56 @@ class VideoSource {
     return title;
   }
 
-  getDownloadFile() {
+  async refresh(menuHandler) {
+    if (!this.needRefresh) return false;
+    this.needRefresh = false;
+
+    // Determine download filename.
     var filename = util.getFilename(this.getUrl(), this.filename);
     // Use 'mp4' as default extension if none could be determined.
     var { name, extension } = util.getFilenameExtension(filename, 'mp4');
+    filename = util.buildFilename(name, extension);
     // Most sources don't have a filename, nor a proper name in the url.
     // So use the tab title as base to name the downloaded file.
-    if ((this.filename === undefined) && !this.filenameFromUrl) name = this.sanitizeTitle();
-    return {
+    if ((this.filename === undefined) && !this.filenameFromUrl) {
+      name = this.sanitizeTitle();
+      filename = util.buildFilename(name, extension);
+    }
+    var downloadFile = {
       name: name,
       extension: extension,
-      filename: (extension !== undefined) ? `${name}.${extension}` : name
+      filename: filename
     };
-  }
+    // Ensure something did change.
+    if (util.deepEqual(this.downloadFile, downloadFile)) return false;
+    this.downloadFile = downloadFile;
 
-  getMenuEntryTitle() {
-    var title = '';
+    // Update determined download info.
+    this.download = {
+      details: {
+        url: this.getUrl(),
+        referrer: this.frameUrl,
+        cookie: this.cookie,
+        userAgent: this.userAgent,
+        file: filename,
+        size: this.size
+      },
+      params: {
+        addCookie: !this.seenRequest,
+        addUserAgent: !this.seenRequest,
+        addComment: true,
+        mimeFilename: this.filename,
+        tabTitle: this.tabTitle,
+        notify: true
+      }
+    };
 
+    // Determine menu title.
     // We will prefix the download size and extension if possible.
     // The rest of the title will be the file name (without extension).
-
+    var title = '';
     // Format size if known.
     if (this.size !== undefined) title = util.getSizeText(this.size);
-
-    var { name, extension, filename } = this.getDownloadFile();
     // Don't show filename extension in title prefix if too long.
     // Display the whole filename instead.
     if (extension && (extension.length > 4)) {
@@ -201,28 +228,17 @@ class VideoSource {
     // A good average limit seems to be somewhere around 75 characters; 72 is
     // then a good value to avoid it in the majority of cases.
     title = `${title}${util.limitText(name, 72 - title.length)}`;
-    return title;
-  }
+    this.menuEntryTitle = title;
 
-  getDownload() {
-    return {
-      details: {
-        url: this.getUrl(),
-        referrer: this.frameUrl,
-        cookie: this.cookie,
-        userAgent: this.userAgent,
-        file: this.getDownloadFile().filename,
-        size: this.size
-      },
-      params: {
-        addCookie: !this.seenRequest,
-        addUserAgent: !this.seenRequest,
-        addComment: true,
-        mimeFilename: this.filename,
-        tabTitle: this.tabTitle,
-        notify: true
-      }
+    // Refresh menu entry when applicable.
+    if (this.menuEntryId !== undefined) {
+      browser.contextMenus.update(this.menuEntryId, {
+        title: this.menuEntryTitle
+      });
+      browser.contextMenus.refresh();
     }
+
+    return true;
   }
 
   // Creates menu entry.
@@ -234,35 +250,20 @@ class VideoSource {
   // the source is updated.
   addMenuEntry(menuHandler) {
     var self = this;
-    // Simply refresh if entry already exists.
-    if (self.menuEntryId !== undefined) {
-      self.refreshMenuEntry(menuHandler);
-      return;
-    }
-    this.needRefresh = false;
+    // Nothing to do if already done.
+    if (self.menuEntryId !== undefined) return;
     self.menuEntryId = menuHandler.addEntry({
-      title: self.getMenuEntryTitle(),
+      title: self.menuEntryTitle,
       onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
         // extracted those).
         // Auto-download enabled by default, unless using non-main button
         // or 'Ctrl' key.
-        var { details, params } = self.getDownload();
-        dlMngr.download(Object.assign(details, {
+        dlMngr.download(Object.assign({}, self.download.details, {
           auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
-        }), params);
+        }), self.download.params);
       }
     });
-  }
-
-  refreshMenuEntry(menuHandler) {
-    if ((this.menuEntryId === undefined) || !this.needRefresh) return false;
-    this.needRefresh = false;
-    browser.contextMenus.update(this.menuEntryId, {
-      title: this.getMenuEntryTitle()
-    });
-    browser.contextMenus.refresh();
-    return true;
   }
 
   removeMenuEntry(menuHandler) {
@@ -414,7 +415,7 @@ class VideoSourceTabHandler {
     });
   }
 
-  addSource(details) {
+  async addSource(details) {
     var tabId = details.tabId;
     var frameId = details.frameId;
     var url = details.url;
@@ -441,15 +442,19 @@ class VideoSourceTabHandler {
     details.tabTitle = tabHandler.title;
     var source = new VideoSource(details);
     this.sources.push(source);
-    if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
-    if (tabHandler.isActive()) this.updateVideos();
 
     // Process buffered requests.
     var buffered = this.getBufferedRequests(url, true);
-    if (buffered !== undefined) buffered.replay(this);
+    if (buffered !== undefined) await buffered.replay(this);
+
+    // Refresh source, then when applicable add menu entry and trigger videos
+    // update.
+    await source.refresh(this.menuHandler);
+    if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
+    if (tabHandler.isActive()) this.updateVideos();
   }
 
-  onRequest(request) {
+  async onRequest(request) {
     var url = request.url;
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
@@ -469,7 +474,7 @@ class VideoSourceTabHandler {
     if (userAgent !== undefined) source.userAgent = userAgent;
   }
 
-  onResponse(response) {
+  async onResponse(response) {
     var url = response.url;
     var location;
     var statusCode = response.statusCode;
@@ -532,7 +537,9 @@ class VideoSourceTabHandler {
     // Merge same sources.
     this.mergeSources(source);
 
-    if (source.refreshMenuEntry(this.menuHandler) && this.tabHandler.isActive()) this.updateVideos();
+    // Refesh source if applicable (will be done elsewhere upon replaying) and
+    // trigger videos update if we are the active tab.
+    if (!this.replaying && (await source.refresh(this.menuHandler)) && this.tabHandler.isActive()) this.updateVideos();
   }
 
   // Takes into account given download information to ignore.
@@ -629,14 +636,14 @@ export class VideoSourceHandler {
       if (handler === undefined) return [];
       sources = handler.sources;
     }
+    // Caller only cares about field values.
+    // So create a dummy object with original fields.
     return sources.map(source => {
-      source.menuTitle = source.getMenuEntryTitle();
-      source.download = source.getDownload();
-      return source;
+      return Object.assign({}, source);
     });
   }
 
-  addSource(details) {
+  async addSource(details) {
     // Normalize url.
     details.url = util.normalizeUrl(details.url, settings.debug.video, 'video source');
     // Ensure details match a known tab frame. If not, assume the frame was
@@ -656,7 +663,7 @@ export class VideoSourceHandler {
     }
     details.frameUrl = frameUrl;
 
-    return handler.addSource(details);
+    return await handler.addSource(details);
   }
 
   setupInterception() {
@@ -710,7 +717,7 @@ export class VideoSourceHandler {
     }
   }
 
-  onRequest(request) {
+  async onRequest(request) {
     // Normalize url.
     request.url = util.normalizeUrl(request.url, settings.debug.video, 'request');
     var tabId = request.tabId;
@@ -724,10 +731,10 @@ export class VideoSourceHandler {
       return;
     }
 
-    handler.onRequest(request);
+    await handler.onRequest(request);
   }
 
-  onResponse(response) {
+  async onResponse(response) {
     // Normalize url.
     response.url = util.normalizeUrl(response.url, settings.debug.video, 'response');
     var tabId = response.tabId;
@@ -741,7 +748,7 @@ export class VideoSourceHandler {
       return;
     }
 
-    handler.onResponse(response);
+    await handler.onResponse(response);
   }
 
   // Tab/frame observer
@@ -756,7 +763,7 @@ export class VideoSourceHandler {
     handler.tabReset(details);
   }
 
-  frameAdded(details) {
+  async frameAdded(details) {
     var tabId = details.tabId;
     var frameId = details.frameId;
     var buffered = this.getBufferedRequests(tabId, frameId, true);
@@ -772,7 +779,7 @@ export class VideoSourceHandler {
       console.log('Tab=<%s> frame=<%s> is still unknown after being added: not replaying requests', tabId, frameId);
       return;
     }
-    buffered.replay(this);
+    await buffered.replay(this);
   }
 
   tabRemoved(details) {
@@ -892,28 +899,33 @@ class RequestBuffer {
     });
   }
 
-  replay(target) {
+  async replay(target) {
     // Caller is not expected to reuse us, but in case: clear us, so that adding
     // requests don't interfere with our replaying.
     var buffer = this.buffer;
     this.clear();
-    for (var buffered of buffer) {
-      var request = buffered.request;
-      if (request !== undefined) {
-        try {
-          target.onRequest(request);
-        } catch (error) {
-          console.log('Failed to replay request=<%o>: %o', request, error);
+    target.replaying = true;
+    try {
+      for (var buffered of buffer) {
+        var request = buffered.request;
+        if (request !== undefined) {
+          try {
+            await target.onRequest(request);
+          } catch (error) {
+            console.log('Failed to replay request=<%o>: %o', request, error);
+          }
+        }
+        var response = buffered.response;
+        if (response !== undefined) {
+          try {
+            await target.onResponse(response);
+          } catch (error) {
+            console.log('Failed to replay response=<%o>: %o', response, error);
+          }
         }
       }
-      var response = buffered.response;
-      if (response !== undefined) {
-        try {
-          target.onResponse(response);
-        } catch (error) {
-          console.log('Failed to replay response=<%o>: %o', response, error);
-        }
-      }
+    } finally {
+      target.replaying = false;
     }
   }
 
