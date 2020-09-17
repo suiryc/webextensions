@@ -155,6 +155,8 @@ class Settings extends SettingsBranch {
     // Output object, merged with source information:
     //  - forceUrl: url to force for download
     //  - filenameFromUrl: whether to retrieve filename from url (instead of title)
+    // Code is executed inside the frame containing the video source, and can
+    // be synchronous or asynchronous (Promise).
     new ExtensionStringSetting('scripts.video.downloadRefining');
 
     return this;

@@ -112,6 +112,7 @@ async function dl_updateVideos(sources, showTab) {
         details: details,
         params: source.download.params
       });
+      // Close the browser action page.
       window.close();
     });
     videosNode.appendChild(node);

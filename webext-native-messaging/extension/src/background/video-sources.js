@@ -225,7 +225,7 @@ class VideoSource {
     }
   }
 
-  // Creates manu entry.
+  // Creates menu entry.
   // Notes:
   // This will be called each time the owning tab is activated, which is not
   // a problem as there is nothing too intensive done.
@@ -502,6 +502,7 @@ class VideoSourceTabHandler {
     if (location !== undefined) {
       if (settings.debug.video) console.log('Tab=<%s> frame=<%s> video src=<%s> is redirected to=<%s>', response.tabId, response.frameId, source.url, location);
       source.setRedirection(location);
+      // Note: we wait for the actual redirected URL request to refresh.
       return;
     }
 
