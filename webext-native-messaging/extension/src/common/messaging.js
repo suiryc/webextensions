@@ -349,7 +349,7 @@ class PortHandler {
     r.then(v => {
       self.postMessage({reply: v, correlationId: msg.correlationId});
     }).catch(error => {
-      console.error('Could not handle message %o: %o', msg, error);
+      console.error('Could not handle message %o reply %o: %o', msg, r, error);
       // Format object: pure Errors are empty when sent.
       self.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
     });
