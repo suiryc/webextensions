@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as unsafe from '../common/unsafe.js';
 import * as http from './http.js';
 import { dlMngr } from './downloads.js';
 import { settings } from '../common/settings.js';
@@ -192,7 +193,7 @@ class VideoSource {
         extension: extension,
         filename: filename
       };
-      params = await util.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
+      params = await unsafe.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
       util.cleanupFields(params);
       var changes = false;
       if (params.filename !== undefined) {
