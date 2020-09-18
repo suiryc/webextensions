@@ -36,22 +36,23 @@ var importButton = document.querySelector('#import');
 var importFile = document.querySelector('#import-file');
 var resetButton = document.querySelector('#reset');
 
-function downloadDone(url) {
-  // Note: it is apparently not possible to remove the entry generated in the
-  // download history; at least under Firefox v80, browser.history.deleteUrl
-  // does not work (while it works for 'real' downloads).
-  URL.revokeObjectURL(url);
+function downloadDone(url, id) {
+  // Remove download entry when applicable.
+  var p = (id !== undefined) ? browser.downloads.erase({id: id}) : util.defer;
+  p.catch(() => {}).then(() => {
+    URL.revokeObjectURL(url);
+  });
 }
 
-function revokeDownloadURL(id, url) {
+function revokeDownloadURL(url, id) {
   browser.downloads.search({id: id}).then(r => {
     var ok = !r;
     if (!ok) {
       var state = r[0].state;
       ok = (state !== browser.downloads.State.IN_PROGRESS);
     }
-    if (ok) downloadDone(url);
-    else setTimeout(() => revokeDownloadURL(id, url), 1000);
+    if (ok) downloadDone(url, id);
+    else setTimeout(() => revokeDownloadURL(url, id), 1000);
   })
 }
 
@@ -70,7 +71,7 @@ exportButton.addEventListener('click', () => {
       filename: 'settings.json',
       saveAs: true
     }).then(id => {
-      revokeDownloadURL(id, url);
+      revokeDownloadURL(url, id);
     }).catch(error => {
       // (Firefox v80) If user cancels saving to file, we get an Error with
       // 'Download canceled by the user' message.

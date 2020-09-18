@@ -618,10 +618,10 @@ export class RequestsHandler {
         console.error('Failed to erase download %o: %o', download, error);
       }
 
-      // If requested, clear downloads history.
+      // If requested, remove download from history.
       // Notes:
       // 'browser.downloads.erase' removes the entry from downloads, but an
-      // entry remains in the downloads history.
+      // entry remains in the history.
       // 'browser.browsingData.removeDownloads' may be able to cleanup that
       // entry, but in Firefox v66 it does not help, maybe because erasing
       // ('originTypes') 'extension' data is not supported.
