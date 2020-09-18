@@ -265,8 +265,9 @@ class Settings extends SettingsBranch {
 // changes). Note we only need to add listeners.
 class ExtensionSetting {
 
-  constructor(key, value) {
+  constructor(key, value, fallback) {
     this.key = key;
+    if ((value === undefined) || (value === null)) value = fallback;
     this.value = this.defaultValue = value;
     this.listeners = [];
 
@@ -381,7 +382,7 @@ class ExtensionSetting {
 class ExtensionBooleanSetting extends ExtensionSetting {
 
   constructor(key, value) {
-    super(key, value);
+    super(key, value, false);
   }
 
   updateField() {
@@ -402,7 +403,7 @@ class ExtensionBooleanSetting extends ExtensionSetting {
 class ExtensionIntSetting extends ExtensionSetting {
 
   constructor(key, value) {
-    super(key, value);
+    super(key, value, 0);
   }
 
   updateField() {
@@ -423,7 +424,7 @@ class ExtensionIntSetting extends ExtensionSetting {
 class ExtensionStringSetting extends ExtensionSetting {
 
   constructor(key, value) {
-    super(key, value);
+    super(key, value, '');
   }
 
   updateField() {
