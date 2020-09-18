@@ -70,27 +70,29 @@
 // This way we can directly get/set settings value with e.g. 'settings.debug'
 // instead of 'settings.debug.value'/'settings.debug.setValue' (read/write).
 
-function getStorageValue(key, value) {
+async function getStorageValue(key, value) {
   if (key === undefined) key = null;
-  if (key === null) return browser.storage.local.get(null);
+  if (key === null) return await browser.storage.local.get(null);
 
   var keys = {};
   keys[key] = value;
-  return browser.storage.local.get(keys).then(v => {
-    return v[key];
-  }).catch(() => {
+  try {
+    return (await browser.storage.local.get(keys))[key];
+  } catch (error) {
     return value;
-  });
+  }
 }
 
 async function setStorageValue(key, value) {
+  // Note: even though setting undefined value removes it, explicitely do it.
+  if (value === undefined) return await removeStorageValue(key);
   var keys = {};
   keys[key] = value;
   return await browser.storage.local.set(keys);
 }
 
 async function removeStorageValue(keys) {
-  return browser.storage.local.remove(keys);
+  return await browser.storage.local.remove(keys);
 }
 
 class SettingsBranch {
@@ -368,7 +370,9 @@ class ExtensionSetting {
 
   // Persists the setting value.
   persistValue() {
-    return setStorageValue(this.key, this.value);
+    var value = this.value;
+    if (value === this.defaultValue) value = undefined;
+    return setStorageValue(this.key, value);
   }
 
 }
