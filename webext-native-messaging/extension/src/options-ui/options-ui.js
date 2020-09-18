@@ -62,7 +62,7 @@ exportButton.addEventListener('click', () => {
   // Remove focus from button once clicked.
   exportButton.blur();
   browser.storage.local.get(null).then(options => {
-    var json = JSON.stringify(options);
+    var json = JSON.stringify(options, undefined, 2);
     var blob = new Blob([json], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     browser.downloads.download({
