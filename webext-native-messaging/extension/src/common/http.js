@@ -52,15 +52,32 @@ export class RequestDetails {
 
   parseResponse(interceptSize) {
     const response = this.received;
-    var statusCode = response.statusCode;
+    var statusCode;
+    var responseHeaders;
+    if ((response.responseHeaders === undefined) && (response.headers)) {
+      // Assume we got a Fetch API Response.
+      // Extract status and headers for proper handling.
+      statusCode = response.status;
+      responseHeaders = [];
+      for (var h of response.headers) {
+        responseHeaders.push({
+          name: h[0],
+          value: h[1]
+        });
+      }
+    } else {
+      // Assume we got standard webRequest details.
+      statusCode = response.statusCode;
+      responseHeaders = response.responseHeaders;
+    }
 
     if (statusCode == 200) {
       // Get content length. Use undefined if unknown.
-      this.contentLength = findHeader(response.responseHeaders, 'Content-Length');
+      this.contentLength = findHeader(responseHeaders, 'Content-Length');
     }
     if (statusCode == 206) {
       // Determine content length through range response.
-      var range = findHeader(response.responseHeaders, 'Content-Range');
+      var range = findHeader(responseHeaders, 'Content-Range');
       if ((range !== undefined) && (range.split(' ').shift().toLowerCase() === 'bytes')) {
         this.contentLength = range.split('/').pop().trim();
       } else {
@@ -76,11 +93,11 @@ export class RequestDetails {
     if (this.contentLength < interceptSize) return;
 
     // Get content type.
-    this.contentType = new ContentType(findHeader(response.responseHeaders, 'Content-Type'));
+    this.contentType = new ContentType(findHeader(responseHeaders, 'Content-Type'));
 
     // Get content disposition.
     this.contentDisposition = {
-      raw: findHeader(response.responseHeaders, 'Content-Disposition'),
+      raw: findHeader(responseHeaders, 'Content-Disposition'),
       kind: undefined,
       params: {}
     }
