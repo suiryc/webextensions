@@ -1,7 +1,7 @@
 'use strict';
 
-import * as util from '../common/util.js';
-import { browserInfo, settings } from '../common/settings.js';
+import * as util from './util.js';
+import { browserInfo, settings } from './settings.js';
 
 
 // Checks whether an URL is considered downloadable.

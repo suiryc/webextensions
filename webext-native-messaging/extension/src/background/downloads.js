@@ -2,7 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
-import * as http from './http.js';
+import * as http from '../common/http.js';
 import { WebSocketClient } from '../common/websocket.js';
 import { settings } from '../common/settings.js';
 
