@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as http from '../common/http.js';
 import * as unsafe from '../common/unsafe.js';
 import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
@@ -156,10 +157,15 @@ function processVideo(node) {
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
-    var params = {
-      src: src
+    var scriptParams = {
+      util: util,
+      http: http,
+      unsafe: unsafe,
+      params: {
+        src: src
+      }
     };
-    var scriptResult = await unsafe.executeCode(webext, 'download refining', params, settings.scripts.video.downloadRefining);
+    var scriptResult = await unsafe.executeCode(webext, 'download refining', scriptParams, settings.scripts.video.downloadRefining);
     util.cleanupFields(scriptResult);
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,

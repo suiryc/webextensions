@@ -185,14 +185,19 @@ class VideoSource {
     var params = {};
     if (!this.filenameFromUrl) {
       var scriptParams = {
-        videoSource: this,
-        title: this.tabTitle,
-        tabUrl: this.tabUrl,
-        frameUrl: this.frameUrl,
-        url: this.getUrl(),
-        name: name,
-        extension: extension,
-        filename: filename
+        util: util,
+        http: http,
+        unsafe: unsafe,
+        params: {
+          videoSource: this,
+          title: this.tabTitle,
+          tabUrl: this.tabUrl,
+          frameUrl: this.frameUrl,
+          url: this.getUrl(),
+          name: name,
+          extension: extension,
+          filename: filename
+        }
       };
       params = await unsafe.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
       util.cleanupFields(params);
