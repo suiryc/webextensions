@@ -535,7 +535,9 @@ class LinksCatcher {
     for (var handler of handlers) {
       if (!caught.includes(handler.link.href)) caught.push(handler.link.href);
     }
-    if (caught.length) navigator.clipboard.writeText(`${caught.join('\n')}\n`);
+    // Determine system-dependent newline.
+    var newline = (navigator.appVersion.indexOf('Win') >= 0) ? '\r\n' : '\n';
+    if (caught.length) navigator.clipboard.writeText(`${caught.join(newline)}${newline}`);
   }
 
   // Handles (document) mutation: update known links in document
