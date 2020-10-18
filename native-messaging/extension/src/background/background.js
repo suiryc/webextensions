@@ -406,11 +406,15 @@ waitForSettings(true).then(() => {
   var callbacks = {
     onVideosUpdate: details => {
       videosSources[details.windowId] = details.sources;
-      webext.sendMessage({
-        target: constants.TARGET_BROWSER_ACTION,
-        kind: constants.KIND_DL_UPDATE_VIDEOS,
-        sources: videoSourceHandler.getSources(details.sources)
-      });
+      // Only the focused window browser page could be listening (and thus
+      // running): no need to notify it of sources for other windows.
+      if (tabsHandler.focusedWindowId == details.windowId) {
+        webext.sendMessage({
+          target: constants.TARGET_BROWSER_ACTION,
+          kind: constants.KIND_DL_UPDATE_VIDEOS,
+          sources: videoSourceHandler.getSources(details.sources)
+        });
+      }
       updateStatus(details.windowId);
     }
   };
