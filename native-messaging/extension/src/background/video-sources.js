@@ -686,7 +686,7 @@ export class VideoSourceHandler {
 
   getSources(sources) {
     if (sources === undefined) {
-      var tabHandler = this.tabsHandler.getActiveTab().handler;
+      var tabHandler = this.tabsHandler.focusedTab.handler;
       if (tabHandler === undefined) return [];
       var handler = tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
       if (handler === undefined) return [];

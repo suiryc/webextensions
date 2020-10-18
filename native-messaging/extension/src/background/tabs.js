@@ -304,7 +304,7 @@ class TabHandler {
   }
 
   isFocused() {
-    return (this.getTabsHandler().getActiveTab().id == this.id);
+    return (this.getTabsHandler().focusedTab.id == this.id);
   }
 
   // Resets frame, which is about to be (re)used.
@@ -482,7 +482,7 @@ class TabHandler {
 // Since observers may need to determine which tab is actually selected by the
 // user, which happens when focusing a new window or activating a new tab, a
 // fake change tabFocused is forged when either windowFocused or tabActivated
-// happens. In this case it is only need to observe the former instead of the
+// happens. In this case it is only needed to observe the former instead of the
 // latter two.
 //
 // Even if there is no change, tabActivated is called once for the active tab
@@ -511,7 +511,7 @@ class TabHandler {
 //    to handle tabRemoved, not windowRemoved
 //  - the window is removed
 //  - windows focus is changed (to another window or to none)
-// When a tab in another window is activated:
+// When a tab in another window is activated (by user):
 //  - the target window is focused
 //  - the tab is activated
 //
@@ -523,7 +523,7 @@ export class TabsHandler {
   constructor() {
     this.tabs = {};
     this.focusedWindowId = undefined;
-    this.activeTab = {};
+    this.focusedTab = {};
     this.activeTabs = {};
     this.observers = [];
     // Listen to tab/frame changes.
@@ -531,7 +531,7 @@ export class TabsHandler {
   }
 
   getActiveTab(windowId) {
-    return (windowId === undefined) ? this.activeTab : (this.activeTabs[windowId] || {});
+    return (this.activeTabs[windowId] || {});
   }
 
   getFrame(details) {
@@ -607,10 +607,12 @@ export class TabsHandler {
     // case the passed handled is undefined.
     // Once the tab become known, we are called again, and can then pass the
     // associated handler.
-    this.activeTab = this.activeTabs[windowId] = {
+    var focused = (windowId === this.focusedWindowId);
+    this.activeTabs[windowId] = {
       id: tabId,
       handler: tabHandler
     };
+    if (focused) this.focusedTab = this.activeTabs[windowId];
     // onActivated is triggered when a tab is moved from one window to another.
     // This is our chance to update the known windowId.
     if (tabHandler !== undefined) tabHandler.windowId = windowId;
@@ -622,36 +624,41 @@ export class TabsHandler {
       tabId: tabId,
       tabHandler: tabHandler
     });
-    // Note: windows are focused before tabs are activated; so when a tab is
-    // activated, the previous active is also the previous 'focused'.
-    this.notifyObservers('tabFocused', {
-      previousTabId: previousTabId,
-      previousTabHandler: previousTabHandler,
-      windowId: windowId,
-      tabId: tabId,
-      tabHandler: tabHandler
-    });
+    if (focused) {
+      // This tab window is focused, which means the activated tab is the
+      // currently focused tab.
+      // Also happens when user selects a non-activate tab in a non-focused
+      // window: window is focused then tab activated.
+      this.notifyObservers('tabFocused', {
+        previousWindowId: windowId,
+        previousTabId: previousTabId,
+        previousTabHandler: previousTabHandler,
+        windowId: windowId,
+        tabId: tabId,
+        tabHandler: tabHandler
+      });
+    }
+    // else: this tab is not focused because its parent window is not.
   }
 
   focusWindow(windowId) {
     // Note: windows.WINDOW_ID_NONE is used when no window has the focus.
     var previousWindowId = this.focusedWindowId;
     this.focusedWindowId = windowId;
-    this.activeTab = this.activeTabs[windowId] || {};
+    var previousFocusedTab = this.focusedTab;
+    var focusedTab = this.focusedTab = this.activeTabs[windowId] || {};
     if (settings.debug.misc) {
       if (windowId !== browser.windows.WINDOW_ID_NONE) console.log('Focused window=<%s>', windowId);
       else console.log('No more window focused');
     }
-    var previousActiveTab = this.getActiveTab(previousWindowId);
-    var activeTab = this.getActiveTab(windowId);
     this.notifyObservers('windowFocused', { previousWindowId: previousWindowId, windowId: windowId });
     this.notifyObservers('tabFocused', {
       previousWindowId: previousWindowId,
-      previousTabId: previousActiveTab.id,
-      previousTabHandler: previousActiveTab.handler,
+      previousTabId: previousFocusedTab.id,
+      previousTabHandler: previousFocusedTab.handler,
       windowId: windowId,
-      tabId: activeTab.id,
-      tabHandler: activeTab.handler
+      tabId: focusedTab.id,
+      tabHandler: focusedTab.handler
     });
   }
 
