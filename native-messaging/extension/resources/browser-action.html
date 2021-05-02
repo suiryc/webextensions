@@ -42,6 +42,7 @@
     <input type="radio" id="tab-videos-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-messages-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-options-item" name="tabs" class="tab-locator" hidden checked>
+
     <div class="panel-nav tabs-items">
       <ul class="tab">
         <li class="tab-item">
@@ -55,62 +56,71 @@
         </li>
       </ul>
     </div>
+
     <div class="panel-body tabs-content">
+
       <div id="tab-videos" class="tab-content">
         <div id="videos"></div>
       </div>
+
       <div id="tab-messages" class="tab-content">
         <div id="messages" class="hidden">
           <div class="center-content"><button id="clearMessages" class="btn btn-primary">Clear messages</button></div>
         </div>
       </div>
+
       <div id="tab-options" class="tab-content">
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title text-bold">Debug</div>
-          </div>
-          <div class="panel-body">
-            <div class="columns">
-              <div class="column">
-                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.misc"><i class="form-icon"></i><span>Misc</span></label>
+        <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
+        <input type="radio" id="tab-options-main-item" name="tabs-options" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-options-debug-item" name="tabs-options" class="tab-locator" hidden>
+
+        <div class="panel-nav tabs-items">
+          <ul class="tab">
+            <li class="tab-item">
+              <label for="tab-options-main-item" class="clickable"><a>Main</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-options-debug-item" class="clickable"><a>Debug</a></label>
+            </li>
+          </ul>
+        </div>
+
+        <div class="panel-body tabs-content">
+          <div id="tab-options-main" class="tab-content">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title text-bold">Interception</div>
               </div>
-              <div class="column">
-                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.tabs.events"><i class="form-icon"></i><span>Tabs events</span></label>
-              </div>
-              <div class="column">
-                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.downloads"><i class="form-icon"></i><span>Downloads</span></label>
-              </div>
-              <div class="column">
-                <label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Video</span></label>
+              <div class="panel-body container">
+                <div class="columns">
+                  <div class="column col-6">
+                    <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptRequests"><i class="form-icon"></i><span>Intercept requests</span></label></div>
+                    <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptDownloads"><i class="form-icon"></i><span>Intercept downloads</span></label></div>
+                    <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="clearDownloads"><i class="form-icon"></i><span>Clear downloads</span></label></div>
+                    <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="notifyDownload"><i class="form-icon"></i><span>Download notification</span></label></div>
+                  </div>
+                  <div class="column col-6">
+                    <label class="form-label"><span>Intercept minimum size:</span><input type="text" id="interceptSize" class="form-input"></label>
+                    <label class="form-label"><span>Notification TTL:</span><input type="text" id="notifyTtl" class="form-input"></label>
+                  </div>
+                </div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label></div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title text-bold">Download interception</div>
-          </div>
-          <div class="panel-body container">
-            <div class="columns">
-              <div class="column col-6">
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptRequests"><i class="form-icon"></i><span>Intercept requests</span></label></div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptDownloads"><i class="form-icon"></i><span>Intercept downloads</span></label></div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="clearDownloads"><i class="form-icon"></i><span>Clear downloads</span></label></div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="notifyDownload"><i class="form-icon"></i><span>Download notification</span></label></div>
+
+          <div id="tab-options-debug" class="tab-content">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title text-bold">Debug</div>
               </div>
-              <div class="column col-6">
-                <label class="form-label"><span>Intercept minimum size:</span><input type="text" id="interceptSize" class="form-input"></label>
-                <label class="form-label"><span>Notification TTL:</span><input type="text" id="notifyTtl" class="form-input"></label>
+              <div class="panel-body">
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.misc"><i class="form-icon"></i><span>Misc</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.tabs.events"><i class="form-icon"></i><span>Tabs events</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.downloads"><i class="form-icon"></i><span>Downloads</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Video</span></label></div>
               </div>
             </div>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-header">
-            <div class="panel-title text-bold">Video</div>
-          </div>
-          <div class="panel-body">
-            <label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label>
           </div>
         </div>
       </div>
