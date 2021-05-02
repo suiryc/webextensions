@@ -435,21 +435,24 @@ class TabHandler {
 // observers are only notified if they have a function of the same name.
 // The possible changes to observe:
 //  - windowFocused: a window has focus
-//  - tabAdded: a new tab has been added
 //  - tabActivated: a tab has been activated
+//  - tabAdded: a new tab has been added
 //  - tabFocused: a tab has focus
-//  - tabReset: an existing tab is being reused
 //  - tabRemoved: a tab is being removed
+//  - tabReset: an existing tab is being reused
 //  - frameAdded: a new frame has been added
-//  - frameReset: an existing frame is being reused
 //  - frameRemoved: a frame is being removed
+//  - frameReset: an existing frame is being reused
 // Tab and frame handlers are passed to observers when known, so that they don't
 // have to look them up when needed.
+// Some changes are directly triggered by corresponding events: windowFocused,
+// tabActivated, tabRemoved.
+// Other changes are triggered by events in specific cases.
 //
 // Each windowId is unique.
 // Each tabId is unique, even amongst all windows.
 // Each frame is identified by its parent tabId and its frameId, even though in
-// the case of non-main frames Firefox appear to use unique frame ids amongts
+// the case of non-main frames Firefox appear to use unique frame ids amongst
 // all tabs.
 // Usually we only need to relate to one element and its parent:
 //  - a tab in a window
@@ -737,14 +740,30 @@ export class TabsHandler {
     // should not make a difference though.
     // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1499667
 
+    // Register a dummy observer for debugging purposes.
+    var dummyObserver = {};
+    ['windowFocused',
+      'tabActivated', 'tabAdded', 'tabFocused', 'tabRemoved', 'tabReset',
+      'frameAdded', 'frameRemoved', 'frameReset'
+    ].forEach(key => {
+      dummyObserver[key] = function() {
+        if (settings.debug.tabs.events) console.log.apply(this, [`observer.${key}`].concat(Array.from(arguments)))
+      }
+    });
+    this.addObserver(dummyObserver);
+
     // Listen to windows being removed or focused.
-    browser.windows.onRemoved.addListener(id => {
-      self.removeWindow(id);
+    // windows.onRemoved parameters: windowId
+    browser.windows.onRemoved.addListener(function(windowId) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onRemoved'].concat(Array.from(arguments)))
+      self.removeWindow(windowId);
     });
     // Note: listening on focus change triggers an initial event (so that we
     // known which window is focused).
-    browser.windows.onFocusChanged.addListener(id => {
-      self.focusWindow(id);
+    // windows.onFocusChanged parameters: windowId
+    browser.windows.onFocusChanged.addListener(function(windowId) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onFocusChanged'].concat(Array.from(arguments)))
+      self.focusWindow(windowId);
     });
 
     // Listen to tabs being removed or activated.
@@ -752,10 +771,17 @@ export class TabsHandler {
     // another window. The actual way is to listen onActivated, as it is
     // triggered in this case: the target window gets focus then the tab moved
     // in the window gets activated (with its new windowId).
-    browser.tabs.onRemoved.addListener(id => {
-      self.removeTab(id);
+    // tabs.onRemoved parameters:
+    //  - tabId
+    //  - removeInfo: {windowId, isWindowClosing}
+    browser.tabs.onRemoved.addListener(function(tabId) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onRemoved'].concat(Array.from(arguments)))
+      self.removeTab(tabId);
     });
-    browser.tabs.onActivated.addListener(details => {
+    // tabs.onActivated parameters:
+    //  - activeInfo: {tabId, windowId, previousTabId}
+    browser.tabs.onActivated.addListener(function(details) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onActivated'].concat(Array.from(arguments)))
       self.activateTab(details);
     });
 
@@ -765,17 +791,20 @@ export class TabsHandler {
     // to track all pages so that we do reset whenever the url do change, even
     // in 'about:blank'/'about:home'/etc. cases.
     var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
-    browser.webNavigation.onBeforeNavigate.addListener(details => {
+    browser.webNavigation.onBeforeNavigate.addListener(function(details) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onBeforeNavigate'].concat(Array.from(arguments)))
       self.resetFrame(details);
     });
-    browser.webNavigation.onDOMContentLoaded.addListener(details => {
+    browser.webNavigation.onDOMContentLoaded.addListener(function(details) {
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onDOMContentLoaded'].concat(Array.from(arguments)))
       self.addFrame(details);
     }, webNavigationFilter);
-    browser.webNavigation.onCompleted.addListener(details => {
+    browser.webNavigation.onCompleted.addListener(function(details) {
       // Don't add frames we already known about: if frame is already known we
       // assume onDOMContentLoaded was triggered.
       // For now we don't expect the situation (onDOMContentLoaded skipped) to
       // happen on the main frame, which would require more specific handling.
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onCompleted'].concat(Array.from(arguments)))
       self.addFrame(details, {skipExisting: true});
     }, webNavigationFilter);
 

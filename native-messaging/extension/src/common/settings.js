@@ -144,6 +144,7 @@ class Settings extends SettingsBranch {
     new ExtensionIntSetting('settingsVersion', 0);
     new ExtensionBooleanSetting('clearDownloads', true);
     new ExtensionBooleanSetting('debug.misc', false);
+    new ExtensionBooleanSetting('debug.tabs.events', false);
     new ExtensionBooleanSetting('debug.downloads', false);
     new ExtensionBooleanSetting('debug.video', false);
     new ExtensionBooleanSetting('interceptDownloads', true);
