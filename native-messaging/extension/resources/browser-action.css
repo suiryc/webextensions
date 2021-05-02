@@ -115,7 +115,11 @@ html, body {
 .tab-locator:nth-of-type(2):checked ~ .tabs-items .tab-item:nth-of-type(2) > label > a,
 .tab-locator:nth-of-type(3):checked ~ .tabs-items .tab-item:nth-of-type(3) > label > a,
 .tab-locator:nth-of-type(4):checked ~ .tabs-items .tab-item:nth-of-type(4) > label > a,
-.tab-locator:nth-of-type(5):checked ~ .tabs-items .tab-item:nth-of-type(5) > label > a {
+.tab-locator:nth-of-type(5):checked ~ .tabs-items .tab-item:nth-of-type(5) > label > a,
+.tab-locator:nth-of-type(6):checked ~ .tabs-items .tab-item:nth-of-type(6) > label > a,
+.tab-locator:nth-of-type(7):checked ~ .tabs-items .tab-item:nth-of-type(7) > label > a,
+.tab-locator:nth-of-type(8):checked ~ .tabs-items .tab-item:nth-of-type(8) > label > a,
+.tab-locator:nth-of-type(9):checked ~ .tabs-items .tab-item:nth-of-type(9) > label > a {
   border-bottom-color: #5764c6;
   color: #5764c6;
 }
@@ -124,6 +128,10 @@ html, body {
 .tab-locator:nth-of-type(2):checked ~ .tabs-content > .tab-content:nth-of-type(2),
 .tab-locator:nth-of-type(3):checked ~ .tabs-content > .tab-content:nth-of-type(3),
 .tab-locator:nth-of-type(4):checked ~ .tabs-content > .tab-content:nth-of-type(4),
-.tab-locator:nth-of-type(5):checked ~ .tabs-content > .tab-content:nth-of-type(5) {
+.tab-locator:nth-of-type(5):checked ~ .tabs-content > .tab-content:nth-of-type(5),
+.tab-locator:nth-of-type(6):checked ~ .tabs-content > .tab-content:nth-of-type(6),
+.tab-locator:nth-of-type(7):checked ~ .tabs-content > .tab-content:nth-of-type(7),
+.tab-locator:nth-of-type(8):checked ~ .tabs-content > .tab-content:nth-of-type(8),
+.tab-locator:nth-of-type(9):checked ~ .tabs-content > .tab-content:nth-of-type(9) {
   display: block;
 }
