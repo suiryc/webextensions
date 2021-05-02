@@ -562,6 +562,13 @@ export class TabsHandler {
     this.observers.push(observer);
   }
 
+  removeObserver(observer) {
+    var idx;
+    while ((idx = this.observers.indexOf(observer)) !== -1) {
+      this.observers.splice(idx, 1);
+    }
+  }
+
   notifyObservers() {
     var args = [...arguments];
     var callback = args.shift();

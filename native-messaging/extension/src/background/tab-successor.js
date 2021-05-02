@@ -1,5 +1,7 @@
 'use strict';
 
+import { settings } from '../common/settings.js';
+
 
 // Tab successor is used to override the default Firefox behaviour when closing
 // an active tab: when set it points to the target tab to activate, while the
@@ -47,10 +49,11 @@ function sortTabs(tabs) {
   return tabs;
 }
 
-class TabsHandler {
+export class TabSuccessor {
 
-  constructor() {
+  constructor(tabsHandler) {
     var self = this;
+    self.tabsHandler = tabsHandler;
     // Currently scheduled checkTabs call.
     self.scheduledCheckTabs = undefined;
     // List of inactive tabs opened.
@@ -60,6 +63,8 @@ class TabsHandler {
       // By opener tab id
       byOpener: {}
     };
+
+    self.setup(false);
   }
 
   async chainTabs(tabs, successor, options) {
@@ -79,8 +84,15 @@ class TabsHandler {
 
   async setup(resetSuccessors) {
     var self = this;
+
+    settings.inner.handleTabSuccessor.addListener((setting, oldValue, newValue) => {
+      if (!oldValue && newValue) self.tabsHandler.addObserver(self);
+      else if (oldValue && !newValue) self.tabsHandler.removeObserver(self);
+    });
+    if (settings.handleTabSuccessor) self.tabsHandler.addObserver(self);
+    // Show current state upon debugging.
+    if (settings.debug.tabs.successor) await self.checkTabs();
     await self.setupSuccessors(resetSuccessors);
-    await self.setupInterception();
   }
 
   async setupSuccessors(reset) {
@@ -104,16 +116,9 @@ class TabsHandler {
     if (!tabsPerWindow.length) self.scheduleCheckTabs();
   }
 
-  setupInterception() {
+  async tabCreated(details) {
     var self = this;
-    ['onActivated', 'onAttached', 'onCreated', 'onDetached', 'onRemoved'].forEach(key => {
-      browser.tabs[key].addListener(self[key].bind(self));
-    });
-  }
-
-  async onCreated(tab) {
-    var self = this;
-    if (settings.debug) console.log('Created:', tab);
+    var tab = details.tab;
     if (tab.active || !(tab.openerTabId >= 0)) {
       self.scheduleCheckTabs();
       return;
@@ -143,16 +148,14 @@ class TabsHandler {
     // Note: duplicate array so that other alterations won't change the logged value.
     if (settings.debug) opened = opened.slice();
     opened.push(tab);
-    if (settings.debug) console.log('Added inactive tab by opener:', tab.openerTabId, opened);
+    if (settings.debug.tabs.successor) console.log('Added inactive tab by opener:', tab.openerTabId, opened);
     self.inactiveOpenedTabs.byOpener[tab.openerTabId] = opened;
     await self.chainTabs([tab], tab2, options);
   }
 
-  async onActivated(info) {
-    // info: {tabId, windowId, previousTabId}
+  async tabActivated(details) {
     var self = this;
-    if (settings.debug) console.log('Activated:', info);
-    var openedTab = self.inactiveOpenedTabs.byId[info.tabId];
+    var openedTab = self.inactiveOpenedTabs.byId[details.tabId];
     if (openedTab !== undefined) {
       // This was an opened (inactive) tab.
       var opened = self.inactiveOpenedTabs.byOpener[openedTab.openerTabId];
@@ -181,20 +184,21 @@ class TabsHandler {
           console.log('Could not get last tab in chain of inactive opened tabs:', error);
         }
       }
-      console.log('Activating chain of tabs by opener:', openedTab.openerTabId, opened, successor);
+      if (settings.debug.tabs.successor) console.log('Activating chain of tabs by opener:', openedTab.openerTabId, opened, successor);
       await self.chainTabs(opened, successor);
       return;
     }
-    if ((info.previousTabId === null) || (info.previousTabId === undefined)) {
+    if ((details.previousTabId === null) || (details.previousTabId === undefined)) {
       self.scheduleCheckTabs();
       return;
     }
-    await browser.tabs.moveInSuccession([info.tabId], info.previousTabId);
+    await browser.tabs.moveInSuccession([details.tabId], details.previousTabId);
     self.scheduleCheckTabs();
   }
 
-  tabRemoved(tabId) {
+  tabRemoved(details) {
     var self = this;
+    var tabId = details.tabId;
     var openedTab = self.inactiveOpenedTabs.byId[tabId];
     if (openedTab === undefined) {
       self.scheduleCheckTabs();
@@ -206,7 +210,7 @@ class TabsHandler {
     // Note: duplicate array so that other alterations won't change the logged value.
     if (settings.debug) opened = opened.slice();
     opened.splice(opened.indexOf(openedTab), 1);
-    if (settings.debug) console.log('Removed inactive tab by opener:', openedTab.openerTabId, opened);
+    if (settings.debug.tabs.successor) console.log('Removed inactive tab by opener:', openedTab.openerTabId, opened);
     if (!opened.length) {
       // No more tabs opened by the opener.
       delete self.inactiveOpenedTabs.byOpener[openedTab.openerTabId];
@@ -218,21 +222,11 @@ class TabsHandler {
     // done by the browser for us.
   }
 
-  onRemoved(tabId, info) {
-    // info: {windowId, isWindowClosing}
-    if (settings.debug) console.log('Removed:', tabId, info);
-    this.tabRemoved(tabId);
+  tabDetached(details) {
+    this.tabRemoved(details);
   }
 
-  onDetached(tabId, info) {
-    // info: {oldWindowId, oldPosition}
-    if (settings.debug) console.log('Detached:', tabId, info);
-    this.tabRemoved(tabId);
-  }
-
-  onAttached(tabId, info) {
-    // info: {newWindowId, newPosition}
-    if (settings.debug) console.log('Attached:', tabId, info);
+  tabAttached(details) {
     this.scheduleCheckTabs();
   }
 
@@ -240,7 +234,7 @@ class TabsHandler {
   // Previously scheduled call is cleared before creating the new one.
   // Useful when many rapid actions trigger more than one scheduling.
   scheduleCheckTabs(delay = 1000) {
-    if (!settings.debug) return;
+    if (!settings.debug.tabs.successor) return;
     if (this.scheduledCheckTabs !== undefined) clearTimeout(this.scheduledCheckTabs);
     this.scheduledCheckTabs = setTimeout(this.checkTabs.bind(this), delay);
   }
@@ -324,12 +318,3 @@ class TabsHandler {
   }
 
 }
-
-var tabsHandler = new TabsHandler();
-
-waitForSettings().then(async () => {
-  // Show current state upon debugging.
-  if (settings.debug) await tabsHandler.checkTabs();
-  // Then setup tabs successor handling.
-  await tabsHandler.setup(false);
-});

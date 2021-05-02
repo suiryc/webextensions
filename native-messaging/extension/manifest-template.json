@@ -4,17 +4,19 @@
   "version": "0.6.4",
 
   "description": "Personal multi-purpose WebExtension interacting with native application.",
-  // We delegate most actions to a native application:
+  // We delegate many actions to a native application:
   //  - TiddlyWiki saving
   //  - resource (file) downloading
   // For this we need the nativeMessaging permission.
+  // Many features use configurable settings, which need the storage permission.
+  // For tab successor handling, we use:
+  //  - tabs: to get/change tab properties
   // For downloads, we use:
   //  - contextMenus: add entry to download given link
   //  - cookies: to get cookies for given URL
   //  - downloads: to intercept and access created downloads
   //  - history: to remove downloads from history
   //  - notifications: to notify when a request/download/link was intercepted
-  //  - storage: to persist some settings
   //  - tabs: to get a tab properties (title used as DL comment)
   //  - webNavigation: to work with frames (dynamic script execution)
   //  - webRequest/webRequestBlocking: to intercept requests

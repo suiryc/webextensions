@@ -7,6 +7,7 @@ import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { dlMngr, RequestsHandler } from './downloads.js';
 import { VideoSourceHandler } from './video-sources.js';
 import { MenuHandler } from './menus.js';
+import { TabSuccessor } from './tab-successor.js';
 import { TabsHandler } from './tabs.js';
 
 
@@ -400,6 +401,8 @@ waitForSettings(true).then(() => {
   var menuHandler = new MenuHandler(requestsHandler);
   // Handle tabs.
   var tabsHandler = new TabsHandler();
+  // Handle tab successor (tab closing).
+  new TabSuccessor(tabsHandler);
   // Handle content script injection.
   tabsHandler.addObserver(new ContentScriptHandler());
   // Handle video sources.
