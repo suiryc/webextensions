@@ -11,6 +11,8 @@
   // Many features use configurable settings, which need the storage permission.
   // For tab successor handling, we use:
   //  - tabs: to get/change tab properties
+  // For links catching, we use:
+  //  - clipboardWrite: to write links to clipboard
   // For downloads, we use:
   //  - contextMenus: add entry to download given link
   //  - cookies: to get cookies for given URL
@@ -25,6 +27,7 @@
   //  - tabs: to get tabs properties (url is the local file to save to)
   //  - webNavigation: to work with frames (dynamic script execution)
   "permissions": [
+    "clipboardWrite",
     "contextMenus",
     "cookies",
     "downloads",

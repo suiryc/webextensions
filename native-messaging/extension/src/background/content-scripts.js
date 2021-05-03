@@ -9,6 +9,23 @@ import { settings } from '../common/settings.js';
 //  - an existing frame is being reused for new content
 export class ContentScriptHandler {
 
+  inject_links_catcher(frameHandler) {
+    var tabId = frameHandler.tabHandler.id;
+
+    async function inject() {
+      var details = {
+        file: '/resources/content-script-links-catcher.css',
+        runAt: 'document_start'
+      };
+      await browser.tabs.insertCSS(tabId, details);
+
+      details.file = '/dist/content-script-links-catcher.bundle.js';
+      await browser.tabs.executeScript(tabId, details);
+    }
+
+    return frameHandler.setupScript('links-catcher', inject);
+  }
+
   // Injects TiddlyWiki content script CSS and code.
   inject_tw(frameHandler) {
     var tabId = frameHandler.tabHandler.id;
@@ -59,6 +76,10 @@ export class ContentScriptHandler {
     if (frameHandler.url.match(/\.pdf$/i)) {
       if (settings.debug.misc) console.log('Not handling tab=<%s> frame=<%s> url=<%s>: appears to be a PDF', tabHandler.id, frameHandler.id, frameHandler.url);
       return;
+    }
+
+    if (settings.catchLinks && (frameHandler.id === 0)) {
+      this.inject_links_catcher(frameHandler);
     }
 
     if (frameHandler.id === 0) {

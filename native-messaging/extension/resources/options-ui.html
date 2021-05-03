@@ -27,6 +27,7 @@
   <div class="panel">
     <input type="radio" id="tab-options-downloads-item" name="tabs" class="tab-locator" hidden checked>
     <input type="radio" id="tab-options-videos-item" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-options-links-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-options-tabs-item" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-options-misc-item" name="tabs" class="tab-locator" hidden>
 
@@ -37,6 +38,9 @@
         </li>
         <li class="tab-item">
           <label for="tab-options-videos-item" class="clickable"><a>Videos</a></label>
+        </li>
+        <li class="tab-item">
+          <label for="tab-options-links-item" class="clickable"><a>Links</a></label>
         </li>
         <li class="tab-item">
           <label for="tab-options-tabs-item" class="clickable"><a>Tabs</a></label>
@@ -84,6 +88,19 @@
               <label class="form-label" for="scripts.video.filenameRefining">Filename refining</label>
               <textarea class="form-input input-script" id="scripts.video.filenameRefining" rows="20"></textarea>
             </div>
+          </div>
+          <p>
+        </div>
+      </div>
+
+      <div id="tab-options-links" class="tab-content">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title text-bold">Links</div>
+          </div>
+          <div class="panel-body">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.linksCatcher"><i class="form-icon"></i><span>Debug</span></label></div>
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="catchLinks"><i class="form-icon"></i><span>Catch</span></label></div>
           </div>
           <p>
         </div>

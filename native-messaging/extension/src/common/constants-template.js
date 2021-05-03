@@ -56,7 +56,11 @@ export const constants = {
   KIND_SPECS: 'specs',
   KIND_TW_CHECK_CONCURRENT: 'twCheckConcurrent',
   KIND_TW_SAVE: 'twSave',
-  KIND_TW_WARN_CONCURRENT: 'twWarnConcurrent'
+  KIND_TW_WARN_CONCURRENT: 'twWarnConcurrent',
+
+  // Mouse buttons: https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
+  MOUSE_BUTTON_LEFT: 1,
+  MOUSE_BUTTON_RIGHT: 2
 
 };
 

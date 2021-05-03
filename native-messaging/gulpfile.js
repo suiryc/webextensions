@@ -97,6 +97,7 @@ async function webpackBundle(mode) {
     mode: mode,
     entry: {
       'background': path.resolve(extensionPath, 'src', 'background', 'background.js'),
+      'content-script-links-catcher': path.resolve(extensionPath, 'src', 'content-script', 'content-script-links-catcher.js'),
       'content-script-tw': path.resolve(extensionPath, 'src', 'content-script', 'content-script-tw.js'),
       'content-script-video': path.resolve(extensionPath, 'src', 'content-script', 'content-script-video.js'),
       'browser-action': path.resolve(extensionPath, 'src', 'browser-action', 'browser-action.js'),

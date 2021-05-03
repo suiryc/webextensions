@@ -8,6 +8,11 @@ export function getTimestamp() {
   return (new Date()).getTime();
 }
 
+// Gets epoch time (in seconds).
+export function epoch() {
+  return Math.round(getTimestamp() / 1000);
+}
+
 // Formats object to string.
 export function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:

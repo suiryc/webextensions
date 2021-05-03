@@ -1,6 +1,214 @@
+'use strict';
+
+import { constants } from '../common/constants.js';
+import * as util from '../common/util.js';
+import { waitForSettings, settings } from '../common/settings.js';
+import { WebExtension } from '../common/messaging.js';
+
+
+util.checkContentScriptSetup('links-catcher');
+
+// Handles received extension messages.
+// Note: 'async' so that we don't block and process the code asynchronously.
+async function onMessage(extension, msg, sender) {
+  switch (msg.kind || '') {
+    default:
+      return unhandledMessage(msg, sender);
+      break;
+  }
+}
+
+// Logs unhandled messages received.
+function unhandledMessage(msg, sender) {
+  console.warn('Received unhandled message %o from %o', msg, sender);
+  return {
+    error: 'Message is not handled by video content script',
+    message: msg
+  };
+}
+
+
+// Extension handler
+var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
+
+waitForSettings().then(() => {
+  return util.waitForDocument();
+}).then(() => {
+  new LinksCatcher();
+});
+
+
+// Extension parameters, not important enough to be managed as stored settings.
+var extParams = {
+  'debug': {
+    'excluded': new Set(/*['mousemove', 'scroll']*/),
+    // Samples debugging settings
+    'samples': {
+      // How often (seconds) to debug a sample
+      'seconds': 1,
+      // What kind of samples are taken into account (populated below)
+      'kinds': {}
+    }
+  },
+  // 20ms and below does not appear too choppy
+  'mouseTrackingInterval': 20
+};
+
+// Setup which kinds are sampled
+['mousemove', 'scroll'].forEach(function(kind) {
+  extParams.debug.samples.kinds[kind] = {
+    // Last time (epoch) a sample was logged
+    'mark': 0,
+    // How many samples were skipped since last log
+    'skipped': 0
+  }
+});
+
+const FUNCTION_NOOP = function() {};
+
+// Console log wrapper.
+// See: https://stackoverflow.com/questions/13815640/a-proper-wrapper-for-console-log-with-correct-line-number
+var debug;
+
+function setupDebug() {
+  debug = settings.debug.linksCatcher ? console.debug.bind(window.console) : FUNCTION_NOOP;
+}
+
+settings.debug.inner.linksCatcher.addListener(() => {
+  setupDebug();
+});
+setupDebug();
+
+
+// Distance (pixels) between rects to allow merging
+const NODE_MERGE_EDGE_DISTANCE = 5;
+// Size (pixels) difference below which merging is done
+const NODE_MERGE_EDGE_SIZE = 5;
+
+// Start scrolling before reaching the edge (when it matches the screen edge)
+const WINDOW_SCROLL_EDGE = 10;
+
+// How many ms between links refresh (to limit CPU usage when scrolling)
+const LINKS_REFRESH_DELAY = 100;
+
+// Margin (pixels) around links count hint
+const LINKS_COUNT_MARGIN = 5;
+
+function searchLinks(node) {
+  // We want to get all 'a' nodes which have a non-empty 'href' attribute.
+  // See: CSS selectors
+  return node.querySelectorAll ? node.querySelectorAll('a[href]:not([href=""])') : [];
+}
+
+function getViewportSize() {
+  // Get viewport size.
+  // See:
+  //  - https://stackoverflow.com/questions/1248081/get-the-browser-viewport-dimensions-with-javascript
+  //  - https://github.com/ryanve/verge/issues/22#issuecomment-341944009
+  // Notes:
+  // 'clientWidth'/'clientHeight' should be the value we want.
+  // 'window' 'innerWidth'/'innerHeight' includes scroll bars.
+  // Depending on the situation 'document.body' has
+  //  - whole body size
+  //  - viewport size
+  //  - 0 value
+  // Depending on the situation 'document.documentElement' has
+  //  - whole body size (when 'document.body' has viewport size)
+  //  - viewport size (when 'document.body' has whole body size)
+  // jQuery uses 'documentElement'.
+  // It appears 'documentElement' is right when there is a DOCTYPE, otherwise it's 'body'.
+  var viewWidth = document.documentElement.clientWidth;
+  var viewHeight = document.documentElement.clientHeight;
+  if ((document.doctype === null) || (document.doctype === undefined)) {
+    // When there is no DOCTYPE, use 'body' if it has a non-0 value.
+    if (document.body.clientWidth > 0) viewWidth = document.body.clientWidth;
+    if (document.body.clientHeight > 0) viewHeight = document.body.clientHeight;
+  }
+
+  return {
+    viewWidth: viewWidth,
+    viewHeight: viewHeight
+  };
+}
+
+function getNodeRect(node) {
+  var rect = node.getBoundingClientRect();
+  // Take into account scroll position
+  rect = new DOMRect(rect.x + window.scrollX, rect.y + window.scrollY, rect.width, rect.height);
+  return rect;
+}
+
+function getNodeRects(node) {
+  var rects = [];
+  for (var rect of node.getClientRects()) {
+    // Take into account scroll position
+    rect = new DOMRect(rect.x + window.scrollX, rect.y + window.scrollY, rect.width, rect.height);
+    rects.push(rect);
+  }
+  return rects;
+}
+
+function mergeRects(rect1, rect2) {
+  var merge = false;
+
+  // For both axes (vertical and horizontal) we first check that either:
+  //  1. the rects *may* intersect
+  //  2. the rects *may* appear next to each other (in either order)
+  // Then if true, we check whether the edges in the other axe are not too far appart to proceed with merging.
+  if (((rect1.bottom >= rect2.top) && (rect1.top <= rect2.bottom)) ||
+    (Math.abs(rect1.bottom - rect2.top) <= NODE_MERGE_EDGE_DISTANCE) ||
+    (Math.abs(rect1.top - rect2.bottom) <= NODE_MERGE_EDGE_DISTANCE)
+  ) {
+    // Possible vertical merging
+    merge = (Math.abs(rect1.left - rect2.left) <= NODE_MERGE_EDGE_SIZE) &&
+            (Math.abs(rect1.right - rect2.right) <= NODE_MERGE_EDGE_SIZE);
+  }
+  if (!merge) {
+    if (((rect1.right >= rect2.left) && (rect1.left <= rect2.right)) ||
+      (Math.abs(rect1.right - rect2.left) <= NODE_MERGE_EDGE_DISTANCE) ||
+      (Math.abs(rect1.left - rect2.right) <= NODE_MERGE_EDGE_DISTANCE)
+    ) {
+      // Possible horizontal merging
+      merge = (Math.abs(rect1.top - rect2.top) <= NODE_MERGE_EDGE_SIZE) &&
+              (Math.abs(rect1.bottom - rect2.bottom) <= NODE_MERGE_EDGE_SIZE);
+    }
+  }
+
+  if (merge) {
+    var left = Math.min(rect1.left, rect2.left);
+    var top = Math.min(rect1.top, rect2.top);
+    var right = Math.max(rect1.right, rect2.right);
+    var bottom = Math.max(rect1.bottom, rect2.bottom);
+    return new DOMRect(left, top, right - left, bottom - top);
+  }
+
+  return undefined;
+}
+
+function debugSample(kind) {
+  if (!settings.debug.linksCatcher || extParams.debug.excluded.has(kind)) return FUNCTION_NOOP;
+
+  var samples = extParams.debug.samples.kinds[kind];
+  if (samples === undefined) return debug;
+
+  var now = util.epoch();
+  if (samples.mark != now) {
+    samples.mark = now;
+    if (samples.skipped > 0) {
+      debug('[LinksCatcher] Skipped samples=<%d> kind=<%s>', samples.skipped, kind);
+      samples.skipped = 0;
+    }
+    return debug;
+  } else {
+    samples.skipped++;
+    return FUNCTION_NOOP;
+  }
+}
+
 // Helper attached to a link that the catcher can target
 // TODO: detect elements visibility change ?
 // TODO: fix when node moves in page ? (e.g. 'floating' menu)
+// TODO: handle nodes in inner frames ?
 
 class LinkHandler {
 
@@ -199,7 +407,7 @@ class LinksCatcher {
 
     // Don't initialize us before being needed
     document.addEventListener('mousedown', function handler(ev) {
-      if (settings.debug.enabled) {
+      if (settings.debug.linksCatcher) {
         debugSample(ev.type)('[LinksCatcher] Event =', ev);
       }
       self.handleMouseDown(ev);
@@ -266,7 +474,7 @@ class LinksCatcher {
       mousemove: this.handleMouseMove.bind(this)
     };
     // Wrap handlers for debugging
-    if (settings.debug.enabled) {
+    if (settings.debug.linksCatcher) {
       // Note: beware of closure. A 'var' is locally defined for the enclosing
       // function. When used for anonymous functions, it's the value at the time
       // of calling which is used (not the value at the time the function was
@@ -479,7 +687,7 @@ class LinksCatcher {
   // consuming too much CPU/time when there are hundreds of links in the page.
   refreshLinksPosition() {
     var self = this;
-    var now = getTimestamp();
+    var now = util.getTimestamp();
     if (now - self.linksRefresh.last >= LINKS_REFRESH_DELAY) {
       self._refreshLinksPosition(false);
       return;
@@ -497,7 +705,7 @@ class LinksCatcher {
   _refreshLinksPosition(fast) {
     var updated = false;
     if (!fast) {
-      this.linksRefresh.last = getTimestamp();
+      this.linksRefresh.last = util.getTimestamp();
       if (this.linksRefresh.timer) {
         clearTimeout(this.linksRefresh.timer);
         delete(this.linksRefresh.timer);
@@ -570,14 +778,14 @@ class LinksCatcher {
   // Handles 'mousedown': starts catch zone and follows mouse
   handleMouseDown(ev) {
     // Right button triggers context menu right away on Linux.
-    //if (ev.buttons != MOUSE_BUTTON_RIGHT) {
+    //if (ev.buttons != constants.MOUSE_BUTTON_RIGHT) {
     //  return;
     //}
-    if ((ev.buttons != MOUSE_BUTTON_LEFT) || !ev.shiftKey) {
+    if ((ev.buttons != constants.MOUSE_BUTTON_LEFT) || !ev.shiftKey) {
       return;
     }
     this.init();
-    this.skipContextMenu = (ev.buttons == MOUSE_BUTTON_RIGHT);
+    this.skipContextMenu = (ev.buttons == constants.MOUSE_BUTTON_RIGHT);
     // When using left button, disabling selection does not work well if there is
     // already some selected elements. Resetting the selection fixes it.
     if (ev.shiftKey) {
@@ -605,7 +813,7 @@ class LinksCatcher {
     if (this.mouseTracking !== undefined) {
       clearInterval(this.mouseTracking);
     }
-    this.mouseTracking = setInterval(this.updateCatchZone.bind(this), settings.mouseTrackingInterval);
+    this.mouseTracking = setInterval(this.updateCatchZone.bind(this), extParams.mouseTrackingInterval);
   }
 
   // Handles 'mouseup': processes catch zone and resets catcher

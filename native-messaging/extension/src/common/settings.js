@@ -142,10 +142,12 @@ class Settings extends SettingsBranch {
   registerSettings() {
     // Create settings (auto-registered).
     new ExtensionIntSetting('settingsVersion', 0);
+    new ExtensionBooleanSetting('catchLinks', true);
     new ExtensionBooleanSetting('clearDownloads', true);
     new ExtensionBooleanSetting('debug.misc', false);
     new ExtensionBooleanSetting('debug.tabs.events', false);
     new ExtensionBooleanSetting('debug.tabs.successor', false);
+    new ExtensionBooleanSetting('debug.linksCatcher', false);
     new ExtensionBooleanSetting('debug.downloads', false);
     new ExtensionBooleanSetting('debug.video', false);
     new ExtensionBooleanSetting('handleTabSuccessor', true);
