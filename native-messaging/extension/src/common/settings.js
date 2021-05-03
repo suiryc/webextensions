@@ -364,11 +364,11 @@ class ExtensionSetting {
   // To be called first before doing anything with the setting.
   async initValue() {
     var self = this;
-    // Beware not to 'setValue': callers are expected to wait for settings to be
-    // ready before doing anything. And initializing the value is part of this.
-    // 'setValue' triggers saving to the storage from which we just retrieved
-    // the value.
-    self.value = await getStorageValue(self.key, self.value);
+    // Most callers are expected to wait for settings to be ready before doing
+    // anything (and initializing the value is part of this).
+    // We must not save to storage (since we retrieved the value from it), but
+    // still wish to notify listeners.
+    await self.setValue(await getStorageValue(self.key, self.value), true);
     return self.value;
   }
 
