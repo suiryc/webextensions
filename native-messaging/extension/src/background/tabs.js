@@ -435,6 +435,7 @@ class TabHandler {
 // observers are only notified if they have a function of the same name.
 // The possible changes to observe:
 //  - windowFocused: a window has focus
+//  - windowRemoved: a window has been removed
 //  - tabActivated: a tab has been activated
 //  - tabAdded: a new tab has been added
 //  - tabAttached: a tab has been attached to a window
@@ -732,11 +733,10 @@ export class TabsHandler {
     this.notifyObservers('tabAttached', { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
   }
 
-  removeTab(tabId) {
+  removeTab(tabId, windowId) {
     // Note: observers may have received messages related to a tab before the
     // handler, so notify them even if we don't know the tab.
     var tabHandler = this.tabs[tabId];
-    var windowId = (tabHandler !== undefined) ? tabHandler.windowId : undefined;
     this.notifyObservers('tabRemoved', {
       windowId: windowId,
       tabId: tabId,
@@ -809,9 +809,9 @@ export class TabsHandler {
     // tabs.onRemoved parameters:
     //  - tabId
     //  - removeInfo: {windowId, isWindowClosing}
-    browser.tabs.onRemoved.addListener(function(tabId) {
+    browser.tabs.onRemoved.addListener(function(tabId, details) {
       if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onRemoved'].concat(Array.from(arguments)))
-      self.removeTab(tabId);
+      self.removeTab(tabId, details.windowId);
     });
     // tabs.onActivated parameters:
     //  - activeInfo: {tabId, windowId, previousTabId}
