@@ -60,7 +60,7 @@ async function onMessage(extension, msg, sender) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.label, msg.details || {});
+      return notification(msg.label, msg.details || {}, sender);
       break;
 
     default:
@@ -77,7 +77,7 @@ function onNativeMessage(app, msg) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.label || app.appId, msg.details || {});
+      return notification(msg.label || app.appId, msg.details || {}, app);
       break;
 
     default:
@@ -192,7 +192,12 @@ function app_console(app, msg) {
   console[level].apply(console, args);
 }
 
-function notification(label, details) {
+function notification(label, details, sender) {
+  if (sender && sender.tab) {
+    details.windowId = sender.tab.windowId;
+    details.tabId = sender.tab.id;
+    details.frameId = sender.frameId;
+  }
   if (details.level == 'warning') details.level = 'warn';
   var level = details.level || 'info';
   var html = details.html;
