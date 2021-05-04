@@ -9,6 +9,10 @@ import { settings } from '../common/settings.js';
 //  - an existing frame is being reused for new content
 export class ContentScriptHandler {
 
+  constructor(tabsHandler) {
+    tabsHandler.addObserver(this);
+  }
+
   inject_links_catcher(frameHandler) {
     var tabId = frameHandler.tabHandler.id;
 

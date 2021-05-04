@@ -282,8 +282,16 @@ function updateStatus(windowId) {
   }
 }
 
-function windowRemoved(windowId) {
-  delete(videosSources[windowId]);
+class TabsObserver {
+
+  constructor(tabsHandler) {
+    tabsHandler.addObserver(this);
+  }
+
+  windowRemoved(windowId) {
+    delete(videosSources[windowId]);
+  }
+
 }
 
 
@@ -321,7 +329,7 @@ waitForSettings(true).then(() => {
   // Handle tab successor (tab closing).
   new TabSuccessor(tabsHandler);
   // Handle content script injection.
-  tabsHandler.addObserver(new ContentScriptHandler());
+  new ContentScriptHandler(tabsHandler);
   // Handle video sources.
   var callbacks = {
     onVideosUpdate: details => {
@@ -339,6 +347,5 @@ waitForSettings(true).then(() => {
     }
   };
   videoSourceHandler = new VideoSourceHandler(webext, callbacks, tabsHandler, menuHandler);
-  tabsHandler.addObserver(videoSourceHandler);
-  tabsHandler.addObserver({windowRemoved: windowRemoved});
+  new TabsObserver(tabsHandler);
 });

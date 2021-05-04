@@ -652,6 +652,7 @@ export class VideoSourceHandler {
       self.setupInterception();
     });
     self.setupInterception();
+    tabsHandler.addObserver(self);
   }
 
   getBufferedRequests(tabId, frameId, remove) {
