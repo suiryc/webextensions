@@ -158,9 +158,7 @@ function processVideo(node) {
     // the content script started.
     await delayed;
     var scriptParams = {
-      util: util,
       http: http,
-      unsafe: unsafe,
       params: {
         src: src
       }

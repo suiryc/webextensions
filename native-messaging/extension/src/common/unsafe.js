@@ -1,6 +1,7 @@
 'use strict';
 
 import * as util from './util.js';
+import * as unsafe from './unsafe.js';
 
 
 // Executes script code.
@@ -9,6 +10,11 @@ export async function executeCode(webext, label, params, code) {
   try {
     var funcArgs = [];
     var funcValues = [];
+    params = Object.assign({
+      unsafe: unsafe,
+      util: util,
+      webext: webext
+    }, params);
     for (var [key, value] of Object.entries(params)) {
       funcArgs.push(key);
       funcValues.push(value);
