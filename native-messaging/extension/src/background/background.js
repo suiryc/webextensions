@@ -261,12 +261,12 @@ function updateStatus(windowId) {
   // Update the requested window, or update all known windows.
   var obj = {};
   if (windowId !== undefined) {
-    obj[windowId] = videosSources[windowId]
+    obj[windowId] = videosSources[windowId] || [];
   } else {
     obj = videosSources;
   }
   for (var [windowId, sources] of Object.entries(obj)) {
-    // Reminder: object keys are strings, we need to windowId as an integer.
+    // Reminder: object keys are strings, we need windowId as an integer.
     windowId = Number(windowId);
     var hasVideos = sources.length;
     if (!hasVideos) hasVideos = '';
@@ -284,12 +284,50 @@ function updateStatus(windowId) {
 
 class TabsObserver {
 
-  constructor(tabsHandler) {
+  constructor(tabsHandler, videoSourceHandler) {
+    this.tabsHandler = tabsHandler;
+    this.videoSourceHandler = videoSourceHandler;
+    // Observe future changes.
+    videoSourceHandler.observer = this;
     tabsHandler.addObserver(this);
+    // And update current status.
+    for (var [windowId, active] of Object.entries(tabsHandler.activeTabs)) {
+      if (!active) continue;
+      this.tabActivated({
+        windowId,
+        tabHandler: active.handler
+      });
+    }
   }
 
   windowRemoved(windowId) {
     delete(videosSources[windowId]);
+  }
+
+  tabActivated(details) {
+    var sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
+    this.updateVideos(details.windowId, sources);
+  }
+
+  videosUpdated(details) {
+    var tabHandler = details.tabHandler;
+    if (!tabHandler.isActive()) return;
+    var sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
+    this.updateVideos(tabHandler.windowId, sources);
+  }
+
+  updateVideos(windowId, sources) {
+    videosSources[windowId] = sources;
+    // Only the focused window browser page could be listening (and thus
+    // running): no need to notify it of sources for other windows.
+    if (this.tabsHandler.focusedWindowId == windowId) {
+      webext.sendMessage({
+        target: constants.TARGET_BROWSER_ACTION,
+        kind: constants.KIND_DL_UPDATE_VIDEOS,
+        sources: sources
+      });
+    }
+    updateStatus(windowId);
   }
 
 }
@@ -331,21 +369,6 @@ waitForSettings(true).then(() => {
   // Handle content script injection.
   new ContentScriptHandler(tabsHandler);
   // Handle video sources.
-  var callbacks = {
-    onVideosUpdate: details => {
-      videosSources[details.windowId] = details.sources;
-      // Only the focused window browser page could be listening (and thus
-      // running): no need to notify it of sources for other windows.
-      if (tabsHandler.focusedWindowId == details.windowId) {
-        webext.sendMessage({
-          target: constants.TARGET_BROWSER_ACTION,
-          kind: constants.KIND_DL_UPDATE_VIDEOS,
-          sources: videoSourceHandler.getSources(details.sources)
-        });
-      }
-      updateStatus(details.windowId);
-    }
-  };
-  videoSourceHandler = new VideoSourceHandler(webext, callbacks, tabsHandler, menuHandler);
-  new TabsObserver(tabsHandler);
+  videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
+  new TabsObserver(tabsHandler, videoSourceHandler);
 });

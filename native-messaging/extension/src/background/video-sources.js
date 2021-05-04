@@ -371,8 +371,8 @@ class VideoSource {
 class VideoSourceTabHandler {
 
   constructor(parent, tabHandler) {
+    this.parent = parent;
     this.webext = parent.webext;
-    this.callbacks = parent.callbacks;
     this.tabHandler = tabHandler;
     this.menuHandler = parent.menuHandler;
     this.sources = [];
@@ -388,7 +388,7 @@ class VideoSourceTabHandler {
       this.removeMenuEntries();
       this.sources = [];
       this.ignoredUrls.clear();
-      if (this.tabHandler.isActive()) this.updateVideos();
+      this.updateVideos();
     }
     this.bufferedRequests = {};
   }
@@ -506,7 +506,7 @@ class VideoSourceTabHandler {
     // update.
     await source.refresh(this.menuHandler);
     if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
-    if (tabHandler.isActive()) this.updateVideos();
+    this.updateVideos();
   }
 
   async onRequest(request) {
@@ -594,7 +594,7 @@ class VideoSourceTabHandler {
 
     // Refesh source if applicable (will be done elsewhere upon replaying) and
     // trigger videos update if we are the active tab.
-    if (!this.replaying && (await source.refresh(this.menuHandler)) && this.tabHandler.isActive()) this.updateVideos();
+    if (!this.replaying && (await source.refresh(this.menuHandler))) this.updateVideos();
   }
 
   // Takes into account given download information to ignore.
@@ -618,8 +618,10 @@ class VideoSourceTabHandler {
   }
 
   updateVideos() {
-    this.callbacks.onVideosUpdate({
-      windowId: this.tabHandler.windowId,
+    var observer = this.parent.observer;
+    if (!observer) return;
+    observer.videosUpdated({
+      tabHandler: this.tabHandler,
       sources: this.sources
     });
   }
@@ -639,10 +641,9 @@ const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
 // For simplicity, we normalize urls in source/request/response.
 export class VideoSourceHandler {
 
-  constructor(webext, callbacks, tabsHandler, menuHandler) {
+  constructor(webext, tabsHandler, menuHandler) {
     var self = this;
-    this.webext = webext;
-    self.callbacks = callbacks;
+    self.webext = webext;
     self.tabsHandler = tabsHandler;
     self.menuHandler = menuHandler;
     // Buffered requests, per tab frame.
@@ -685,9 +686,9 @@ export class VideoSourceHandler {
     };
   }
 
-  getSources(sources) {
+  getSources(tabHandler, sources) {
     if (sources === undefined) {
-      var tabHandler = this.tabsHandler.focusedTab.handler;
+      tabHandler = tabHandler || this.tabsHandler.focusedTab.handler;
       if (tabHandler === undefined) return [];
       var handler = tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
       if (handler === undefined) return [];
@@ -882,20 +883,6 @@ export class VideoSourceHandler {
     if (details.tabHandler === undefined) return;
     var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
     if (handler !== undefined) handler.addMenuEntries();
-  }
-
-  // While tabFocused is used to update menu entries, tabActivated is used to
-  // update the browser action status (which is per window).
-  tabActivated(details) {
-    var sources = [];
-    if (details.tabHandler !== undefined) {
-      var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
-    }
-    if (handler !== undefined) sources = handler.sources;
-    this.callbacks.onVideosUpdate({
-      windowId: details.windowId,
-      sources: sources
-    });
   }
 
 }
