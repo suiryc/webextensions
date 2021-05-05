@@ -673,14 +673,17 @@ export class TabsHandler {
       else console.log('No more window focused');
     }
     this.notifyObservers('windowFocused', { previousWindowId: previousWindowId, windowId: windowId });
-    this.notifyObservers('tabFocused', {
-      previousWindowId: previousWindowId,
-      previousTabId: previousFocusedTab.id,
-      previousTabHandler: previousFocusedTab.handler,
-      windowId: windowId,
-      tabId: focusedTab.id,
-      tabHandler: focusedTab.handler
-    });
+    // Don't notify tab focusing if there is none.
+    if (focusedTab.id !== undefined) {
+      this.notifyObservers('tabFocused', {
+        previousWindowId: previousWindowId,
+        previousTabId: previousFocusedTab.id,
+        previousTabHandler: previousFocusedTab.handler,
+        windowId: windowId,
+        tabId: focusedTab.id,
+        tabHandler: focusedTab.handler
+      });
+    }
   }
 
   // Adds frame and return frame handler.
