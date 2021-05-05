@@ -58,11 +58,33 @@ export const constants = {
   KIND_TW_SAVE: 'twSave',
   KIND_TW_WARN_CONCURRENT: 'twWarnConcurrent',
 
+  // Windows/tabs/frames events
+  EVENT_FRAME_ADDED: 'frameAdded',
+  EVENT_FRAME_REMOVED: 'frameRemoved',
+  EVENT_FRAME_RESET: 'frameReset',
+  EVENT_TAB_ACTIVATED: 'tabActivated',
+  EVENT_TAB_ADDED: 'tabAdded',
+  EVENT_TAB_ATTACHED: 'tabAttached',
+  EVENT_TAB_CREATED: 'tabCreated',
+  EVENT_TAB_DETACHED: 'tabDetached',
+  EVENT_TAB_FOCUSED: 'tabFocused',
+  EVENT_TAB_REMOVED: 'tabRemoved',
+  EVENT_TAB_RESET: 'tabReset',
+  EVENT_WINDOW_FOCUSED: 'windowFocused',
+  EVENT_WINDOW_REMOVED: 'windowRemoved',
+
   // Mouse buttons: https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/buttons
   MOUSE_BUTTON_LEFT: 1,
   MOUSE_BUTTON_RIGHT: 2
 
 };
+
+for (var key of Object.keys(constants).filter(key => key.startsWith('EVENT_'))) {
+  var category = `EVENTS_${key.split('_')[1]}`;
+  if (!constants[category]) constants[category] = new Set();
+  constants[category].add(constants[key]);
+}
+constants.EVENTS_TABS = new Set([...constants.EVENTS_WINDOW, ...constants.EVENTS_TAB, ...constants.EVENTS_FRAME]);
 
 // Notes:
 // 'const' only prevents re-assigning the constants var.

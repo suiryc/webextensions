@@ -1,5 +1,6 @@
 'use strict';
 
+import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
 
@@ -63,8 +64,8 @@ class FrameHandler {
         csUuid: this.csUuid,
         sameUrl: sameUrl
       });
-      if (this.id == 0) this.getTabsHandler().notifyObservers('tabReset', notifyDetails);
-      this.getTabsHandler().notifyObservers('frameReset', notifyDetails);
+      if (this.id == 0) this.getTabsHandler().notifyObservers(constants.EVENT_TAB_RESET, notifyDetails);
+      this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_RESET, notifyDetails);
     }
   }
 
@@ -80,7 +81,7 @@ class FrameHandler {
       action.deferred.reject('Frame has been cleared');
     }
     delete(this.actionNext);
-    if (notify) this.getTabsHandler().notifyObservers('frameRemoved', {
+    if (notify) this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_REMOVED, {
       tabId: this.tabHandler.id,
       tabHandler: this.tabHandler,
       frameId: this.id,
@@ -319,8 +320,8 @@ class TabHandler {
         tabHandler: this,
         frameId: 0
       });
-      this.getTabsHandler().notifyObservers('tabReset', notifyDetails);
-      this.getTabsHandler().notifyObservers('frameReset', notifyDetails);
+      this.getTabsHandler().notifyObservers(constants.EVENT_TAB_RESET, notifyDetails);
+      this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_RESET, notifyDetails);
     }
     // Remove all subframes.
     for (var frameHandler of Object.values(this.frames)) {
@@ -405,7 +406,7 @@ class TabHandler {
       if (settings.debug.misc) console.log('Managing new tab=<%s> frame=<%s> url=<%s>', this.id, frameId, frameHandler.url);
       this.frames[frameId] = frameHandler;
       if (frameId === 0) this.frameHandler = frameHandler;
-      this.getTabsHandler().notifyObservers('frameAdded', {
+      this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_ADDED, {
         tabId: this.id,
         tabHandler: this,
         frameId: frameId,
@@ -595,7 +596,7 @@ export class TabsHandler {
     if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
     if (findFrames) await tabHandler.findFrames();
-    this.notifyObservers('tabAdded', { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
@@ -638,7 +639,7 @@ export class TabsHandler {
     };
     if (focused) this.focusedTab = this.activeTabs[windowId];
     if (settings.debug.misc) console.log('Activated window=<%s> tab=<%s>', windowId, tabId);
-    this.notifyObservers('tabActivated', {
+    this.notifyObservers(constants.EVENT_TAB_ACTIVATED, {
       windowId: windowId,
       previousTabId: previousTabId,
       previousTabHandler: previousTabHandler,
@@ -650,7 +651,7 @@ export class TabsHandler {
       // currently focused tab.
       // Also happens when user selects a non-activate tab in a non-focused
       // window: window is focused then tab activated.
-      this.notifyObservers('tabFocused', {
+      this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
         previousWindowId: windowId,
         previousTabId: previousTabId,
         previousTabHandler: previousTabHandler,
@@ -672,10 +673,10 @@ export class TabsHandler {
       if (windowId !== browser.windows.WINDOW_ID_NONE) console.log('Focused window=<%s>', windowId);
       else console.log('No more window focused');
     }
-    this.notifyObservers('windowFocused', { previousWindowId: previousWindowId, windowId: windowId });
+    this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId: previousWindowId, windowId: windowId });
     // Don't notify tab focusing if there is none.
     if (focusedTab.id !== undefined) {
-      this.notifyObservers('tabFocused', {
+      this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
         previousWindowId: previousWindowId,
         previousTabId: previousFocusedTab.id,
         previousTabHandler: previousFocusedTab.handler,
@@ -721,14 +722,14 @@ export class TabsHandler {
   createTab(tab) {
     var windowId = tab.windowId;
     var tabId = tab.id;
-    this.notifyObservers('tabCreated', { windowId: windowId, tabId: tabId, tab: tab });
+    this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId: windowId, tabId: tabId, tab: tab });
   }
 
   detachTab(details) {
     var windowId = details.oldWindowId;
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
-    this.notifyObservers('tabDetached', { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_DETACHED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
   }
 
   attachTab(details) {
@@ -736,14 +737,14 @@ export class TabsHandler {
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
     if (tabHandler !== undefined) tabHandler.windowId = windowId;
-    this.notifyObservers('tabAttached', { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
   }
 
   removeTab(tabId, windowId) {
     // Note: observers may have received messages related to a tab before the
     // handler, so notify them even if we don't know the tab.
     var tabHandler = this.tabs[tabId];
-    this.notifyObservers('tabRemoved', {
+    this.notifyObservers(constants.EVENT_TAB_REMOVED, {
       windowId: windowId,
       tabId: tabId,
       tabHandler: tabHandler
@@ -755,7 +756,7 @@ export class TabsHandler {
   }
 
   removeWindow(windowId) {
-    this.notifyObservers('windowRemoved', {windowId: windowId});
+    this.notifyObservers(constants.EVENT_WINDOW_REMOVED, {windowId: windowId});
     if (settings.debug.misc) console.log('Removing window=<%s>', windowId);
     delete(this.activeTabs[windowId]);
   }
@@ -783,10 +784,7 @@ export class TabsHandler {
 
     // Register a dummy observer for debugging purposes.
     var dummyObserver = {};
-    ['windowFocused',
-      'tabActivated', 'tabAdded', 'tabAttached', 'tabCreated', 'tabDetached', 'tabFocused', 'tabRemoved', 'tabReset',
-      'frameAdded', 'frameRemoved', 'frameReset'
-    ].forEach(key => {
+    constants.EVENTS_TABS.forEach(key => {
       dummyObserver[key] = function() {
         if (settings.debug.tabs.events) console.log.apply(this, [`observer.${key}`].concat(Array.from(arguments)))
       }
