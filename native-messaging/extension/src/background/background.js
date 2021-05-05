@@ -307,17 +307,8 @@ class TabsObserver {
   constructor(tabsHandler, videoSourceHandler) {
     this.tabsHandler = tabsHandler;
     this.videoSourceHandler = videoSourceHandler;
-    // Observe future changes.
     videoSourceHandler.observer = this;
     tabsHandler.addObserver(this);
-    // And update current status.
-    for (var [windowId, active] of Object.entries(tabsHandler.activeTabs)) {
-      if (!active) continue;
-      this.tabActivated({
-        windowId,
-        tabHandler: active.handler
-      });
-    }
   }
 
   windowRemoved(windowId) {

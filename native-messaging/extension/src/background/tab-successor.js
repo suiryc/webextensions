@@ -85,14 +85,22 @@ export class TabSuccessor {
   async setup(resetSuccessors) {
     var self = this;
 
+    async function _setup(resetSuccessors) {
+      // Show current state upon debugging.
+      if (settings.debug.tabs.successor) await self.checkTabs();
+      await self.setupSuccessors(resetSuccessors);
+    }
+
     settings.inner.handleTabSuccessor.addListener((setting, oldValue, newValue) => {
-      if (!oldValue && newValue) self.tabsHandler.addObserver(self);
-      else if (oldValue && !newValue) self.tabsHandler.removeObserver(self);
+      if (!oldValue && newValue) {
+        self.tabsHandler.addObserver(self, true);
+        _setup(false);
+      } else if (oldValue && !newValue) {
+        self.tabsHandler.removeObserver(self);
+      }
     });
-    if (settings.handleTabSuccessor) self.tabsHandler.addObserver(self);
-    // Show current state upon debugging.
-    if (settings.debug.tabs.successor) await self.checkTabs();
-    await self.setupSuccessors(resetSuccessors);
+    if (settings.handleTabSuccessor) self.tabsHandler.addObserver(self, true);
+    await _setup(resetSuccessors);
   }
 
   async setupSuccessors(reset) {

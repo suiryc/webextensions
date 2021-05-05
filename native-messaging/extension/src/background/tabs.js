@@ -582,8 +582,57 @@ export class TabsHandler {
     return frameHandler;
   }
 
-  addObserver(observer) {
+  addObserver(observer, silent) {
     this.observers.push(observer);
+    if (silent) return;
+    // Trigger 'fake' events depending on observed ones.
+    var hasTabAdded = util.hasMethod(observer, constants.EVENT_TAB_ADDED);
+    var hasFrameAdded = util.hasMethod(observer, constants.EVENT_FRAME_ADDED);
+    // Reminder: object keys are strings.
+    if (hasTabAdded || hasFrameAdded) {
+      for (var tabHandler of Object.values(this.tabs)) {
+        if (hasTabAdded) this.notifyObserver(observer, constants.EVENT_TAB_ADDED, { windowId: tabHandler.windowId, tabId: tabHandler.id, tabHandler: tabHandler });
+        if (hasFrameAdded) {
+          for (var frameHandler of Object.values(tabHandler.frames)) {
+            this.notifyObserver(observer, constants.EVENT_FRAME_ADDED, {
+              tabId: tabHandler.id,
+              tabHandler: tabHandler,
+              frameId: frameHandler.id,
+              frameHandler: frameHandler
+            });
+          }
+        }
+      }
+    }
+    if (util.hasMethod(observer, constants.EVENT_TAB_ACTIVATED)) {
+      for (var tabActive of Object.values(this.activeTabs)) {
+        var tabId = tabActive.id;
+        var tabHandler = tabActive.handler;
+        this.notifyObserver(observer, constants.EVENT_TAB_ACTIVATED, {
+          windowId: tabActive.windowId,
+          previousTabId: tabId,
+          previousTabHandler: tabHandler,
+          tabId: tabId,
+          tabHandler: tabHandler
+        });
+      }
+    }
+    if (util.hasMethod(observer, constants.EVENT_WINDOW_FOCUSED) && (this.focusedWindowId !== undefined)) {
+      this.notifyObserver(observer, constants.EVENT_WINDOW_FOCUSED, { previousWindowId: this.focusedWindowId, windowId: this.focusedWindowId });
+    }
+    if (util.hasMethod(observer, constants.EVENT_TAB_FOCUSED) && (this.focusedTab.id !== undefined)) {
+      var windowId = this.focusedTab.windowId;
+      var tabId = this.focusedTab.id;
+      var tabHandler = this.focusedTab.handler;
+      this.notifyObserver(observer, constants.EVENT_TAB_FOCUSED, {
+        previousWindowId: windowId,
+        previousTabId: tabId,
+        previousTabHandler: tabHandler,
+        windowId: windowId,
+        tabId: tabId,
+        tabHandler: tabHandler
+      });
+    }
   }
 
   removeObserver(observer) {
@@ -599,6 +648,13 @@ export class TabsHandler {
     for (var observer of this.observers) {
       util.callMethod(observer, callback, args);
     }
+  }
+
+  notifyObserver() {
+    var args = [...arguments];
+    var observer = args.shift();
+    var callback = args.shift();
+    util.callMethod(observer, callback, args);
   }
 
   // Adds tab and return tab handler.

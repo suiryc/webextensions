@@ -50,7 +50,6 @@ export class WebExtension {
     browser.runtime.onMessage.addListener(this.onMessage.bind(this));
     if (params.target === constants.TARGET_BACKGROUND_PAGE) this.listenConnections();
     else this.connect();
-    this.observeTabsEvents(params.tabsHandler);
   }
 
   onMessage(msg, sender) {
@@ -158,13 +157,23 @@ export class WebExtension {
   }
 
   registerTabsEvents(port, events) {
-    var handler = this.ports.get(port);
+    var self = this;
+    if (!events) return;
+    var handler = self.ports.get(port);
     if (handler === undefined) return;
-    this.unregisterTabsEvents(handler);
+    var setup = self.tabsEventsTargets === undefined;
+    if (setup) {
+      self.tabsEventsTargets = {};
+      constants.EVENTS_TABS.forEach(key => {
+        self.tabsEventsTargets[key] = new Set();
+      });
+    }
+    self.unregisterTabsEvents(handler);
     handler.params.tabsEvents = events || [];
     for (var key of handler.params.tabsEvents) {
-      this.tabsEventsTargets[key].add(handler);
+      self.tabsEventsTargets[key].add(handler);
     }
+    self.observeTabsEvents(port, setup ? undefined : events);
   }
 
   unregisterTabsEvents(handler) {
@@ -173,43 +182,65 @@ export class WebExtension {
     }
   }
 
-  observeTabsEvents(observer) {
+  observeTabsEvents(observer, events) {
     var self = this;
     var tabsHandler = self.params.tabsHandler;
 
     if (tabsHandler) {
       // The tabs handler should be defined for the background script.
       // Post tabs events to observers.
-      self.tabsEventsTargets = {};
-      var dummyObserver = {};
-      constants.EVENTS_TABS.forEach(key => {
-        self.tabsEventsTargets[key] = new Set();
-        dummyObserver[key] = function() {
-          var msg;
-          // Use arrow function so that 'arguments' is the parent one.
-          var getMsg = () => {
-            if (msg) return msg;
-            msg = {
+      if (events === undefined) {
+        // Setup common proxy observer for the first actual observer.
+        var dummyObserver = {};
+        constants.EVENTS_TABS.forEach(key => {
+          dummyObserver[key] = function() {
+            var msg;
+            // Use arrow function so that 'arguments' is the parent one.
+            var getMsg = () => {
+              if (msg) return msg;
+              msg = {
+                kind: constants.KIND_TABS_EVENT,
+                event: {
+                  kind: key,
+                  args: util.toJSON(Array.from(arguments))
+                }
+              };
+              return msg;
+            };
+            self.tabsEventsTargets[key].forEach(observer => {
+              observer.postMessage(getMsg());
+            });
+          }
+        });
+        tabsHandler.addObserver(dummyObserver);
+      } else {
+        // For next observers, create a one-shot proxy observer to trigger
+        // initial events. The next events will be proxyied by the common
+        // proxy observer.
+        var dummyObserver = {};
+        events.forEach(key => {
+          dummyObserver[key] = function() {
+            observer.postMessage({
               kind: constants.KIND_TABS_EVENT,
               event: {
                 kind: key,
                 args: util.toJSON(Array.from(arguments))
               }
-            };
-            return msg;
-          };
-          self.tabsEventsTargets[key].forEach(observer => {
-            observer.postMessage(getMsg());
-          });
-        }
-      });
-      tabsHandler.addObserver(dummyObserver);
+            });
+          }
+        });
+        tabsHandler.addObserver(dummyObserver);
+        tabsHandler.removeObserver(dummyObserver);
+      }
+
+      // Nothing else to do on this side.
+      return;
     }
 
+    // The observer should be defined for non-background scripts.
+    // Register us, and pass events to the actual observer.
+    // We automatically determine events that are handled.
     if (observer) {
-      // The observer should be defined for non-background scripts.
-      // Register us, and pass events to the actual observer.
-      // We automatically determine events that are handled.
       var events = new Set();
       constants.EVENTS_TABS.forEach(key => {
         if (util.hasMethod(observer, key)) events.add(key);
