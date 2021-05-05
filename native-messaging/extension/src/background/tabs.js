@@ -614,8 +614,8 @@ export class TabsHandler {
 
     if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
-    if (findFrames) await tabHandler.findFrames();
     this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    if (findFrames) await tabHandler.findFrames();
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
