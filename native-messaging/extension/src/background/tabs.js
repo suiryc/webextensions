@@ -296,6 +296,16 @@ class TabHandler {
     this.extensionProperties = {};
   }
 
+  // Only keep important fields (and prevent 'cyclic object value' error) for JSON.
+  toJSON() {
+    return {
+      id: this.id,
+      windowId: this.windowId,
+      url: this.url,
+      title: this.title
+    };
+  }
+
   getTabsHandler() {
     return this.tabsHandler;
   }
@@ -577,8 +587,7 @@ export class TabsHandler {
     var args = [...arguments];
     var callback = args.shift();
     for (var observer of this.observers) {
-      if (typeof(observer[callback]) !== 'function') continue;
-      observer[callback].apply(observer, args);
+      util.callMethod(observer, callback, args);
     }
   }
 

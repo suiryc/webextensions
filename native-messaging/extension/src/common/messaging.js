@@ -50,6 +50,7 @@ export class WebExtension {
     browser.runtime.onMessage.addListener(this.onMessage.bind(this));
     if (params.target === constants.TARGET_BACKGROUND_PAGE) this.listenConnections();
     else this.connect();
+    this.observeTabsEvents(params.tabsHandler);
   }
 
   onMessage(msg, sender) {
@@ -79,10 +80,16 @@ export class WebExtension {
     } else if (msg.kind === constants.KIND_REGISTER_PORT) {
       this.registerPort(sender, msg.name);
       return;
+    } else if (msg.kind === constants.KIND_REGISTER_TABS_EVENTS) {
+      this.registerTabsEvents(sender, msg.events);
+      return;
+    } else if ((msg.kind === constants.KIND_TABS_EVENT) && this.params.tabsEventsObserver) {
+      util.callMethod(this.params.tabsEventsObserver, msg.event.kind, msg.event.args);
+      return;
     }
     var r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
-    // This is also needed to that the response content (if not a Promise) is
+    // This is also needed so that the response content (if not a Promise) is
     // properly transmitted to the sender in all cases.
     try {
       r = Promise.resolve(this.params.onMessage(this, msg, actualSender));
@@ -136,6 +143,7 @@ export class WebExtension {
   }
 
   unregisterPort(port, handler) {
+    this.unregisterTabsEvents(handler);
     var target = handler.params.target;
     // Note: explicitly delete because if we don't know the target, we have
     // nothing else to do; and we don't want to keep the weak reference either.
@@ -147,6 +155,73 @@ export class WebExtension {
     targets = targets.filter(v => v !== handler);
     if (targets.length === 0) delete(this.targets[target]);
     else this.targets[target] = targets;
+  }
+
+  registerTabsEvents(port, events) {
+    var handler = this.ports.get(port);
+    if (handler === undefined) return;
+    this.unregisterTabsEvents(handler);
+    handler.params.tabsEvents = events || [];
+    for (var key of handler.params.tabsEvents) {
+      this.tabsEventsTargets[key].add(handler);
+    }
+  }
+
+  unregisterTabsEvents(handler) {
+    for (var key of (handler.params.tabsEvents || [])) {
+      this.tabsEventsTargets[key].delete(handler);
+    }
+  }
+
+  observeTabsEvents(observer) {
+    var self = this;
+    var tabsHandler = self.params.tabsHandler;
+
+    if (tabsHandler) {
+      // The tabs handler should be defined for the background script.
+      // Post tabs events to observers.
+      self.tabsEventsTargets = {};
+      var dummyObserver = {};
+      constants.EVENTS_TABS.forEach(key => {
+        self.tabsEventsTargets[key] = new Set();
+        dummyObserver[key] = function() {
+          var msg;
+          // Use arrow function so that 'arguments' is the parent one.
+          var getMsg = () => {
+            if (msg) return msg;
+            msg = {
+              kind: constants.KIND_TABS_EVENT,
+              event: {
+                kind: key,
+                args: util.toJSON(Array.from(arguments))
+              }
+            };
+            return msg;
+          };
+          self.tabsEventsTargets[key].forEach(observer => {
+            observer.postMessage(getMsg());
+          });
+        }
+      });
+      tabsHandler.addObserver(dummyObserver);
+    }
+
+    if (observer) {
+      // The observer should be defined for non-background scripts.
+      // Register us, and pass events to the actual observer.
+      // We automatically determine events that are handled.
+      var events = new Set();
+      constants.EVENTS_TABS.forEach(key => {
+        if (util.hasMethod(observer, key)) events.add(key);
+      });
+      self.params.tabsEventsObserver = observer;
+      if (this.portHandler) this.portHandler.params.tabsEvents = events;
+      self.sendMessage({
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_REGISTER_TABS_EVENTS,
+        events: events
+      });
+    }
   }
 
   // Connects (to background script).
@@ -216,10 +291,19 @@ class PortHandler {
 
     this.autoReconnect = true;
     this.setPort(browser.runtime.connect());
+    // Register us in background script.
     this.postMessage({
       kind: constants.KIND_REGISTER_PORT,
       name: this.params.target
     });
+    // Re-register events to observe.
+    var events = this.params.tabsEvents || new Set();
+    if (events.size) {
+      self.postMessage({
+        kind: constants.KIND_REGISTER_TABS_EVENTS,
+        events: events
+      });
+    }
   }
 
   onDisconnect(port) {

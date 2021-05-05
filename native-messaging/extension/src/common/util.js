@@ -137,6 +137,34 @@ export function cleanupFields(obj) {
   }
 }
 
+// Prepares value for JSON encoding.
+export function toJSON(v) {
+  // JSON.parse(JSON.stringify(arg)) would be too consuming for our need.
+  // Keep non-object values as-is.
+  if ((v === null) || (v === undefined)) return v;
+  if (typeof(v) != 'object') return v;
+  // Recursively process arrays.
+  if (Array.isArray(v)) return v.map(e => toJSON(e));
+  // Recursively process objects.
+  // Check whether 'toJSON' has been defined to get a lighter version of
+  // the object.
+  if (v.toJSON !== undefined) return v.toJSON();
+  v = Object.assign({}, v);
+  for (var [key, value] of Object.entries(v)) {
+    if (typeof(value) == 'function') delete(v[key]);
+    else v[key] = toJSON(value);
+  }
+  return v;
+}
+
+export function hasMethod(obj, m) {
+  return (typeof(obj[m]) === 'function');
+}
+
+export function callMethod(obj, m, args) {
+  if (hasMethod(obj, m)) obj[m].apply(obj, args);
+}
+
 // Normalizes url (for download).
 // Drops fragment if any.
 export function normalizeUrl(url, log, label) {

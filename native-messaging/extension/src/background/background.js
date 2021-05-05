@@ -340,8 +340,14 @@ var nativeApp;
 var applicationMessages = [];
 var videosSources = {};
 waitForSettings(true).then(() => {
+  // Handle tabs.
+  var tabsHandler = new TabsHandler();
   // Extension handler
-  webext = new WebExtension({ target: constants.TARGET_BACKGROUND_PAGE, onMessage: onMessage });
+  webext = new WebExtension({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    onMessage: onMessage,
+    tabsHandler: tabsHandler
+  });
   // Native application handler
   nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });
 
@@ -362,8 +368,6 @@ waitForSettings(true).then(() => {
   requestsHandler = new RequestsHandler(webext);
   // Handle menus.
   var menuHandler = new MenuHandler(requestsHandler);
-  // Handle tabs.
-  var tabsHandler = new TabsHandler();
   // Handle tab successor (tab closing).
   new TabSuccessor(tabsHandler);
   // Handle content script injection.
