@@ -64,8 +64,33 @@
       </div>
 
       <div id="tab-messages" class="tab-content">
-        <div id="messages" class="hidden">
-          <div class="center-content"><button id="clearMessages" class="btn btn-primary">Clear messages</button></div>
+        <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
+        <input type="radio" id="tab-messages-active-item" name="tabs-messages" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-messages-other-item" name="tabs-messages" class="tab-locator" hidden>
+
+        <div class="panel-nav tabs-items">
+          <ul class="tab">
+            <li class="tab-item">
+              <label for="tab-messages-active-item" class="clickable"><a id="messages-active-item">Active tab</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-messages-other-item" class="clickable"><a id="messages-other-item">Other tabs</a></label>
+            </li>
+          </ul>
+        </div>
+
+        <div class="panel-body tabs-content">
+          <div id="tab-messages-active" class="tab-content">
+            <div id="messages-active" class="hidden">
+              <div class="center-content"><button id="clearActiveMessages" class="btn btn-primary">Clear messages</button></div>
+            </div>
+          </div>
+
+          <div id="tab-messages-other" class="tab-content">
+            <div id="messages-other" class="hidden">
+              <div class="center-content"><button id="clearOtherMessages" class="btn btn-primary">Clear messages</button></div>
+            </div>
+          </div>
         </div>
       </div>
 

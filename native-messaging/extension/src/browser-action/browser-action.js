@@ -127,17 +127,39 @@ function ext_addMessage(msg) {
   addMessage(msg.details);
 }
 
+class TabsObserver {
+
+  constructor(webext) {
+    webext.observeTabsEvents(this);
+  }
+
+  tabFocused(details) {
+    activeTabId = details.tabId;
+    refreshMessages();
+  }
+
+}
+
 // Extension handler
 var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage: onMessage });
+new TabsObserver(webext);
+
+var windowId = -1;
+var activeTabId = -1;
+var messages = [];
 
 var ignoreNextButton = document.querySelector('#ignoreNext');
 var ignoreNextText = ignoreNextButton.textContent;
 var ignoringNext = false;
 var videosItemNode = document.querySelector('#videos-item');
 var videosNode = document.querySelector('#videos');
-var clearMessagesButton = document.querySelector('#clearMessages');
+var clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
+var clearOtherMessagesButton = document.querySelector('#clearOtherMessages');
 var messagesItemNode = document.querySelector('#messages-item');
-var messagesNode = document.querySelector('#messages');
+var activeMessagesItemNode = document.querySelector('#messages-active-item');
+var activeMessagesNode = document.querySelector('#messages-active');
+var otherMessagesItemNode = document.querySelector('#messages-other-item');
+var otherMessagesNode = document.querySelector('#messages-other');
 var iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
 var iconInfoCircle = document.querySelector('#icon-info-circle');
 var listItemNode = document.querySelector('#list-item');
@@ -153,6 +175,9 @@ function replaceNode(node1, node2) {
 }
 
 function addMessage(details) {
+  if (details.windowId != windowId) return;
+  messages.push(details);
+  var tabId = details.tabId;
   var level = details.level;
   var node = cloneNode(listItemNode);
   var icon;
@@ -172,10 +197,51 @@ function addMessage(details) {
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
 
-  messagesNode.appendChild(node);
-  messagesNode.classList.remove('hidden');
-  messagesItemNode.setAttribute('data-badge', messagesNode.children.length - 1);
-  messagesItemNode.classList.toggle('badge', true);
+  ((tabId == activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
+  updateMessagesBadges();
+}
+
+function refreshMessages() {
+  var todo = messages;
+  messages = [];
+  [activeMessagesNode, otherMessagesNode].forEach(n => {
+    n.querySelectorAll(':scope > .list-item').forEach(node => {
+      node.remove();
+    });
+  });
+  for (var details of todo) {
+    addMessage(details);
+  }
+}
+
+function updateMessagesBadges() {
+  var activeMessagesCount = activeMessagesNode.children.length - 1;
+  if (activeMessagesCount > 0) {
+    activeMessagesItemNode.setAttribute('data-badge', activeMessagesCount);
+  } else {
+    activeMessagesItemNode.removeAttribute('data-badge');
+  }
+  activeMessagesItemNode.classList.toggle('badge', activeMessagesCount > 0);
+  activeMessagesNode.classList.toggle('hidden', activeMessagesCount == 0);
+
+  var otherMessagesCount = otherMessagesNode.children.length - 1;
+  if (otherMessagesCount > 0) {
+    otherMessagesItemNode.setAttribute('data-badge', otherMessagesCount);
+  } else {
+    otherMessagesItemNode.removeAttribute('data-badge');
+  }
+  otherMessagesItemNode.classList.toggle('badge', otherMessagesCount > 0);
+  otherMessagesNode.classList.toggle('hidden', otherMessagesCount == 0);
+
+  var messagesCount = activeMessagesCount + otherMessagesCount;
+  if (messagesCount > 0) {
+    var sumupBadge = `${activeMessagesCount}`;
+    if (otherMessagesCount) sumupBadge = `${sumupBadge}+${otherMessagesCount}`
+    messagesItemNode.setAttribute('data-badge', sumupBadge);
+  } else {
+    messagesItemNode.removeAttribute('data-badge');
+  }
+  messagesItemNode.classList.toggle('badge', messagesCount > 0);
 }
 
 // Ignore next interception when requested.
@@ -189,30 +255,50 @@ ignoreNextButton.addEventListener('click', () => {
 });
 
 // Clear messages when requested.
-clearMessagesButton.addEventListener('click', () => {
+clearActiveMessagesButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_CLEAR_MESSAGES
+    kind: constants.KIND_CLEAR_MESSAGES,
+    windowId: windowId,
+    tabId: activeTabId,
+    otherTabs: false
   }).then(() => {
-    messagesNode.classList.add('hidden');
-    messagesNode.querySelectorAll(':scope > .list-item').forEach(node => {
+    activeMessagesNode.querySelectorAll(':scope > .list-item').forEach(node => {
       node.remove();
     });
-    messagesItemNode.classList.toggle('badge', false);
-    messagesItemNode.removeAttribute('data-badge');
+    updateMessagesBadges();
+  });
+});
+clearOtherMessagesButton.addEventListener('click', () => {
+  webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    kind: constants.KIND_CLEAR_MESSAGES,
+    windowId: windowId,
+    tabId: activeTabId,
+    otherTabs: true
+  }).then(() => {
+    otherMessagesNode.querySelectorAll(':scope > .list-item').forEach(node => {
+      node.remove();
+    });
+    updateMessagesBadges();
   });
 });
 
 // Get+add videos and application messages.
+// Note: we assume that we can only see the page belonging to the currently
+// focused window; and thus we can take into account the focused tab to
+// filter messages.
 (async () => {
-  var r = await webext.sendMessage({
+  var details = await webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_GET_EXT_MESSAGES
   });
-  if ((r !== undefined) && Array.isArray(r) && r.length) {
-    for (var details of r) {
-      addMessage(details);
-    }
+  windowId = details.focusedWindowId;
+  activeTabId = details.focusedTabId;
+  var msgs = details.messages;
+  if ((msgs !== undefined) && Array.isArray(msgs) && msgs.length) {
+    messages = msgs;
+    refreshMessages();
     document.querySelector('#tab-messages-item').click();
   }
 

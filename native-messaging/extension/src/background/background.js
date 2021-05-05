@@ -45,7 +45,7 @@ async function onMessage(extension, msg, sender) {
       break;
 
     case constants.KIND_CLEAR_MESSAGES:
-      return ext_clearMessages();
+      return ext_clearMessages(msg);
       break;
 
     case constants.KIND_GET_EXT_MESSAGES:
@@ -141,14 +141,28 @@ function dl_getVideos(msg) {
 }
 
 // Clears extension messages.
-function ext_clearMessages() {
-  applicationMessages = [];
+function ext_clearMessages(msg) {
+  var windowId = msg.windowId;
+  if (windowId === undefined) {
+    applicationMessages = [];
+  } else {
+    applicationMessages = applicationMessages.filter(details => {
+      if (details.windowId != windowId) return true;
+      var matchTab = details.tabId == msg.tabId;
+      return msg.otherTabs ? matchTab : !matchTab;
+    });
+  }
   updateStatus();
 }
 
 // Gets extension messages to display.
 function ext_getMessages(msg) {
-  return applicationMessages;
+  var focusedTab = tabsHandler.focusedTab;
+  return {
+    focusedWindowId: focusedTab.windowId,
+    focusedTabId: focusedTab.id,
+    messages: applicationMessages
+  };
 }
 
 function dl_addVideoSource(msg, sender) {
@@ -242,22 +256,10 @@ function addExtensionMessage(details) {
   });
   applicationMessages.push(details);
 
-  updateStatus();
+  updateStatus(details.windowId);
 }
 
 function updateStatus(windowId) {
-  // Messages are kept until dismissed, and we set a visual hint.
-  // Note: 0 and '' are both considered false.
-  var hasMessages = applicationMessages.length ? 'i' : '';
-  var badgeBackgroundColor = hasMessages ? 'yellow' : 'blue';
-  for (var details of applicationMessages) {
-    if (details.level == 'error') {
-      hasMessages = '!';
-      badgeBackgroundColor = 'red';
-      break;
-    }
-  }
-
   // Update the requested window, or update all known windows.
   var obj = {};
   if (windowId !== undefined) {
@@ -270,6 +272,24 @@ function updateStatus(windowId) {
     windowId = Number(windowId);
     var hasVideos = sources.length;
     if (!hasVideos) hasVideos = '';
+
+    // Messages are kept until dismissed, and we set a visual hint.
+    // Note: 0 and '' are both considered false.
+    var hasMessages = '';
+    var badgeBackgroundColor = 'blue';
+    var tabHandler = tabsHandler.getActiveTab(windowId);
+    var tabId = tabHandler ? tabHandler.id : -1;
+    for (var details of applicationMessages) {
+      if ((details.windowId !== undefined) && (details.windowId != windowId)) continue;
+      if ((details.tabId !== undefined) && (details.tabId != tabId)) continue;
+      if (details.level == 'error') {
+        hasMessages = '!';
+        badgeBackgroundColor = 'red';
+      } else if (!hasMessages) {
+        hasMessages = 'i';
+        badgeBackgroundColor = 'yellow';
+      }
+    }
 
     if (!hasMessages && !hasVideos) {
       browser.browserAction.setBadgeText({windowId: windowId, text: null});
@@ -302,11 +322,16 @@ class TabsObserver {
 
   windowRemoved(windowId) {
     delete(videosSources[windowId]);
+    applicationMessages = applicationMessages.filter(msg => msg.windowId !== windowId);
   }
 
   tabActivated(details) {
     var sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
     this.updateVideos(details.windowId, sources);
+  }
+
+  tabRemoved(details) {
+    applicationMessages = applicationMessages.filter(msg => msg.tabId !== details.tabId);
   }
 
   videosUpdated(details) {
@@ -335,13 +360,14 @@ class TabsObserver {
 
 var webext;
 var requestsHandler;
+var tabsHandler;
 var videoSourceHandler;
 var nativeApp;
 var applicationMessages = [];
 var videosSources = {};
 waitForSettings(true).then(() => {
   // Handle tabs.
-  var tabsHandler = new TabsHandler();
+  tabsHandler = new TabsHandler();
   // Extension handler
   webext = new WebExtension({
     target: constants.TARGET_BACKGROUND_PAGE,
