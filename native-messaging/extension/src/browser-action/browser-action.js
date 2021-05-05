@@ -130,7 +130,12 @@ function ext_addMessage(msg) {
 class TabsObserver {
 
   constructor(webext) {
+    this.tabs = {};
     webext.observeTabsEvents(this);
+  }
+
+  tabAdded(details) {
+    this.tabs[details.tabId] = details;
   }
 
   tabFocused(details) {
@@ -138,11 +143,15 @@ class TabsObserver {
     refreshMessages();
   }
 
+  tabRemoved(details) {
+    delete(this.tabs[details.tabId]);
+  }
+
 }
 
 // Extension handler
 var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage: onMessage });
-new TabsObserver(webext);
+var tabsObserver = new TabsObserver(webext);
 
 var windowId = -1;
 var activeTabId = -1;
@@ -196,6 +205,13 @@ function addMessage(details) {
   util.setHtml(node.querySelector('.list-item-title'), details.title);
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
+  var tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
+  if (tabHandler) {
+    var tooltip = [];
+    if (tabHandler.title) tooltip.push(tabHandler.title);
+    if (tabHandler.url) tooltip.push(tabHandler.url);
+    if (tooltip.length) node.setAttribute('title', tooltip.join('\n'));
+  }
 
   ((tabId == activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
   updateMessagesBadges();
