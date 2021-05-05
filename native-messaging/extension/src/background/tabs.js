@@ -866,13 +866,18 @@ export class TabsHandler {
     }, webNavigationFilter);
 
     // Get all live (non-discarded) tabs to handle.
-    browser.tabs.query({
-      url: ['file:///*', 'http://*/*', 'https://*/*'],
-      discarded: false
-    }).then(tabs => {
-      for (var tab of tabs) {
-        self.addTab(tab, true);
-      }
+    // First get the focused window, as it is needed to properly populate the
+    // focused tab too.
+    browser.windows.getLastFocused().then(w => {
+      self.focusWindow(w.id);
+      browser.tabs.query({
+        url: ['file:///*', 'http://*/*', 'https://*/*'],
+        discarded: false
+      }).then(tabs => {
+        for (var tab of tabs) {
+          self.addTab(tab, true);
+        }
+      });
     });
   }
 
