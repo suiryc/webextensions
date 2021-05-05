@@ -633,6 +633,7 @@ export class TabsHandler {
     var focused = (windowId === this.focusedWindowId);
     this.activeTabs[windowId] = {
       id: tabId,
+      windowId: windowId,
       handler: tabHandler
     };
     if (focused) this.focusedTab = this.activeTabs[windowId];
