@@ -437,6 +437,8 @@ class TabHandler {
 //  - windowFocused: a window has focus
 //  - windowRemoved: a window has been removed
 //  - tabActivated: a tab has been activated
+//    * may be called twice if tab handler does not exist yet and is created
+//      later (frame added) while the tab is still active
 //  - tabAdded: a new tab has been added
 //  - tabAttached: a tab has been attached to a window
 //  - tabCreated: a new tab has been created

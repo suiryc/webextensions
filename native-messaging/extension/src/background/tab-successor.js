@@ -113,6 +113,9 @@ export class TabSuccessor {
       sortTabs(entry);
       await self.chainTabs(entry);
     }
+    // 'chainTabs' does call 'scheduleCheckTabs'.
+    // Belt and suspenders: ensure we at least call it once, in the case we
+    // don't find any tab to setup.
     if (!tabsPerWindow.length) self.scheduleCheckTabs();
   }
 
@@ -145,10 +148,9 @@ export class TabSuccessor {
       // We simply chain it to the opener.
       tab2 = tab.openerTabId;
     }
-    // Note: duplicate array so that other alterations won't change the logged value.
-    if (settings.debug) opened = opened.slice();
     opened.push(tab);
-    if (settings.debug.tabs.successor) console.log('Added inactive tab by opener:', tab.openerTabId, opened);
+    // Note: duplicate array so that other alterations won't change the logged value.
+    if (settings.debug.tabs.successor) console.log('Added inactive tab by opener:', tab.openerTabId, opened.slice());
     self.inactiveOpenedTabs.byOpener[tab.openerTabId] = opened;
     await self.chainTabs([tab], tab2, options);
   }
@@ -192,6 +194,13 @@ export class TabSuccessor {
       self.scheduleCheckTabs();
       return;
     }
+    if (details.previousTabId == details.tabId) {
+      // Special case in tabs handler: the tab was activated earlier but its
+      // tab handler did not exist yet; then another event (frame added) created
+      // the tab handler triggering a second 'tabActivated' event to pass the
+      // now known tab handler.
+      return;
+    }
     await browser.tabs.moveInSuccession([details.tabId], details.previousTabId);
     self.scheduleCheckTabs();
   }
@@ -207,10 +216,9 @@ export class TabSuccessor {
     // Forget this inactive opened tab.
     delete(self.inactiveOpenedTabs.byId[tabId]);
     var opened = self.inactiveOpenedTabs.byOpener[openedTab.openerTabId];
-    // Note: duplicate array so that other alterations won't change the logged value.
-    if (settings.debug) opened = opened.slice();
     opened.splice(opened.indexOf(openedTab), 1);
-    if (settings.debug.tabs.successor) console.log('Removed inactive tab by opener:', openedTab.openerTabId, opened);
+    // Note: duplicate array so that other alterations won't change the logged value.
+    if (settings.debug.tabs.successor) console.log('Removed inactive tab by opener:', openedTab.openerTabId, opened.slice());
     if (!opened.length) {
       // No more tabs opened by the opener.
       delete self.inactiveOpenedTabs.byOpener[openedTab.openerTabId];
