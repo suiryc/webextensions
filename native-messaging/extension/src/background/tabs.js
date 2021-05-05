@@ -870,10 +870,7 @@ export class TabsHandler {
     // focused tab too.
     browser.windows.getLastFocused().then(w => {
       self.focusWindow(w.id);
-      browser.tabs.query({
-        url: ['file:///*', 'http://*/*', 'https://*/*'],
-        discarded: false
-      }).then(tabs => {
+      browser.tabs.query({discarded: false}).then(tabs => {
         for (var tab of tabs) {
           self.addTab(tab, true);
         }
