@@ -148,8 +148,7 @@ export function toJSON(v) {
   // Recursively process objects.
   // Check whether 'toJSON' has been defined to get a lighter version of
   // the object.
-  if (v.toJSON !== undefined) return v.toJSON();
-  v = Object.assign({}, v);
+  v = (v.toJSON !== undefined) ? v.toJSON() : Object.assign({}, v);
   for (var [key, value] of Object.entries(v)) {
     if (typeof(value) == 'function') delete(v[key]);
     else v[key] = toJSON(value);

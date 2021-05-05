@@ -46,6 +46,16 @@ class FrameHandler {
     this.reset(details);
   }
 
+  toJSON() {
+    return {
+      id: this.id,
+      used: this.used,
+      url: this.url,
+      csUuid: this.csUuid,
+      tabHandler: this.tabHandler
+    };
+  }
+
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
     var sameUrl = this.url == details.url;
