@@ -17,6 +17,7 @@ export async function executeCode(webext, label, params, code) {
         // Prepare details.
         if (typeof(details) === 'object') details = Object.assign({}, details, {level: level});
         else details = {level: level, message: details, error: error};
+        error = details.error;
         // Log right now (especially useful for real errors info).
         var args = [];
         var msg = '';
