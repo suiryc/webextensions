@@ -202,7 +202,7 @@ function addMessage(details) {
     icon = cloneNode(iconInfoCircle);
   }
   replaceNode(node.querySelector('.icon'), icon);
-  util.setHtml(node.querySelector('.list-item-title'), details.title);
+  if (details.title) util.setHtml(node.querySelector('.list-item-title'), details.title);
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
   var tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;

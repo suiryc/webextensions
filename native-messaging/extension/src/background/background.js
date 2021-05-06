@@ -213,14 +213,18 @@ function notification(label, details, sender) {
     details.frameId = sender.frameId;
   }
   if (details.level == 'warning') details.level = 'warn';
+
+  addExtensionMessage(details);
+
   var level = details.level || 'info';
   var html = details.html;
   function stripHtml(s) {
     return (html ? util.htmlToText(s) : s);
   }
   // The title is mandatory for browser notifications.
-  if (details.title === undefined) details.title = constants.EXTENSION_ID;
-  var title = stripHtml(details.title);
+  var title = details.title;
+  if (title === undefined) title = constants.EXTENSION_ID;
+  title = stripHtml(title);
   var message = stripHtml(details.message);
   var error = details.error;
 
