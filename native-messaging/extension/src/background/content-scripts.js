@@ -82,6 +82,9 @@ export class ContentScriptHandler {
       return;
     }
 
+    // Note: the tab handler will prevent injection in tabs/frames that cannot
+    // be used (mozilla addons pages, etc.).
+
     if (settings.catchLinks && (frameHandler.id === 0)) {
       this.inject_links_catcher(frameHandler);
     }

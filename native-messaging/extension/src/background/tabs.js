@@ -36,6 +36,11 @@ import { settings } from '../common/settings.js';
 //
 // Dynamically injecting content script only make code executed slightly later
 // (in a barely visible way when navigating) compared to static declaration.
+//
+// Firefox prevents content script injection in many domains.
+// See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts
+var excludedHosts = new Set(['accounts-static.cdn.mozilla.net', 'accounts.firefox.com', 'addons.cdn.mozilla.net', 'addons.mozilla.org', 'api.accounts.firefox.com', 'content.cdn.mozilla.net', 'content.cdn.mozilla.net', 'discovery.addons.mozilla.org', 'input.mozilla.org', 'install.mozilla.org', 'oauth.accounts.firefox.com', 'profile.accounts.firefox.com', 'support.mozilla.org', 'sync.services.mozilla.com', 'testpilot.firefox.com'
+]);
 
 class FrameHandler {
 
@@ -108,6 +113,21 @@ class FrameHandler {
     this.url = url;
     // Update parent tab url if we are the main frame.
     if (this.id == 0) this.tabHandler.url = url;
+    delete(this.excludedHost);
+  }
+
+  isExcludedHost() {
+    if (this.excludedHost === undefined) {
+      this.excludedHost = false;
+      var idx = this.url.indexOf('//');
+      if (idx > 0) {
+        var start = idx + 2;
+        idx = this.url.indexOf('/', start);
+        var domain = (idx > 0) ? this.url.substring(start, idx) : this.url.substring(start);
+        this.excludedHost = excludedHosts.has(domain);
+      }
+    }
+    return this.excludedHost;
   }
 
   // Queue a new action to execute sequentially.
@@ -207,6 +227,12 @@ result;`,
 
   async setupScript(id, callback) {
     var self = this;
+
+    if (self.isExcludedHost()) {
+      if (settings.debug.misc) console.log('Not setting up script=<%s> in tab=<%s> title=<%s> frame=<%s> url=<%s>: host is excluded', id, self.tabHandler.id, self.tabHandler.title, self.id, self.url);
+      return;
+    }
+
     return await self.newAction(() => {
       return self._setupScript(id, callback)
     });
