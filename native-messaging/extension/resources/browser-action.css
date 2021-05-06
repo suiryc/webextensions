@@ -25,9 +25,12 @@ html, body {
   line-height: 1em;
 }
 
-/* Fix SVG icons size. */
+/* Fix SVG icons size, and align at the center.
+ * ('sub' works better than 'middle').
+ */
 .icon svg {
   width: 20px;
+  vertical-align: sub;
 }
 
 /* Default SVG icon color. */
