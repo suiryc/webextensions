@@ -43,12 +43,13 @@ export class WebExtension {
     if (params.target == null) delete(params.target);
     if (params.target == undefined) throw new Error('The target parameter is mandatory');
     this.params = params;
+    this.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
     // Notes:
     // More than one listener can be added.
     // Caller is expected to manage whether to use one listener and dispatch
     // responses, or add multiple listeners for each dedicated feature.
     browser.runtime.onMessage.addListener(this.onMessage.bind(this));
-    if (params.target === constants.TARGET_BACKGROUND_PAGE) this.listenConnections();
+    if (this.isBackground) this.listenConnections();
     else this.connect();
   }
 

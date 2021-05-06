@@ -10,7 +10,36 @@ export async function executeCode(webext, label, params, code) {
   try {
     var funcArgs = [];
     var funcValues = [];
+    // Create a logger relying on notifications.
+    var log = {};
+    ['info', 'warn', 'error'].forEach(level => {
+      log[level] = function(details, error) {
+        // Prepare details.
+        if (typeof(details) === 'object') details = Object.assign({}, details, {level: level});
+        else details = {level: level, message: details, error: error};
+        // Log right now (especially useful for real errors info).
+        var args = [];
+        var msg = '';
+        if (details.title) {
+          msg = details.label ? `[${details.label}] ${details.title}` : details.title;
+        }
+        if (details.message !== undefined) {
+          msg = msg ? `${msg}: %s` : '%s';
+          args.push(details.message);
+        }
+        if (error !== undefined) args.push(error);
+        args.unshift(msg);
+        console[level].apply(console, args);
+        details.logged = true;
+        // Format error if needed so that notification can be properly serialized.
+        if (!webext.isBackground && details.error) details.error = util.formatObject(details.error);
+        util.extNotification(webext, details);
+      };
+    });
+    log.warning = log.warn;
+    // Pass useful helpers automatically.
     params = Object.assign({
+      log: log,
       unsafe: unsafe,
       util: util,
       webext: webext
