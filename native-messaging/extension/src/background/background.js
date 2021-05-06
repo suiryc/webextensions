@@ -215,6 +215,7 @@ function notification(label, details, sender) {
   if (details.level == 'warning') details.level = 'warn';
 
   addExtensionMessage(details);
+  if (details.silent && details.logged) return;
 
   var level = details.level || 'info';
   var html = details.html;
@@ -231,25 +232,27 @@ function notification(label, details, sender) {
   // Standard notification
   var msg = util.formatApplicationMessage(details);
   var notificationTitle = (label ? `[${label}] ${title}` : title);
-  util.browserNotification({
-    'type': 'basic',
-    'title': notificationTitle,
-    'message': stripHtml(msg)
-  }, settings.notifyTtl);
-
-  addExtensionMessage(details);
+  if (!details.silent) {
+    util.browserNotification({
+      'type': 'basic',
+      'title': notificationTitle,
+      'message': stripHtml(msg)
+    }, settings.notifyTtl);
+  }
 
   // Also log details.
-  if (!(level in console)) level = 'info';
-  msg = notificationTitle;
-  var args = [];
-  if (message !== undefined) {
-    msg = `${msg}: %s`;
-    args.push(message);
+  if (!details.logged) {
+    if (!(level in console)) level = 'info';
+    msg = notificationTitle;
+    var args = [];
+    if (message !== undefined) {
+      msg = `${msg}: %s`;
+      args.push(message);
+    }
+    if (error !== undefined) args.push(error);
+    args.unshift(msg);
+    console[level].apply(console, args);
   }
-  if (error !== undefined) args.push(error);
-  args.unshift(msg);
-  console[level].apply(console, args);
 }
 
 function addExtensionMessage(details) {
