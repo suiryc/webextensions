@@ -184,7 +184,7 @@ function replaceNode(node1, node2) {
 }
 
 function addMessage(details) {
-  if (details.windowId != windowId) return;
+  if ((details.windowId !== undefined) && (details.windowId != windowId)) return;
   messages.push(details);
   var tabId = details.tabId;
   var level = details.level;
