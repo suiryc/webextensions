@@ -142,7 +142,8 @@ class FrameHandler {
   }
 
   async setup() {
-    var tabId = this.tabHandler.id;
+    var tabHandler = this.tabHandler;
+    var tabId = tabHandler.id;
     var frameId = this.id;
 
     // Probe the frame: inject some context (prepare a new UUID) and check
@@ -154,7 +155,7 @@ class FrameHandler {
     var newUuid = util.uuidv4();
     const csParams = {
       tabId: tabId,
-      tabUrl: this.tabHandler.url,
+      tabUrl: tabHandler.url,
       frameId: frameId,
       uuid: newUuid
     };
@@ -195,7 +196,7 @@ result;`,
         existed: result.existed
       };
     } catch (error) {
-      console.log('Failed to setup tab=<%s> frame=<%s>: %o', tabId, frameId, error);
+      console.log('Failed to setup tab=<%s> title=<%s> frame=<%s> url=<%s>: %o', tabId, tabHandler.title, frameId, this.url, error);
       return {
         reused: reused,
         success: false,
@@ -282,7 +283,7 @@ result;`,
       // Script injection actually failed: forget it, so that it can be injected
       // again if needed.
       delete(self.scripts[id]);
-      console.log('Failed to setup script=<%s> in tab=<%s> frame=<%s> csUuid=<%s>: %o', id, tabId, frameId, self.csUuid, error);
+      console.log('Failed to setup script=<%s> in tab=<%s> title=<%s> frame=<%s> url=<%s> csUuid=<%s>: %o', id, tabId, tabHandler.title, frameId, this.url, self.csUuid, error);
       return {
         success: false,
         error: error
