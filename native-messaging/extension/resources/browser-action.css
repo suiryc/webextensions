@@ -1,7 +1,21 @@
 :root {
-  --color-neutral: #555555;
-  --color-warning: #E09040;
-  --color-failure: #E04040;
+  --color-neutral: rgb(85, 85, 85);
+  --color-warning: rgb(224, 144, 64);
+  --color-failure: rgb(224, 64, 64);
+  --color-failure-light: rgb(224, 128, 128);
+  --color-failure-alpha: rgba(224, 64, 64, 0.2);
+}
+
+/* 'error' class uses red to highlight fields */
+.field-error {
+  border-color: var(--color-failure);
+  background-color: var(--color-failure-light);
+}
+
+.field-error:focus {
+  border-color: var(--color-failure);
+  background-color: var(--color-failure-light);
+  box-shadow: 0 0 0 0.1rem var(--color-failure-alpha);
 }
 
 /* Force page width, preventing possible displayed width change when changing
@@ -39,12 +53,12 @@ html, body {
 }
 
 /* Error SVG icon color. */
-.error svg path {
+.icon-error svg path {
   fill: var(--color-failure);
 }
 
 /* Warning SVG icon color. */
-.warning svg path {
+.icon-warning svg path {
   fill: var(--color-warning);
 }
 

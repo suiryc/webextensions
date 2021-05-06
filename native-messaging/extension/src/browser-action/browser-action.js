@@ -194,10 +194,10 @@ function addMessage(details) {
 
   if (level == 'error') {
     icon = cloneNode(iconExclamationTriangle);
-    icon.classList.add('error');
+    icon.classList.add('icon-error');
   } else if (level == 'warn') {
     icon = cloneNode(iconExclamationTriangle);
-    icon.classList.add('warning');
+    icon.classList.add('icon-warning');
   } else {
     icon = cloneNode(iconInfoCircle);
   }

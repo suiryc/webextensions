@@ -164,7 +164,7 @@ class Settings extends SettingsBranch {
     //  - filenameFromUrl: whether to retrieve filename from url (instead of title)
     // Code is executed inside the frame containing the video source, and can
     // be synchronous or asynchronous (Promise).
-    new ExtensionStringSetting('scripts.video.downloadRefining');
+    new ExtensionScriptSetting('scripts.video.downloadRefining');
     // 'filename refining' script input params:
     //  - videoSource: the video source object
     //  - title: the tab title
@@ -178,7 +178,7 @@ class Settings extends SettingsBranch {
     // extension and filename.
     // Code is executed inside the background script and can be synchronous or
     // asynchronous (Promise).
-    new ExtensionStringSetting('scripts.video.filenameRefining');
+    new ExtensionScriptSetting('scripts.video.filenameRefining');
 
     return this;
   }
@@ -362,6 +362,30 @@ class ExtensionSetting {
     return true;
   }
 
+  getFieldValue() {
+    return this.field.value;
+  }
+
+  // Validate field value.
+  // When requested, setting value is only changed if valid.
+  validateField(update) {
+    try {
+      var v = this.validateValue(this.getFieldValue());
+      if (update) this.setValue(v);
+      this.field.removeAttribute('title');
+      this.field.classList.toggle('field-error', false);
+    } catch (error) {
+      this.field.setAttribute('title', error.toString());
+      this.field.classList.toggle('field-error', true);
+    }
+  }
+
+  // Validates setting value.
+  // Returns validated value, or throws an Error.
+  validateValue(v) {
+    return v;
+  }
+
   // Initializes the setting value.
   // To be called first before doing anything with the setting.
   async initValue() {
@@ -398,8 +422,12 @@ class ExtensionBooleanSetting extends ExtensionSetting {
     var self = this;
     if (!super.trackField()) return;
     self.field.addEventListener('click', () => {
-      self.setValue(self.field.checked);
+      self.setValue(self.getFieldValue());
     });
+  }
+
+  getFieldValue() {
+    return this.field.checked;
   }
 
 }
@@ -418,15 +446,24 @@ class ExtensionIntSetting extends ExtensionSetting {
   trackField() {
     var self = this;
     if (!super.trackField()) return;
-    self.field.addEventListener('change', () => {
-      self.setValue(parseInt(self.field.value));
+    self.field.addEventListener('input', () => {
+      self.validateField(false);
     });
+    self.field.addEventListener('change', () => {
+      self.validateField(true);
+    });
+  }
+
+  validateValue(v) {
+    var f = parseFloat(v);
+    if (isNaN(v) || !Number.isInteger(f)) throw new Error('Not an integer value');
+    return f;
   }
 
 }
 
-// Manages a string setting.
-class ExtensionStringSetting extends ExtensionSetting {
+// Manages a script (string) setting.
+class ExtensionScriptSetting extends ExtensionSetting {
 
   constructor(key, value) {
     super(key, value, '');
@@ -440,9 +477,17 @@ class ExtensionStringSetting extends ExtensionSetting {
   trackField() {
     var self = this;
     if (!super.trackField()) return;
-    self.field.addEventListener('change', () => {
-      self.setValue(self.field.value);
+    self.field.addEventListener('input', () => {
+      self.validateField(false);
     });
+    self.field.addEventListener('change', () => {
+      self.validateField(true);
+    });
+  }
+
+  validateValue(v) {
+    new Function([], v);
+    return v;
   }
 
 }
