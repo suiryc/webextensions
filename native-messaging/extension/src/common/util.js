@@ -362,14 +362,6 @@ export function browserNotification(notification, ttl) {
   }
 }
 
-export function extNotification(webext, details) {
-  webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_NOTIFICATION,
-    details: details
-  });
-}
-
 // Formats application message (optional content/error).
 export function formatApplicationMessage(details) {
   var message = details.message;

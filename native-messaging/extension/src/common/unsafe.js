@@ -19,7 +19,7 @@ export class CodeExecutor {
       // And yes, I know I want to 'eval' code here.
       this.f = Function.call(null, argNames, code);
     } catch (error) {
-      util.extNotification(webext, {
+      webext.notification({
         title: 'Script code setup failed',
         level: 'error',
         message: `Script: ${scriptName}`,
@@ -45,7 +45,7 @@ export class CodeExecutor {
       var r = await Promise.resolve(this.f.apply(null, argValues));
       return r || {};
     } catch (error) {
-      util.extNotification(this.webext, {
+      this.webext.notification({
         title: 'Script code execution failed',
         level: 'error',
         message: `Script: ${this.scriptName}`,
@@ -83,7 +83,7 @@ export class CodeExecutor {
           details.logged = true;
           // Format error if needed so that notification can be properly serialized.
           if (!self.webext.isBackground && details.error) details.error = util.formatObject(details.error);
-          util.extNotification(self.webext, details);
+          self.webext.notification(details);
         };
       });
       log.warning = log.warn;

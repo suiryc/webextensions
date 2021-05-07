@@ -296,6 +296,14 @@ export class WebExtension {
     return browser.tabs.sendMessage(tabId, msg, options);
   }
 
+  notification(details) {
+    this.sendMessage({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_NOTIFICATION,
+      details: details
+    });
+  }
+
 }
 
 // Handles a webextension connection Port.

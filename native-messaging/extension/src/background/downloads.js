@@ -96,7 +96,7 @@ class DlMngrClient {
       if (r.error) {
         var url = details.url;
         var filename = details.file;
-        util.extNotification(webext, {
+        webext.notification({
           title: 'Failed to download',
           level: 'error',
           message: `${util.getFilename(url, filename)}\n${url}`,

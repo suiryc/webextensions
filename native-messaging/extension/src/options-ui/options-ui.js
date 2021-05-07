@@ -76,7 +76,7 @@ exportButton.addEventListener('click', () => {
       // (Firefox v80) If user cancels saving to file, we get an Error with
       // 'Download canceled by the user' message.
       if (!error || !error.message || !error.message.includes('canceled')) {
-        util.extNotification(webext, {
+        webext.notification({
           title: 'Failed to export settings',
           level: 'error',
           error: util.formatObject(error)
@@ -100,7 +100,7 @@ importFile.addEventListener('change', function() {
   var reader = new FileReader();
 
   function failed(error) {
-    util.extNotification(webext, {
+    webext.notification({
       title: 'Failed to import settings',
       level: 'error',
       error: util.formatObject(error)
@@ -127,7 +127,7 @@ resetButton.addEventListener('click', () => {
   resetButton.blur();
   if (!confirm('You are about to clear all current settings!')) return;
   browser.storage.local.clear().catch(error => {
-    util.extNotification(webext, {
+    webext.notification({
       title: 'Failed to reset settings',
       level: 'error',
       error: util.formatObject(error)
