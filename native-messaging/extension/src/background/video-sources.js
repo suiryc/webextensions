@@ -185,9 +185,7 @@ class VideoSource {
     var params = {};
     if (!this.filenameFromUrl) {
       var scriptParams = {
-        util: util,
         http: http,
-        unsafe: unsafe,
         params: {
           videoSource: this,
           title: this.tabTitle,
