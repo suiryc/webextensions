@@ -486,7 +486,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    new Function([], v);
+    Function.call(null, v);
     return v;
   }
 
