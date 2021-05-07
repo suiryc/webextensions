@@ -60,7 +60,7 @@ async function onMessage(extension, msg, sender) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.label, msg.details || {}, sender);
+      return notification(msg.details || {}, sender);
       break;
 
     default:
@@ -77,7 +77,7 @@ function onNativeMessage(app, msg) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.label || app.appId, msg.details || {}, app);
+      return notification(msg.details || {}, app);
       break;
 
     default:
@@ -206,53 +206,20 @@ function app_console(app, msg) {
   console[level].apply(console, args);
 }
 
-function notification(label, details, sender) {
-  if (sender && sender.tab) {
-    details.windowId = sender.tab.windowId;
-    details.tabId = sender.tab.id;
-    details.frameId = sender.frameId;
-  }
-  if (details.level == 'warning') details.level = 'warn';
-
-  addExtensionMessage(details);
-  if (details.silent && details.logged) return;
-
-  var level = details.level || 'info';
-  var html = details.html;
-  function stripHtml(s) {
-    return (html ? util.htmlToText(s) : s);
-  }
-  // The title is mandatory for browser notifications.
-  var title = details.title;
-  if (title === undefined) title = constants.EXTENSION_ID;
-  title = stripHtml(title);
-  var message = stripHtml(details.message);
-  var error = details.error;
-
-  // Standard notification
-  var msg = util.formatApplicationMessage(details);
-  var notificationTitle = (label ? `[${label}] ${title}` : title);
-  if (!details.silent) {
-    util.browserNotification({
-      'type': 'basic',
-      'title': notificationTitle,
-      'message': stripHtml(msg)
-    }, settings.notifyTtl);
-  }
-
-  // Also log details.
-  if (!details.logged) {
-    if (!(level in console)) level = 'info';
-    msg = notificationTitle;
-    var args = [];
-    if (message !== undefined) {
-      msg = `${msg}: %s`;
-      args.push(message);
+function notification(details, sender) {
+  if (sender) {
+    if (!details.source && sender.appId) {
+      details.source = sender.appId;
     }
-    if (error !== undefined) args.push(error);
-    args.unshift(msg);
-    console[level].apply(console, args);
+    if (sender.tab) {
+      details.windowId = sender.tab.windowId;
+      details.tabId = sender.tab.id;
+      details.frameId = sender.frameId;
+    }
   }
+
+  util.notification(details);
+  addExtensionMessage(details);
 }
 
 function addExtensionMessage(details) {

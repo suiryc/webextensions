@@ -96,11 +96,11 @@ class DlMngrClient {
       if (r.error) {
         var url = details.url;
         var filename = details.file;
-        webext.notification({
+        webext.notify({
           title: 'Failed to download',
           level: 'error',
           message: `${util.getFilename(url, filename)}\n${url}`,
-          error: util.formatObject(r.error)
+          error: r.error
         });
       }
       return r;

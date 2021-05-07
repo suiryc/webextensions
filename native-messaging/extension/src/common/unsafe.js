@@ -10,7 +10,7 @@ export class CodeExecutor {
     this.webext = webext;
     this.scriptName = scriptName;
     // We will pass useful helpers automatically.
-    argNames = argNames.concat(['log', 'unsafe', 'util', 'webext']);
+    argNames = argNames.concat(['notif', 'unsafe', 'util', 'webext']);
     this.argNames = argNames;
     if ((code === undefined) || (code === null) || (code.trim() === '')) return;
     try {
@@ -19,11 +19,11 @@ export class CodeExecutor {
       // And yes, I know I want to 'eval' code here.
       this.f = Function.call(null, argNames, code);
     } catch (error) {
-      webext.notification({
+      webext.notify({
         title: 'Script code setup failed',
         level: 'error',
         message: `Script: ${scriptName}`,
-        error: util.formatObject(error)
+        error: error
       });
     }
   }
@@ -31,9 +31,9 @@ export class CodeExecutor {
   async execute(args) {
     if (!this.f) return {};
     var argValues = [];
-    var log = this.getLogger();
+    var notif = this.getNotif();
     args = Object.assign({
-      log: log,
+      notif: notif,
       unsafe: unsafe,
       util: util,
       webext: this.webext
@@ -45,51 +45,33 @@ export class CodeExecutor {
       var r = await Promise.resolve(this.f.apply(null, argValues));
       return r || {};
     } catch (error) {
-      this.webext.notification({
+      this.webext.notify({
         title: 'Script code execution failed',
         level: 'error',
         message: `Script: ${this.scriptName}`,
-        error: util.formatObject(error)
+        error: error
       });
     }
     return {};
   }
 
-  getLogger() {
+  getNotif() {
     var self = this;
-    // Create our dedicated logger when needed.
-    if (!self.webext.attributes.codeExecutorLog) {
-      // Create a logger relying on notifications.
-      var log = {};
+    // Create our dedicated notifier when needed.
+    if (!self.webext.attributes.codeExecutorNotif) {
+      var notif = {};
       ['info', 'warn', 'error'].forEach(level => {
-        log[level] = function(details, error) {
+        notif[level] = function(details, error) {
           // Prepare details.
           if (typeof(details) === 'object') details = Object.assign({}, details, {level: level});
           else details = {level: level, message: details, error: error};
-          error = details.error;
-          // Log right now (especially useful for real errors info).
-          var args = [];
-          var msg = '';
-          if (details.title) {
-            msg = details.label ? `[${details.label}] ${details.title}` : details.title;
-          }
-          if (details.message !== undefined) {
-            msg = msg ? `${msg}: %s` : '%s';
-            args.push(details.message);
-          }
-          if (error !== undefined) args.push(error);
-          args.unshift(msg);
-          console[level].apply(console, args);
-          details.logged = true;
-          // Format error if needed so that notification can be properly serialized.
-          if (!self.webext.isBackground && details.error) details.error = util.formatObject(details.error);
-          self.webext.notification(details);
+          self.webext.notify(details);
         };
       });
-      log.warning = log.warn;
-      self.webext.attributes.codeExecutorLog = log;
+      notif.warning = notif.warn;
+      self.webext.attributes.codeExecutorNotif = notif;
     }
-    return self.webext.attributes.codeExecutorLog;
+    return self.webext.attributes.codeExecutorNotif;
   }
 
 }

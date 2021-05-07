@@ -296,7 +296,12 @@ export class WebExtension {
     return browser.tabs.sendMessage(tabId, msg, options);
   }
 
-  notification(details) {
+  notify(details) {
+    util.notification(details);
+    // Now that original information has been logged, and possibly notified,
+    // format the error, if present, so that it can be properly serialized.
+    // (needed to transmit message between background and other scripts)
+    if (details.error) details.error = util.formatObject(details.error);
     this.sendMessage({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_NOTIFICATION,

@@ -1,6 +1,7 @@
 'use strict';
 
 import { constants } from './constants.js';
+import { settings } from './settings.js';
 
 
 // Gets current timestamp (epoch in milliseconds).
@@ -325,6 +326,7 @@ export function htmlToElement(html) {
 // Extracts plain text from html.
 // html tags are stripped, only text remains.
 export function htmlToText(html) {
+  if (!html) return '';
   var template = document.createElement('template');
   setHtml(template, html);
   return template.textContent;
@@ -337,6 +339,7 @@ export function htmlToText(html) {
 // innerHTML is empty when using a 'template' node.
 // It works as needed when using a 'div' node.
 export function textToHtml(text) {
+  if (!text) return '';
   var el = document.createElement('div');
   el.textContent = text;
   return el.innerHTML.replace(/\n/g, '<br>');;
@@ -362,19 +365,80 @@ export function browserNotification(notification, ttl) {
   }
 }
 
+export function log(details) {
+  if (details.level == 'warning') details.level = 'warn';
+  if (details.logged) return;
+  var level = details.level || 'info';
+  if (!(level in console)) level = 'info';
+
+  function stripHtml(s) {
+    return (details.html ? htmlToText(s) : s);
+  }
+
+  var msg = [];
+  var args = [];
+  var title = stripHtml(details.title);
+  if (title) {
+    if (details.source) {
+      msg.push('[%s] %s');
+      args.push(details.source);
+    } else {
+      msg.push('%s');
+    }
+    args.push(title);
+  }
+  var message = stripHtml(details.message);
+  var error = details.error;
+
+  if (message) {
+    if (!msg.length && details.source) {
+      msg.push('[%s] %s');
+      args.push(details.source);
+    } else {
+      msg.push('%s');
+    }
+    args.push(message);
+  }
+  if (error) {
+    msg.push('%o');
+    args.push(error);
+  }
+  msg = msg.join('\n');
+  args.unshift(msg);
+  console[level].apply(console, args);
+  details.logged = true;
+}
+
+export function notification(details) {
+  log(details);
+  // Note: content script does not have access to browser.notifications, in
+  // which case caller is expected to delegate it to the background script.
+  if (details.silent || !browser.notifications) return;
+
+  function stripHtml(s) {
+    return (details.html ? htmlToText(s) : s);
+  }
+
+  // The title is mandatory for browser notifications.
+  var title = stripHtml(details.title);
+  if (details.source) title = title ? `[${details.source}] ${title}` : details.source;
+  if (!title) title = constants.EXTENSION_ID;
+  browserNotification({
+    'type': 'basic',
+    'title': title,
+    'message': stripHtml(formatApplicationMessage(details))
+  }, settings.notifyTtl);
+  details.silent = true;
+}
+
 // Formats application message (optional content/error).
 export function formatApplicationMessage(details) {
   var message = details.message;
   var error = details.error;
-
-  var msg = '';
-  if (message !== undefined) msg = message;
-  if (error !== undefined) {
-    if (msg.length > 0) msg = `${msg}\n`;
-    msg = `${msg}Error: ${formatObject(error)}`;
-  }
-
-  return msg;
+  var msg = [];
+  if (message) msg.push(message);
+  if (error) msg.push(`Error: ${formatObject(error)}`);
+  return msg.join('\n');
 }
 
 // Simple Deferred implementation.
