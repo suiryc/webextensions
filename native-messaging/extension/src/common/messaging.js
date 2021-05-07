@@ -43,6 +43,8 @@ export class WebExtension {
     if (params.target == null) delete(params.target);
     if (params.target == undefined) throw new Error('The target parameter is mandatory');
     this.params = params;
+    // Caller may want to attach 'attributes' related to the instance.
+    this.attributes = {};
     this.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
     // Notes:
     // More than one listener can be added.
