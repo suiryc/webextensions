@@ -142,7 +142,7 @@ class NativeSink extends stream.Writable {
         }
       });
       // Do not overwrite pre-existing 'error' field.
-      if (msg.error === undefined) msg.error = error;
+      if (!msg.error) msg.error = error;
       else msg.jsonError = error;
       // Belt and suspenders: in case cleaned message still fails ...
       try {
@@ -228,7 +228,7 @@ class NativeHandler extends stream.Writable {
       r = Promise.reject(error);
     }
     // Don't handle reply if caller don't expect it.
-    if (msg.correlationId === undefined) return;
+    if (!msg.correlationId) return;
     // Embed reply in 'reply' field, or error in 'error' field.
     r.then(v => {
       self.app.postMessage({reply: v, correlationId: msg.correlationId});
@@ -296,9 +296,9 @@ class NativeApplication {
 
   shutdown(code) {
     var self = this;
-    if (self.sink !== undefined) {
+    if (self.sink) {
       // Belt and suspenders: force exit after timeout.
-      if (code !== undefined) process.exitCode = code;
+      if (code) process.exitCode = code;
       setTimeout(() => {
         self.exit();
       }, 10000);

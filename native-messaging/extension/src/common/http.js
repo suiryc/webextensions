@@ -16,7 +16,7 @@ export function canDownload(url) {
 export function findHeader(headers, name) {
   name = name.toLowerCase();
   var header = headers.find(h => h.name.toLowerCase() === name);
-  return (header === undefined) ? undefined : header.value;
+  if (header) return header.value;
 }
 
 // Gets cookie for given URL.
@@ -30,7 +30,7 @@ export function getCookie(url) {
     return [];
   }).then(cookies => {
     var cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-    return (cookie.length > 0) ? cookie : undefined;
+    return (cookie || undefined);
   });
 }
 
@@ -43,18 +43,18 @@ export class RequestDetails {
   }
 
   hasSize() {
-    return (this.contentLength !== undefined);
+    return Number.isInteger(this.contentLength);
   }
 
   hasFilename() {
-    return (this.filename !== undefined);
+    return !!this.filename;
   }
 
   parseResponse(interceptSize) {
     const response = this.received;
     var statusCode;
     var responseHeaders;
-    if ((response.responseHeaders === undefined) && (response.headers)) {
+    if (!response.responseHeaders && response.headers) {
       // Assume we got a Fetch API Response.
       // Extract status and headers for proper handling.
       statusCode = response.status;
@@ -71,26 +71,27 @@ export class RequestDetails {
       responseHeaders = response.responseHeaders;
     }
 
+    var contentLength;
     if (statusCode == 200) {
       // Get content length. Use undefined if unknown.
-      this.contentLength = findHeader(responseHeaders, 'Content-Length');
+      contentLength = findHeader(responseHeaders, 'Content-Length');
     }
     if (statusCode == 206) {
       // Determine content length through range response.
       var range = findHeader(responseHeaders, 'Content-Range');
-      if ((range !== undefined) && (range.split(' ').shift().toLowerCase() === 'bytes')) {
-        this.contentLength = range.split('/').pop().trim();
+      if (range && (range.split(' ').shift().toLowerCase() === 'bytes')) {
+        contentLength = range.split('/').pop().trim();
       } else {
         // Should not happen.
         if (settings.debug.misc) console.log('Ignoring unhandled Content-Range=<%s> in response=<%o>', range, response);
       }
     }
-    if (this.hasSize()) this.contentLength = Number(this.contentLength);
-    // Normalize: negative length means size is unknown.
-    if (this.contentLength < 0) this.contentLength = undefined;
-    // Don't bother parsing other headers if content length is below limit.
+    // Only existing positive length is valid.
     // Note: comparing undefined to integer returns false.
-    if (this.contentLength < interceptSize) return;
+    if (contentLength !== undefined) contentLength = Number(contentLength);
+    if (contentLength >= 0) this.contentLength = contentLength;
+    // Don't bother parsing other headers if content length is below limit.
+    if (contentLength < interceptSize) return;
 
     // Get content type.
     this.contentType = new ContentType(findHeader(responseHeaders, 'Content-Type'));
@@ -98,10 +99,9 @@ export class RequestDetails {
     // Get content disposition.
     this.contentDisposition = {
       raw: findHeader(responseHeaders, 'Content-Disposition'),
-      kind: undefined,
       params: {}
     }
-    if (this.contentDisposition.raw !== undefined) {
+    if (this.contentDisposition.raw) {
       // See: https://tools.ietf.org/html/rfc6266
       // Examples:
       //  attachment
@@ -133,13 +133,14 @@ export class RequestDetails {
 export class ContentType {
 
   constructor(raw) {
-    this.raw = (raw === null) ? undefined : raw;
+    this.raw = raw || '';
     this.params = {};
+    this.guessed = false;
     this.parse();
   }
 
   parse() {
-    if (this.raw === undefined) return;
+    if (!this.raw) return;
 
     // See: https://tools.ietf.org/html/rfc7231#section-3.1.1.5
     // Examples:
@@ -150,7 +151,7 @@ export class ContentType {
     this.mimeType = parser.parseMediaType();
     this.params = parser.parseParameters(true);
 
-    if (this.mimeType === undefined) return;
+    if (!this.mimeType) return;
     var els = this.mimeType.split('/');
     if (els.length != 2) return;
     this.mainType = els[0];
@@ -158,14 +159,12 @@ export class ContentType {
   }
 
   needGuess() {
-    if (this.subType === undefined) return true;
-    if (this.is('application', 'octet-stream')) return true;
-    return false;
+    return !this.subType || this.is('application', 'octet-stream');
   }
 
   guess(filename, ifNeeded) {
     if (ifNeeded && !this.needGuess()) return;
-    if ((filename === undefined) || (filename === null)) return;
+    if (!filename) return;
     var extension = util.getFilenameExtension(filename).extension || '';
 
     // We mainly care about text, images and audio.
@@ -188,7 +187,7 @@ export class ContentType {
     else if ('weba' == extension) guessed = 'audio/webm';
     else if ('opus' == extension) guessed = 'audio/ogg';
 
-    if (guessed !== undefined) {
+    if (guessed) {
       this.raw = guessed;
       this.guessed = true;
       this.parse();
@@ -196,8 +195,8 @@ export class ContentType {
   }
 
   is(mainType, subType) {
-    return ((mainType === undefined) || (mainType === this.mainType)) &&
-      ((subType === undefined) || (subType === this.subType));
+    return (!mainType || (mainType === this.mainType)) &&
+      (!subType || (subType === this.subType));
   }
 
   isText() {
@@ -205,7 +204,7 @@ export class ContentType {
     // Main-type *is* text.
     if (this.is('text')) return true;
     // Sub-type starts with a well-known text type.
-    if (this.subType === undefined) return false;
+    if (!this.subType) return false;
     return (this.subType.startsWith('css')) ||
       (this.subType.startsWith('html')) ||
       (this.subType.startsWith('rss')) ||
@@ -223,11 +222,10 @@ export class ContentType {
   }
 
   maybeText() {
-    // This may be text if:
-    // It *is* text.
-    if (this.isText()) return true;
-    // There is a charset associated (why else give a charset ?).
-    if (this.params.charset !== undefined) return true;
+    // This may be text if either:
+    //  - it *is* text.
+    //  - there is a charset associated (why else give a charset ?).
+    return this.isText() || !!this.params.charset;
   }
 
 }
@@ -304,7 +302,7 @@ class HeaderParser {
   // Returns skipped value, reduced to a single space if a newline was found.
   skipFWS() {
     var fws = '';
-    if (!this.value.length) return fws;
+    if (!this.value) return fws;
     var match = this.value.match(REGEX_FWS);
     if (match) {
       fws = (match[1].indexOf('\n') >= 0) ? ' ' : match[1];
@@ -317,9 +315,9 @@ class HeaderParser {
   parseToken() {
     var token;
     this.skipFWS();
-    if (!this.value.length) return;
+    if (!this.value) return;
     var match = this.value.match(REGEX_TOKEN);
-    if (match && match[1].length) {
+    if (match && match[1]) {
       this.value = match[2];
       token = match[1];
     }
@@ -336,7 +334,7 @@ class HeaderParser {
     var recursiveLevel = 1;
     while (recursiveLevel > 0) {
       string += this.skipFWS();
-      if (!this.value.length) break;
+      if (!this.value) break;
       var char = this.skipChar();
       if (char == endChar) {
         recursiveLevel--;
@@ -357,7 +355,7 @@ class HeaderParser {
   // Skips next comment.
   skipComment() {
     this.skipFWS();
-    if (!this.value.length) return;
+    if (!this.value) return;
     if (this.value[0] != '(') return;
     this.parseEscapedString(true, ')', '(');
     this.skipFWS();
@@ -372,7 +370,7 @@ class HeaderParser {
   parseString(endChar) {
     var string;
     this.skipFWS();
-    if (!this.value.length) return;
+    if (!this.value) return;
     if (this.value[0] == '"') string = this.parseEscapedString(true, '"');
     else if (endChar !== undefined) string = this.parseEscapedString(false, endChar);
     else string = this.parseToken();
@@ -427,7 +425,7 @@ class HeaderParser {
   // as discussed in RFC 8187.
   parseParameter(parameters, noComment) {
     var name = this.parseToken();
-    if (name === undefined) return;
+    if (!name) return;
     name = name.toLowerCase();
 
     // (MIME) If name contains/ends with '*' followed by an integer, the value
@@ -436,9 +434,9 @@ class HeaderParser {
     var els = name.split('*');
     if (els.length > 3) return;
     name = els[0];
-    var encoded = ((els.length > 1) && !els[els.length-1].length);
+    var encoded = ((els.length > 1) && !els[els.length-1]);
     var section;
-    if ((els.length > 1) && els[1].length) {
+    if ((els.length > 1) && els[1]) {
       if (/^[0-9]*$/.test(els[1])) section = parseInt(els[1]);
       else return;
     }
@@ -446,7 +444,7 @@ class HeaderParser {
     var parameter = parameters[name] || {};
 
     this.skipFWS();
-    if (!this.value.length) return;
+    if (!this.value) return;
     if (this.value[0] != '=') return;
     this.skipChar();
 
@@ -470,12 +468,12 @@ class HeaderParser {
     var self = this;
     var parameters = {};
     this.skipFWS();
-    if (!this.value.length) return parameters;
+    if (!this.value) return parameters;
     if (this.value[0] != ';') return parameters;
     this.skipChar();
     while (true) {
-      if (this.parseParameter(parameters, noComment) === undefined) break;
-      if (!this.value.length) break;
+      if (!this.parseParameter(parameters, noComment)) break;
+      if (!this.value) break;
       if (this.value[0] != ';') break;
       this.skipChar();
     }
@@ -519,12 +517,12 @@ class HeaderParser {
   // Parses media type (e.g. in Content-Type header)
   parseMediaType() {
     var mainType = this.parseToken();
-    if (mainType === undefined) return;
-    if (!this.value.length) return;
+    if (!mainType) return;
+    if (!this.value) return;
     if (this.value[0] != '/') return;
     this.skipChar();
     var subType = this.parseToken();
-    if (subType === undefined) return;
+    if (!subType) return;
     return `${mainType}/${subType}`;
   }
 

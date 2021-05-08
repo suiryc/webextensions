@@ -69,7 +69,7 @@ class FrameHandler {
     // injection success and result/error.
     this.scripts = {};
     if (!this.cleared) this.actionNext = [];
-    if (notify !== undefined) {
+    if (notify) {
       var notifyDetails = Object.assign({}, notify, {
         windowId: this.tabHandler.windowId,
         tabId: this.tabHandler.id,
@@ -117,7 +117,7 @@ class FrameHandler {
   }
 
   isExcludedHost() {
-    if (this.excludedHost === undefined) {
+    if (!('excludedHost' in this)) {
       this.excludedHost = false;
       var idx = this.url.indexOf('//');
       if (idx > 0) {
@@ -146,11 +146,11 @@ class FrameHandler {
   nextAction() {
     var self = this;
     // Let current action end if any.
-    if (self.actionRunning !== undefined) return;
+    if (self.actionRunning) return;
     // Get next action if any.
     if (self.cleared) return;
     var next = self.actionNext.shift();
-    if (next === undefined) return;
+    if (!next) return;
     // Trigger callback, and complete its promise.
     self.actionRunning = next.deferred.promise;
     next.deferred.completeWith(next.callback);
@@ -181,7 +181,7 @@ class FrameHandler {
     };
     var details = {
       frameId: frameId,
-      code: `if (csParams === undefined) {
+      code: `if (!csParams) {
   var csParams = ${JSON.stringify(csParams)};
   var result = { csUuid: csParams.uuid, existed: false, url: location.href };
 } else result = { csUuid: csParams.uuid, existed: true, url: location.href };
@@ -267,7 +267,7 @@ result;`,
 
     if (self.cleared) return;
     // Setup frame for first script.
-    if (Object.keys(self.scripts).length == 0) {
+    if (!Object.keys(self.scripts).length) {
       var setup = await self.setup();
       if (self.cleared) return;
       if (!setup.existed && setup.reused) {
@@ -295,7 +295,7 @@ result;`,
       }
     }
     // Nothing to do if script already setup.
-    if (self.scripts[id] !== undefined) {
+    if (self.scripts[id]) {
       if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> csUuid=<%s> already has script=<%s>', tabId, frameId, self.csUuid, id);
       return self.scripts[id];
     }
@@ -359,7 +359,7 @@ class TabHandler {
   reset(details, notify) {
     // Reset main frame.
     // Note: notify observer even if we don't know the main frame.
-    if (this.frameHandler !== undefined) this.frameHandler.reset(details, notify);
+    if (this.frameHandler) this.frameHandler.reset(details, notify);
     else {
       var notifyDetails = Object.assign({}, notify, {
         windowId: this.windowId,
@@ -406,13 +406,13 @@ class TabHandler {
     var key = details.key;
     var create = details.create;
     var entry = this.extensionProperties[key];
-    if ((entry === undefined) && (create !== undefined)) {
+    if (!entry && create) {
       entry = this.extensionProperties[key] = {
         prop: create(this),
         keepOnReset: details.keepOnReset
       }
     }
-    return (entry !== undefined) ? entry.prop : undefined;
+    if (entry) return entry.prop;
   }
 
   async findFrames() {
@@ -436,7 +436,7 @@ class TabHandler {
     params = params || {};
     var frameId = details.frameId;
     var frameHandler = this.frames[frameId];
-    if (frameHandler !== undefined) {
+    if (frameHandler) {
       // If requested, skip processing existing frame.
       if (params.skipExisting) return;
       // Get fresh tab information.
@@ -467,7 +467,7 @@ class TabHandler {
     var frameHandler = this.frames[frameId];
     // We are called ahead of time, before frame content is actually loaded.
     // We can ignore unknown frames, for which 'addFrame' will be called later.
-    if (frameHandler === undefined) return;
+    if (!frameHandler) return;
     if (frameId === 0) this.reset(details, { beforeNavigate: true, domLoaded: false });
     else frameHandler.reset(details, { beforeNavigate: true, domLoaded: false });
   }
@@ -478,6 +478,11 @@ class TabHandler {
 //
 // Notes:
 // Once created, it automatically listens to window/tab/frame changes.
+//
+// At least in Firefox:
+//  - windowId starts at 1
+//  - tabId starts at 1
+//  - frameId is 0 for the main frame
 //
 // Observers can be added to be notified of changes. For each possible change,
 // observers are only notified if they have a function of the same name.
@@ -586,7 +591,6 @@ export class TabsHandler {
 
   constructor() {
     this.tabs = {};
-    this.focusedWindowId = undefined;
     this.focusedTab = {};
     this.activeTabs = {};
     this.observers = [];
@@ -601,11 +605,11 @@ export class TabsHandler {
   getFrame(details) {
     // Get request tab handler if known.
     var tabHandler = this.tabs[details.tabId];
-    if (tabHandler === undefined) return;
+    if (!tabHandler) return;
     // Ensure requested frame belongs to the tab.
     var frameHandler = tabHandler.frames[details.frameId];
-    if (frameHandler === undefined) return;
-    if ((details.csUuid !== undefined) && (frameHandler.csUuid !== details.csUuid)) return;
+    if (!frameHandler) return;
+    if (details.csUuid && (frameHandler.csUuid !== details.csUuid)) return;
     return frameHandler;
   }
 
@@ -644,10 +648,10 @@ export class TabsHandler {
         });
       }
     }
-    if (util.hasMethod(observer, constants.EVENT_WINDOW_FOCUSED) && (this.focusedWindowId !== undefined)) {
+    if (util.hasMethod(observer, constants.EVENT_WINDOW_FOCUSED) && this.focusedWindowId) {
       this.notifyObserver(observer, constants.EVENT_WINDOW_FOCUSED, { previousWindowId: this.focusedWindowId, windowId: this.focusedWindowId });
     }
-    if (util.hasMethod(observer, constants.EVENT_TAB_FOCUSED) && (this.focusedTab.id !== undefined)) {
+    if (util.hasMethod(observer, constants.EVENT_TAB_FOCUSED) && this.focusedTab.id) {
       var windowId = this.focusedTab.windowId;
       var tabId = this.focusedTab.id;
       var tabHandler = this.focusedTab.handler;
@@ -693,7 +697,7 @@ export class TabsHandler {
     // Reminder: we may be called with outdated (since the query was done) tab
     // information.
     // So if the tab is already known, do nothing.
-    if (tabHandler !== undefined) return tabHandler;
+    if (tabHandler) return tabHandler;
 
     if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
@@ -705,10 +709,10 @@ export class TabsHandler {
     //    will trigger a second 'tabActivated' notification, passing the known
     //    handler (which was undefined in the previous notification)
     var activeTab = this.getActiveTab(windowId);
-    if (tab.active && (activeTab.handler === undefined)) {
+    if (tab.active && !activeTab.handler) {
       // Either we did not know yet which tab was active, or we did not manage
       // yet this tab.
-      if ((activeTab.id === undefined) || (activeTab.id === tabId)) {
+      if (!activeTab.id || (activeTab.id === tabId)) {
         // We manage the tab now, and it really is the active tab.
         // previousTabId points to the active tab too, so that observer can
         // deduce there is no actual change (except for the handler known).
@@ -728,7 +732,7 @@ export class TabsHandler {
     // not removed here.
     var previousTabId = details.previousTabId;
     var previousTabHandler = this.getActiveTab(windowId).handler;
-    if ((previousTabHandler === undefined) && (previousTabId !== undefined)) previousTabHandler = this.tabs[previousTabId];
+    if (!previousTabHandler && previousTabId) previousTabHandler = this.tabs[previousTabId];
     // Note: we still notify observers when handler is not (yet) known. In this
     // case the passed handled is undefined.
     // Once the tab become known, we are called again, and can then pass the
@@ -777,7 +781,7 @@ export class TabsHandler {
     }
     this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId: previousWindowId, windowId: windowId });
     // Don't notify tab focusing if there is none.
-    if (focusedTab.id !== undefined) {
+    if (focusedTab.id) {
       this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
         previousWindowId: previousWindowId,
         previousTabId: previousFocusedTab.id,
@@ -797,7 +801,7 @@ export class TabsHandler {
     var self = this;
     var tabId = details.tabId;
     var tabHandler = self.tabs[tabId];
-    if (tabHandler === undefined) {
+    if (!tabHandler) {
       // Tab is unknown.
       // If this is the main frame, we will manage this new tab.
       // Otherwise, ignore this frame: we expect to be notified of a subframe
@@ -811,13 +815,13 @@ export class TabsHandler {
         console.log('Could not manage tab=<%s>: %o', tabId, error);
       });
     }
-    if (tabHandler === undefined) return;
+    if (!tabHandler) return;
     return await tabHandler.addFrame(details, params);
   }
 
   resetFrame(details) {
     var tabHandler = this.tabs[details.tabId];
-    if (tabHandler === undefined) return;
+    if (!tabHandler) return;
     tabHandler.resetFrame(details);
   }
 
@@ -838,7 +842,7 @@ export class TabsHandler {
     var windowId = details.newWindowId;
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
-    if (tabHandler !== undefined) tabHandler.windowId = windowId;
+    if (tabHandler) tabHandler.windowId = windowId;
     this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
   }
 
@@ -851,7 +855,7 @@ export class TabsHandler {
       tabId: tabId,
       tabHandler: tabHandler
     });
-    if (tabHandler === undefined) return;
+    if (!tabHandler) return;
     if (settings.debug.misc) console.log('Removing window=<%s> tab=<%s>', tabHandler.windowId, tabHandler.id);
     tabHandler.clear();
     delete(this.tabs[tabId]);

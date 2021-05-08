@@ -43,7 +43,7 @@ function unhandledMessage(msg, sender) {
 // Next interception is being ignored.
 function dl_ignoreNext(msg) {
   var ttl = msg.ttl / 1000;
-  ignoringNext = (ttl > 0);
+  ignoringNext = !!ttl;
   // Update displayed button text: append remaining TTL if any.
   if (ignoringNext) ignoreNextButton.textContent = `${ignoreNextText} (${ttl}s)`;
   else ignoreNextButton.textContent = ignoreNextText;
@@ -51,7 +51,7 @@ function dl_ignoreNext(msg) {
 
 async function dl_updateVideos(sources, showTab) {
   // Get sources if not given.
-  if (sources === undefined) {
+  if (!sources) {
     // Note: we don't need to bother about the window we belong to, since we
     // only run when popup is displayed which means our window is the focused
     // window, and requested sources are those of the focused window.
@@ -63,7 +63,7 @@ async function dl_updateVideos(sources, showTab) {
   videosNode.querySelectorAll(':scope > .list-item').forEach(node => {
     node.remove();
   });
-  if ((sources === undefined) || !Array.isArray(sources) || !sources.length) {
+  if (!sources || !Array.isArray(sources) || !sources.length) {
     videosItemNode.classList.toggle('badge', false);
     videosItemNode.removeAttribute('data-badge');
     return;
@@ -76,20 +76,20 @@ async function dl_updateVideos(sources, showTab) {
     util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
     var subtitle = [];
     var tooltip = [];
-    if (source.size !== undefined) subtitle.push(util.getSizeText(source.size));
-    if (extension !== undefined) subtitle.push(extension);
+    if ('size' in source) subtitle.push(util.getSizeText(source.size));
+    if (extension) subtitle.push(extension);
     var hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
     subtitle.push(hostname);
     tooltip.push(util.limitText(source.url, 120));
     subtitle = subtitle.join(' - ');
-    if (source.actualUrl !== undefined) {
+    if (source.actualUrl) {
       var actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
       if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
         subtitle = `${subtitle}\nActual host: ${actualHostname}`;
       }
       tooltip.push(util.limitText(source.actualUrl, 120));
     }
-    if (source.forceUrl !== undefined) {
+    if (source.forceUrl) {
       var actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
       if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
         subtitle = `${subtitle}\nForced host: ${actualHostname}`;
@@ -184,7 +184,7 @@ function replaceNode(node1, node2) {
 }
 
 function addMessage(details) {
-  if ((details.windowId !== undefined) && (details.windowId != windowId)) return;
+  if (details.windowId && (details.windowId != windowId)) return;
   messages.push(details);
   var tabId = details.tabId;
   var level = details.level;
@@ -266,7 +266,7 @@ ignoreNextButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_DL_IGNORE_NEXT,
-    ttl: ignoringNext ? 0 : undefined
+    ttl: ignoringNext ? 0 : constants.IGNORE_NEXT_TTL
   });
 });
 
@@ -312,7 +312,7 @@ clearOtherMessagesButton.addEventListener('click', () => {
   windowId = details.focusedWindowId;
   activeTabId = details.focusedTabId;
   var msgs = details.messages;
-  if ((msgs !== undefined) && Array.isArray(msgs) && msgs.length) {
+  if (msgs && Array.isArray(msgs) && msgs.length) {
     messages = msgs;
     refreshMessages();
     document.querySelector('#tab-messages-item').click();

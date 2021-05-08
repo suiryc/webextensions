@@ -99,7 +99,7 @@ export class MenuHandler {
   }
 
   addEntry(details) {
-    if (this.extraEntries.length == 0) {
+    if (!this.extraEntries.length) {
       // Possibly more than one menu entry to show, use the root menu.
       browser.contextMenus.update('dl.link', {
         visible: false
@@ -127,7 +127,7 @@ export class MenuHandler {
       this.extraEntries = this.extraEntries.filter(el => el !== id);
       browser.contextMenus.remove(id);
     }
-    if (this.extraEntries.length == 0) this.emptied();
+    if (!this.extraEntries.length) this.emptied();
     else browser.contextMenus.refresh();
   }
 

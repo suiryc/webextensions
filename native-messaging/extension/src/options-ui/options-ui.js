@@ -38,7 +38,8 @@ var resetButton = document.querySelector('#reset');
 
 function downloadDone(url, id) {
   // Remove download entry when applicable.
-  var p = (id !== undefined) ? browser.downloads.erase({id: id}) : util.defer;
+  // (id starts at 1, at least in Firefox)
+  var p = id ? browser.downloads.erase({id: id}) : util.defer;
   p.catch(() => {}).then(() => {
     URL.revokeObjectURL(url);
   });

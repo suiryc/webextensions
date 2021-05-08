@@ -71,8 +71,7 @@
 // instead of 'settings.debug.value'/'settings.debug.setValue' (read/write).
 
 async function getStorageValue(key, value) {
-  if (key === undefined) key = null;
-  if (key === null) return await browser.storage.local.get(null);
+  if (!key) return await browser.storage.local.get(null);
 
   var keys = {};
   keys[key] = value;
@@ -200,7 +199,7 @@ class Settings extends SettingsBranch {
     for (var key of Object.keys(keys)) {
       var newKey = keys[key];
       try {
-        if ((newKey === undefined) || (newKey === null)) {
+        if (!newKey) {
           await removeStorageValue(key);
           console.log(`Deleted oldKey=<${key}>`);
           continue;
@@ -242,7 +241,7 @@ class Settings extends SettingsBranch {
       // assume the extension was just installed and we only need to save the
       // current version. At worst no setting was ever changed in which case we
       // use default values anyway.
-      if (Object.keys(await getStorageValue()).length == 0) {
+      if (!Object.keys(await getStorageValue()).length) {
         // Assume extension was just installed.
         console.log(`Initiate settings at version=<${this.latestSettingsVersion}>`);
         await setting.setValue(this.latestSettingsVersion);
@@ -280,16 +279,16 @@ class ExtensionSetting {
     // This makes it easier when we only need to read the setting knowing its
     // key (HTML field value tracking), or to get all known settings (to e.g.
     // loop over them).
-    if (settings.inner.perKey === undefined) settings.inner.perKey = {};
+    if (!settings.inner.perKey) settings.inner.perKey = {};
     settings.inner.perKey[key] = this;
 
     // Automatically register ourself as a setting.
     // Handle subfields recursively.
     var target = settings.inner;
     var keys = key.split('.');
-    while (keys.length > 0) {
+    while (keys.length) {
       var leaf = keys.shift();
-      if (keys.length > 0) {
+      if (keys.length) {
         // We will need to access another subfield.
         // Belt and suspenders: ensure we did not accidentally assigned a
         // setting to the subfield itself.
@@ -297,7 +296,7 @@ class ExtensionSetting {
           throw new Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
         }
         // Recursively create a Settings Proxy for subfield if needed.
-        if (target[leaf] === undefined) target[leaf] = new SettingsBranch().proxy;
+        if (!target[leaf]) target[leaf] = new SettingsBranch().proxy;
         target = target[leaf].inner;
       } else {
         // Reached leaf: assign us.
@@ -333,7 +332,7 @@ class ExtensionSetting {
     // Update value.
     self.value = v;
     // Update field when applicable.
-    if (self.field !== undefined) self.updateField();
+    if (self.field) self.updateField();
     if (!updated) {
       // Persist new value.
       await self.persistValue();
@@ -356,8 +355,7 @@ class ExtensionSetting {
   trackField() {
     var self = this;
     self.field = document.getElementById(self.key);
-    if (self.field === null) self.field = undefined;
-    if (self.field === undefined) return false;
+    if (!self.field) return false;
     self.updateField();
     return true;
   }
@@ -470,7 +468,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   updateField() {
-    if ((this.value === undefined) || (this.value === null)) this.field.value = '';
+    if (!this.value) this.field.value = '';
     else this.field.value = this.value;
   }
 
@@ -521,7 +519,7 @@ export async function waitForSettings(migrate) {
   // Knowing the browser is sometimes useful/necessary.
   // browser.runtime.getBrowserInfo exists in Firefox >= 51
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
-  if (browser.runtime.getBrowserInfo !== undefined) {
+  if (browser.runtime.getBrowserInfo) {
     promises.push(browser.runtime.getBrowserInfo().then(info => {
       // Note: replacing the variable, instead of altering its content, means
       // caller really *must* wait for us to be ready *before* getting this
@@ -537,7 +535,6 @@ export async function waitForSettings(migrate) {
     }));
   }
   await Promise.all(promises);
-  return;
 }
 
 // Tracks all fields.

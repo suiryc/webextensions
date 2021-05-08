@@ -54,8 +54,6 @@ export class TabSuccessor {
   constructor(tabsHandler) {
     var self = this;
     self.tabsHandler = tabsHandler;
-    // Currently scheduled checkTabs call.
-    self.scheduledCheckTabs = undefined;
     // List of inactive tabs opened.
     self.inactiveOpenedTabs = {
       // By tab id
@@ -69,15 +67,14 @@ export class TabSuccessor {
 
   async chainTabs(tabs, successor, options) {
     var self = this;
-    if (successor === undefined) {
+    if (!successor) {
       // We need at least two tabs to chain.
       if (tabs.length < 2) return;
-      successor = tabs[0];
+      successor = tabs[0].id;
     } else {
       // We need at least one tab to chain.
-      if (tabs.length < 1) return;
+      if (!tabs.length) return;
     }
-    if ((typeof(successor) == 'object') && ('id' in successor)) successor = successor['id'];
     await browser.tabs.moveInSuccession(tabs.map(tab => tab.id), successor, options);
     self.scheduleCheckTabs();
   }
@@ -110,7 +107,7 @@ export class TabSuccessor {
     // Gather tabs per window.
     for (var tab of tabs) {
       // Leave alone tabs that already have a successor.
-      if (!reset && (tab.successorTabId >= 0)) continue;
+      if (!reset && tab.successorTabId) continue;
       var entry = tabsPerWindow[tab.windowId] || [];
       entry.push(tab);
       tabsPerWindow[tab.windowId] = entry;
@@ -130,7 +127,7 @@ export class TabSuccessor {
   async tabCreated(details) {
     var self = this;
     var tab = details.tab;
-    if (tab.active || !(tab.openerTabId >= 0)) {
+    if (tab.active || !tab.openerTabId) {
       self.scheduleCheckTabs();
       return;
     }
@@ -143,13 +140,13 @@ export class TabSuccessor {
     // In case we fail later, chain them right now from first->last->opener.
     self.inactiveOpenedTabs.byId[tab.id] = tab;
     var opened = self.inactiveOpenedTabs.byOpener[tab.openerTabId] || [];
-    var tab2 = undefined;
-    var options = undefined;
+    var tab2;
+    var options;
     if (opened.length) {
       // We already have a chain first->last->opener.
       // We only need to append+insert our new tab between the previously last
       // tab and the opener.
-      tab2 = opened.slice(-1)[0];
+      tab2 = opened.slice(-1)[0].id;
       options = { append: true, insert: true };
     } else {
       // This is our first opened tab.
@@ -166,7 +163,7 @@ export class TabSuccessor {
   async tabActivated(details) {
     var self = this;
     var openedTab = self.inactiveOpenedTabs.byId[details.tabId];
-    if (openedTab !== undefined) {
+    if (openedTab) {
       // This was an opened (inactive) tab.
       var opened = self.inactiveOpenedTabs.byOpener[openedTab.openerTabId];
       // Forget all tabs opened by the same opener.
@@ -177,20 +174,21 @@ export class TabSuccessor {
       // Link those tabs from activated->first->last->opener
       var index = opened.indexOf(openedTab);
       opened = [openedTab].concat(opened.slice(0, index).reverse()).concat(opened.slice(index + 1));
-      var successor = undefined;
+      var successor;
+      // If the opener tab still exists, use it as successor.
+      // If not, getting it will fail.
       try {
-        successor = await browser.tabs.get(openedTab.openerTabId);
+        successor = (await browser.tabs.get(openedTab.openerTabId)).id;
       } catch(error) {
-        // Happens if opener has been closed in the meantime.
       }
-      if (successor === undefined) {
-        // If opener is not there, fallbacks to the current successor of the
+      if (!successor) {
+        // If opener is not there, fallback to the current successor of the
         // last tab (which supposedly replaces it).
         try {
-          successor = await browser.tabs.get(opened.slice(-1)[0].id);
-          successor = successor.successorTabId;
+          successor = (await browser.tabs.get(opened.slice(-1)[0].id)).successorTabId;
         } catch(error) {
-          // Should not happen.
+          // Should not happen: if this tab was removed, we should have been notified
+          // already, and we don't expect race condition to be possible here.
           console.log('Could not get last tab in chain of inactive opened tabs:', error);
         }
       }
@@ -198,7 +196,7 @@ export class TabSuccessor {
       await self.chainTabs(opened, successor);
       return;
     }
-    if ((details.previousTabId === null) || (details.previousTabId === undefined)) {
+    if (!details.previousTabId) {
       self.scheduleCheckTabs();
       return;
     }
@@ -217,7 +215,7 @@ export class TabSuccessor {
     var self = this;
     var tabId = details.tabId;
     var openedTab = self.inactiveOpenedTabs.byId[tabId];
-    if (openedTab === undefined) {
+    if (!openedTab) {
       self.scheduleCheckTabs();
       return;
     }
@@ -251,13 +249,13 @@ export class TabSuccessor {
   // Useful when many rapid actions trigger more than one scheduling.
   scheduleCheckTabs(delay = 1000) {
     if (!settings.debug.tabs.successor) return;
-    if (this.scheduledCheckTabs !== undefined) clearTimeout(this.scheduledCheckTabs);
+    if (this.scheduledCheckTabs) clearTimeout(this.scheduledCheckTabs);
     this.scheduledCheckTabs = setTimeout(this.checkTabs.bind(this), delay);
   }
 
   // Checks all tabs and logs debugging information.
   async checkTabs() {
-    this.scheduledCheckTabs = undefined;
+    delete(this.scheduledCheckTabs);
     var tabs = await browser.tabs.query({});
     var tabsInfo = {};
     var tabsByWindow = {};
@@ -279,7 +277,6 @@ export class TabSuccessor {
       var tabId = tab.id;
       var info = tabsInfo[tabId];
       var windowInfo = tabsByWindow[tab.windowId] || {
-        active: undefined,
         withSuccessor: {},
         withoutSuccessor: {},
         chains: []
@@ -312,14 +309,14 @@ export class TabSuccessor {
       // Only process tab if it is not already part of an existing chain.
       if (chain.length) {
         // Check any chain that would be the successor of our chain last tab.
-        var chainSuccessor = undefined;
+        var chainSuccessor;
         for (var chainExisting of tabsByWindow[tab.windowId].chains) {
           if (chainExisting[0].id == info.id) {
             chainSuccessor = chainExisting;
             break;
           }
         }
-        if (chainSuccessor !== undefined) {
+        if (chainSuccessor) {
           // Our chain actually precedes another chain we already built.
           // Prepend it.
           chainSuccessor.unshift.apply(chainSuccessor, chain);

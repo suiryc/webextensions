@@ -40,8 +40,7 @@ import { settings } from '../common/settings.js';
 export class WebExtension {
 
   constructor(params) {
-    if (params.target == null) delete(params.target);
-    if (params.target == undefined) throw new Error('The target parameter is mandatory');
+    if (!params.target) throw new Error('The target parameter is mandatory');
     this.params = params;
     // Caller may want to attach 'attributes' related to the instance.
     this.attributes = {};
@@ -63,13 +62,13 @@ export class WebExtension {
     // Port.onMessage listener properly transmits any returned value/Promise.
     var actualSender = sender;
     // If the sender is a Port, get the real sender field.
-    var isPort = (sender.sender !== undefined);
+    var isPort = !!sender.sender;
     if (isPort) actualSender = sender.sender;
     // Ignore message when applicable.
     if (!this.isTarget(msg)) {
       // If the background script receives a Port message for another target,
       // forward the message.
-      if (isPort && (this.targets !== undefined) && (msg.target !== undefined)) return this.sendMessage(msg);
+      if (isPort && this.targets && msg.target) return this.sendMessage(msg);
       if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, this.params.target, msg.target);
       return;
     }
@@ -109,8 +108,7 @@ export class WebExtension {
   }
 
   isTarget(msg) {
-    if (msg.target == null) delete(msg.target);
-    return (msg.target === undefined) || (msg.target == this.params.target);
+    return !msg.target || (msg.target == this.params.target);
   }
 
   // Listens to incoming connections.
@@ -127,7 +125,7 @@ export class WebExtension {
   registerPort(port, target) {
     // Create the handler the first time.
     var handler = this.ports.get(port);
-    if (handler === undefined) {
+    if (!handler) {
       handler = new PortHandler({
         onMessage: this.onMessage.bind(this),
         onDisconnect: this.unregisterPort.bind(this)
@@ -138,7 +136,7 @@ export class WebExtension {
     // Remember the remote endpoint target kind once known (first message it
     // should send).
     handler.params.target = target;
-    if (target === undefined) return;
+    if (!target) return;
     var targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
@@ -150,12 +148,12 @@ export class WebExtension {
     // Note: explicitly delete because if we don't know the target, we have
     // nothing else to do; and we don't want to keep the weak reference either.
     this.ports.delete(port);
-    if (target === undefined) return;
+    if (!target) return;
     var targets = this.targets[target];
     // Belt and suspenders: we should know this target.
-    if (targets === undefined) return;
+    if (!targets) return;
     targets = targets.filter(v => v !== handler);
-    if (targets.length === 0) delete(this.targets[target]);
+    if (!targets.length) delete(this.targets[target]);
     else this.targets[target] = targets;
   }
 
@@ -163,8 +161,8 @@ export class WebExtension {
     var self = this;
     if (!events) return;
     var handler = self.ports.get(port);
-    if (handler === undefined) return;
-    var setup = self.tabsEventsTargets === undefined;
+    if (!handler) return;
+    var setup = !self.tabsEventsTargets;
     if (setup) {
       self.tabsEventsTargets = {};
       constants.EVENTS_TABS.forEach(key => {
@@ -192,7 +190,7 @@ export class WebExtension {
     if (tabsHandler) {
       // The tabs handler should be defined for the background script.
       // Post tabs events to observers.
-      if (events === undefined) {
+      if (!events) {
         // Setup common proxy observer for the first actual observer.
         var dummyObserver = {};
         constants.EVENTS_TABS.forEach(key => {
@@ -271,7 +269,7 @@ export class WebExtension {
   sendMessage(msg) {
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
-    if ((this.targets !== undefined) && (msg.target !== undefined)) {
+    if (this.targets && msg.target) {
       var ports = this.targets[msg.target] || [];
       var promises = [];
       for (var port of ports) {
@@ -287,7 +285,7 @@ export class WebExtension {
     // should not be needed/useful, as only non-background scripts do use Ports,
     // and if remote endpoint disconnects, it should mean it is not running
     // anymore.
-    var usePort = (this.portHandler !== undefined) && this.portHandler.isConnected();
+    var usePort = this.portHandler && this.portHandler.isConnected();
     if (usePort) return this.portHandler.postRequest(msg);
     return browser.runtime.sendMessage(msg);
   }
@@ -324,7 +322,7 @@ class PortHandler {
   }
 
   isConnected() {
-    return (this.port !== undefined);
+    return !!this.port;
   }
 
   setPort(port) {
@@ -334,7 +332,7 @@ class PortHandler {
   }
 
   connect() {
-    if (this.port !== undefined) return;
+    if (this.port) return;
 
     this.autoReconnect = true;
     this.setPort(browser.runtime.connect());
@@ -366,7 +364,7 @@ class PortHandler {
     // null error field.
     if (port.error == null) delete(port.error);
     var error = port.error;
-    if (port.error !== undefined) console.warn('Extension port %o disconnected: %o', port, port.error);
+    if (error) console.warn('Extension port %o disconnected: %o', port, error);
     delete(self.port);
     // Wipe out current requests; reject any pending Promise.
     // Parent will either wipe us out (background script), or we should not
@@ -374,7 +372,7 @@ class PortHandler {
     // dead.
     for (var promise of Object.values(self.requests)) {
       var msg = 'Remote script disconnected';
-      if (error !== undefined) msg += ' with error: ' + util.formatObject(error);
+      if (error) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
     self.requests = {};
@@ -386,12 +384,12 @@ class PortHandler {
       }, 1000);
     }
     // Notify parent if needed.
-    if (self.params.onDisconnect !== undefined) self.params.onDisconnect(port, self);
+    if (self.params.onDisconnect) self.params.onDisconnect(port, self);
   }
 
   // Posts message without needing to get the reply.
   postMessage(msg) {
-    if (this.port !== undefined) this.port.postMessage(msg);
+    if (this.port) this.port.postMessage(msg);
   }
 
   // Posts request and return reply through Promise.
@@ -401,7 +399,7 @@ class PortHandler {
     var correlationId;
     do {
       correlationId = util.uuidv4();
-    } while ((self.requests[correlationId] !== undefined) && (correlationId !== self.lastRequestId));
+    } while (self.requests[correlationId] && (correlationId !== self.lastRequestId));
     // The caller may need the passed message to remain unaltered, especially
     // the correlationId, which is used to reply to the original sender in case
     // of (background script) forwarding.
@@ -412,7 +410,7 @@ class PortHandler {
     self.postMessage(msg);
 
     // Setup response handling
-    if (timeout === undefined) timeout = this.defaultTimeout;
+    if (!timeout) timeout = this.defaultTimeout;
     var promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
     return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
@@ -425,9 +423,9 @@ class PortHandler {
     var correlationId = msg.correlationId;
     var callback = true;
     // Handle this message as a reponse when applicable.
-    if (correlationId !== undefined) {
+    if (correlationId) {
       var promise = this.requests[correlationId];
-      if (promise !== undefined) {
+      if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.
         delete(msg.correlationId);
@@ -435,8 +433,7 @@ class PortHandler {
         // 'error' field. For simplicity, we don't transform an error into a
         // failed Promise, but let caller check whether this in an error
         // through the field.
-        if (msg.reply !== undefined) promise.resolve(msg.reply);
-        else promise.resolve(msg);
+        promise.resolve('reply' in msg ? msg.reply : msg);
         callback = false;
       }
     }
@@ -461,7 +458,7 @@ class PortHandler {
     //  - ...
     // In this specific case, break out of the loop by remembering the last
     // received correlationId: if we see it again, assume this is a loop.
-    if ((msg.correlationId !== undefined) && (msg.correlationId === self.lastRequestId)) {
+    if (msg.correlationId && (msg.correlationId === self.lastRequestId)) {
       console.warn(`Detected request/response loop on correlationId=<${msg.correlationId}>`);
       return;
     }
@@ -474,7 +471,7 @@ class PortHandler {
       r = Promise.reject(error);
     }
     // Don't handle reply if caller don't expect it.
-    if (msg.correlationId === undefined) return;
+    if (!msg.correlationId) return;
     self.lastRequestId = msg.correlationId;
     // Embed reply in 'reply' field, or error in 'error' field.
     r.then(v => {
@@ -513,16 +510,13 @@ export class NativeApplication extends PortHandler {
     super(params);
     this.appId = appId;
     this.fragments = {};
-    this.idleId = undefined;
     this.lastJanitoring = util.getTimestamp();
     this.defaultTimeout = constants.NATIVE_RESPONSE_TIMEOUT;
-    if (params.onMessage === undefined) {
-      throw new Error('Native application client must have an onMessage handler');
-    }
+    if (!params.onMessage) throw new Error('Native application client must have an onMessage handler');
   }
 
   connect() {
-    if (this.port !== undefined) return;
+    if (this.port) return;
     try {
       this.setPort(browser.runtime.connectNative(this.appId));
     } catch (error) {
@@ -534,7 +528,7 @@ export class NativeApplication extends PortHandler {
   }
 
   disconnect() {
-    if (this.port === undefined) return;
+    if (!this.port) return;
     this.port.disconnect();
     delete(this.port);
   }
@@ -549,13 +543,13 @@ export class NativeApplication extends PortHandler {
 
   onDisconnect(port) {
     // Note: this.port is undefined if *we* asked to disconnect.
-    if ((this.port !== undefined) && (port !== this.port)) {
+    if (this.port && (port !== this.port)) {
       // This is not our connection; should not happen
       console.warn('Received unknown native application %s port %o disconnection', nativeApp.appId, port);
       return;
     }
-    var error = undefined;
-    if (this.port !== undefined) {
+    var error;
+    if (this.port) {
       // We don't expect the native application (port) to close itself: this
       // should mean an error was encoutered.
       error = port.error;
@@ -565,16 +559,16 @@ export class NativeApplication extends PortHandler {
     this.fragments = {};
     for (var promise of Object.values(this.requests)) {
       var msg = 'Native application disconnected';
-      if (error !== undefined) msg += ' with error: ' + util.formatObject(error);
+      if (error) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
     this.requests = {};
-    if (this.params.onDisconnect !== undefined) this.params.onDisconnect(this);
+    if (this.params.onDisconnect) this.params.onDisconnect(this);
   }
 
   onMessage(msg, sender) {
     this.lastActivity = util.getTimestamp();
-    if (msg.fragment !== undefined) {
+    if (msg.fragment) {
       this.addFragment(msg);
     } else {
       super.onMessage(msg, sender);
@@ -590,13 +584,13 @@ export class NativeApplication extends PortHandler {
     var fragmentKind = msg.fragment;
     var correlationId = msg.correlationId;
 
-    if (correlationId === undefined) {
+    if (!correlationId) {
       console.warn('Dropping message %o: missing correlationId', msg)
       return;
     }
 
     var previousFragment = this.fragments[correlationId];
-    if (previousFragment === undefined) {
+    if (!previousFragment) {
       if (fragmentKind === FRAGMENT_KIND_START) {
         // First fragment
         msg.msgCreationTime = util.getTimestamp();
@@ -626,22 +620,21 @@ export class NativeApplication extends PortHandler {
   }
 
   idleCheck() {
-    this.idleId = undefined;
+    delete(this.idleId);
     // Re-schedule if idle not yet reached
     var remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
     if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
     // Then get rid of old fragments if any
-    if (this.fragments.length > 0) this.janitoring();
+    if (this.fragments.length) this.janitoring();
     // Re-schedule if there are pending requests/fragments
-    if ((this.fragments.length > 0) || (this.requests.length > 0)) return this.scheduleIdleCheck(1000);
+    if (this.fragments.length || this.requests.length) return this.scheduleIdleCheck(1000);
     console.log('Extension %s idle timeout', constants.EXTENSION_ID);
     this.disconnect();
   }
 
   scheduleIdleCheck(delay) {
-    if (this.idleId !== undefined) return;
-    if (delay === undefined) delay = constants.IDLE_TIMEOUT + 1000;
-    this.idleId = setTimeout(this.idleCheck.bind(this), delay);
+    if (this.idleId) return;
+    this.idleId = setTimeout(this.idleCheck.bind(this), delay || (constants.IDLE_TIMEOUT + 1000));
   }
 
   janitoring() {

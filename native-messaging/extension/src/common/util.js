@@ -4,6 +4,19 @@ import { constants } from './constants.js';
 import { settings } from './settings.js';
 
 
+// Notes:
+// Possible ways to check whether global variable is set:
+//  - typeof(variable) !== 'undefined'
+//  - {globalThis,global,window}.variable !== undefined
+//  - 'variable' in {globalThis,global,window}
+// 'window' only exists in browser, although not everywhere (e.g. not in Web
+// Workers), and does not exist in Node.js (unit tests).
+// 'global' exists in Node.js, and may exist in browsers (e.g. Firefox).
+// 'globalThis' is preferred over 'global', as it is supposed to be a standard
+// now, and 'global' needs some webpack code injection which triggers web-ext
+// warnings.
+
+
 // Gets current timestamp (epoch in milliseconds).
 export function getTimestamp() {
   return (new Date()).getTime();
@@ -29,11 +42,8 @@ export function formatObject(obj, processed, recursiveLoop) {
       : formatObject(child, processed);
   };
 
-  if (typeof(obj) == 'function') {
-    // Only keep the function name (not the code).
-    var name = obj.name;
-    return `function ${name.length ? name : '(anonymous)'}`;
-  }
+  // Only keep function name (not the code).
+  if (typeof(obj) == 'function') return `function ${obj.name || '(anonymous)'}`;
   if (Array.isArray(obj)) {
     // Recursively handle arrays.
     if (recursiveLoop) return `Array(${obj.length})`;
@@ -51,19 +61,17 @@ export function formatObject(obj, processed, recursiveLoop) {
   if ((typeof(obj) != 'object') || (obj === null)) return '' + obj;
 
   // Handle errors.
-  if (obj instanceof Error) {
-    return obj.name + ' message=<' + obj.message + '>';
-  }
+  if (obj instanceof Error) return obj.name + ' message=<' + obj.message + '>';
   // Handle requests.
   if ((obj instanceof XMLHttpRequest) || (('status' in obj) && ('statusText' in obj))) {
-    if (!obj.status && !obj.statusText.length) return 'XHR failed';
+    if (!obj.status && !obj.statusText) return 'XHR failed';
     if (obj.status == 200) return 'XHR succeeded';
     return 'XHR status=<' + obj.status + '> statusText=<' + obj.statusText + '>';
   }
 
   function append(p, o) {
     var s = recurse(o);
-    return (s === undefined) ? p : (p + '; ' + s);
+    return s ? p + '; ' + s : p;
   }
 
   // Handle events.
@@ -83,8 +91,8 @@ export function formatObject(obj, processed, recursiveLoop) {
     s += `(failed to stringify) ${error}`;
   }
   if (s.startsWith('[object ')) {
-    var s = obj.constructor.name;
-    if (s.length == 0) s = 'Object';
+    s = obj.constructor.name;
+    if (!s) s = 'Object';
     if (recursiveLoop) return s;
     var idx = 0;
     Object.keys(obj).forEach(f => {
@@ -133,8 +141,7 @@ export function deepEqual(v1, v2) {
 export function cleanupFields(obj) {
   for (var f in obj) {
     var v = obj[f];
-    if (v == null) v = undefined;
-    if (v === undefined) delete(obj[f]);
+    if ((v === null) || (v === undefined)) delete(obj[f]);
   }
 }
 
@@ -142,14 +149,13 @@ export function cleanupFields(obj) {
 export function toJSON(v) {
   // JSON.parse(JSON.stringify(arg)) would be too consuming for our need.
   // Keep non-object values as-is.
-  if ((v === null) || (v === undefined)) return v;
-  if (typeof(v) != 'object') return v;
+  if (!v || (typeof(v) != 'object')) return v;
   // Recursively process arrays.
   if (Array.isArray(v)) return v.map(e => toJSON(e));
   // Recursively process objects.
   // Check whether 'toJSON' has been defined to get a lighter version of
   // the object.
-  v = (v.toJSON !== undefined) ? v.toJSON() : Object.assign({}, v);
+  v = v.toJSON ? v.toJSON() : Object.assign({}, v);
   for (var [key, value] of Object.entries(v)) {
     if (typeof(value) == 'function') delete(v[key]);
     else v[key] = toJSON(value);
@@ -168,7 +174,7 @@ export function callMethod(obj, m, args) {
 // Normalizes url (for download).
 // Drops fragment if any.
 export function normalizeUrl(url, log, label) {
-  if (url === undefined) return;
+  if (!url) return;
   // Notes:
   // We could simply do url.split('#').shift(), but using URL is more standard
   // and does sanitize a bit more.
@@ -185,44 +191,39 @@ export function getFilename(url, filename) {
   // Deduce filename from URL when necessary.
   // Note: we could do normalizeUrl(url).split('?').shift().split('/').pop(),
   // but using URL is more standard, and handle more cases.
-  if (filename === undefined) {
+  if (!filename) {
     try {
       filename = decodeURIComponent(new URL(url).pathname.split('/').pop());
     } catch (error) {
     }
-    // Normalize: undefined if null.
-    if (filename === null) filename = undefined;
   }
-  // Normalize: empty value if undefined.
-  if (filename === undefined) filename = '';
-  return filename;
+  // Normalize: empty value if needed.
+  return filename || '';
 }
 
 // Gets file name and extension.
 // Extension is lowercased.
 export function getFilenameExtension(filename, defaultExtension) {
-  var idx = filename.lastIndexOf('.');
+  var idx = (filename || '').lastIndexOf('.');
   var name = (idx > 0) ? filename.slice(0, idx) : filename;
-  var extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : undefined;
-  if (extension === '') extension = undefined;
-  if (extension === undefined) extension = defaultExtension;
+  var extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : '';
   return {
-    name: name,
-    extension: extension
+    name: name || '',
+    extension: extension || defaultExtension || ''
   };
 }
 
 export function buildFilename(name, extension) {
-  return ((extension !== undefined) && (extension !== null)) ? `${name}.${extension}` : name;
+  name = name || '';
+  return extension ? `${name}.${extension}` : name;
 }
 
 // Round number to the requested precision (3 digits by default).
-function roundNumber(num, dec, precision) {
+export function roundNumber(num, dec, precision) {
   if (num == 0) return 0;
-  if (precision === undefined) precision = 3;
-
-  var threshold = Math.pow(10, precision - 1);
   if (dec === undefined) {
+    if (precision === undefined) precision = 3;
+    var threshold = Math.pow(10, precision - 1);
     var tmp = Math.abs(num);
     if (tmp >= threshold) return Math.round(num);
 
@@ -254,7 +255,7 @@ export function getSizeText(size) {
 // If the text exceeds the given limit, its middle part is replaced by an
 // ellipsis unicode character.
 export function limitText(s, limit) {
-  if ((s === undefined) || (s.length <= limit)) return s;
+  if (!s || (s.length <= limit)) return s;
   // We insert one ellipsis unicode character, to deduce from the given limit.
   //  actualLimit = limit - 1
   // We split the string in two to keep that start and end.
@@ -265,10 +266,7 @@ export function limitText(s, limit) {
 }
 
 export function checkContentScriptSetup(label) {
-  // Possible ways to check whether global variable is set:
-  //  - typeof(variable) !== 'undefined'
-  //  - window.variable !== undefined
-  if (typeof(csParams) === 'undefined') {
+  if (!globalThis.csParams) {
     // Assume there was a race condition: frame changed after injecting content
     // scripts params and before we could be injected.
     var msg = `Not executing ${label} content script: frame not setup yet`;
@@ -285,14 +283,14 @@ export function waitForDocument(callback) {
   var d = new Deferred();
 
   function complete() {
-    if (callback !== undefined) d.completeWith(callback);
+    if (callback) d.completeWith(callback);
     else d.resolve();
   }
 
   // We want to wait for 'document.body' to exist.
   // The simplest way is to wait for 'DOMContentLoaded' which happens when the
   // page has been loaded (not including stylesheets, images and subframes).
-  if (document.body !== null) complete();
+  if (document.body) complete();
   else document.addEventListener('DOMContentLoaded', complete);
 
   return d.promise;
@@ -460,7 +458,7 @@ export class Deferred {
     // our embedded promise.
     for (var f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
-      if (this.promise[f] === undefined) continue;
+      if (!this.promise[f]) continue;
       this[f] = this.promise[f].bind(this.promise);
     }
   }

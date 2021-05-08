@@ -20,7 +20,6 @@ export class WebSocketClient {
 
   constructor(url) {
     this.url = url;
-    this.ws = undefined;
     this.requests = {};
   }
 
@@ -36,13 +35,13 @@ export class WebSocketClient {
   }
 
   disconnect() {
-    if (this.ws === undefined) return;
+    if (!this.ws) return;
     try {
       this.ws.close(1000);
     } catch (error) {
       console.log('Failed to close WebSocket:', error);
     }
-    this.ws = undefined;
+    delete(this.ws);
   }
 
   postMessage(msg) {
@@ -61,14 +60,14 @@ export class WebSocketClient {
     var correlationId;
     do {
       correlationId = util.uuidv4();
-    } while(self.requests[correlationId] !== undefined);
+    } while(self.requests[correlationId]);
     msg.correlationId = correlationId;
 
     // Post message
     self.postMessage(msg);
 
     // Setup response handling
-    if (timeout === undefined) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
+    if (!timeout) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
     var promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
     return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
@@ -85,7 +84,7 @@ export class WebSocketClient {
     this.wsConnected.reject({close: event});
     // Code 1000 is used when *we* request disconnection.
     if (event.code === 1000) return;
-    this.ws = undefined;
+    delete(this.ws);
     var msg = `WebSocket closed with code=<${event.code}> reason=<${event.reason}> clean=<${event.wasClean}>`;
     console.error(msg);
     for (var promise of Object.values(this.requests)) {
@@ -109,9 +108,9 @@ export class WebSocketClient {
     }
     var correlationId = msg.correlationId;
     var orphan = true;
-    if (correlationId !== undefined) {
+    if (correlationId) {
       var promise = this.requests[correlationId];
-      if (promise !== undefined) {
+      if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.
         delete(msg.correlationId);

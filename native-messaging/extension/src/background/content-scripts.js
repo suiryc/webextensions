@@ -113,7 +113,7 @@ export class ContentScriptHandler {
     // We want the DOM content to be loaded.
     // If frameHandler is not (yet) known, we expect a 'frameAdded' to be
     // triggered soon.
-    if (!details.domLoaded || (frameHandler === undefined)) return;
+    if (!details.domLoaded || !frameHandler) return;
     this.handleFrame(frameHandler);
   }
 

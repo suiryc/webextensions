@@ -28,7 +28,7 @@ async function onMessage(extension, msg, sender) {
 
     case constants.KIND_TW_SAVE:
       // Protection: we really do expect this message to come from a tab.
-      if (sender.tab === undefined) return unhandledMessage(msg, sender);
+      if (!sender.tab) return unhandledMessage(msg, sender);
       return tw_save(msg);
       break;
 
@@ -143,7 +143,7 @@ function dl_getVideos(msg) {
 // Clears extension messages.
 function ext_clearMessages(msg) {
   var windowId = msg.windowId;
-  if (windowId === undefined) {
+  if (!windowId) {
     applicationMessages = [];
   } else {
     applicationMessages = applicationMessages.filter(details => {
@@ -188,7 +188,7 @@ function unhandledNativeMessage(app, msg) {
 
 // Logs native application log message.
 function app_console(app, msg) {
-  if (msg.error !== undefined) {
+  if (msg.error) {
     // Application actually failed to properly send the log message.
     console.error(`[${app.appId}] Log failure: ${msg.error}`);
     return;
@@ -236,7 +236,7 @@ function addExtensionMessage(details) {
 function updateStatus(windowId) {
   // Update the requested window, or update all known windows.
   var obj = {};
-  if (windowId !== undefined) {
+  if (windowId) {
     obj[windowId] = videosSources[windowId] || [];
   } else {
     obj = videosSources;
@@ -254,8 +254,8 @@ function updateStatus(windowId) {
     var tabHandler = tabsHandler.getActiveTab(windowId);
     var tabId = tabHandler ? tabHandler.id : -1;
     for (var details of applicationMessages) {
-      if ((details.windowId !== undefined) && (details.windowId != windowId)) continue;
-      if ((details.tabId !== undefined) && (details.tabId != tabId)) continue;
+      if (details.windowId && (details.windowId != windowId)) continue;
+      if (details.tabId && (details.tabId != tabId)) continue;
       if (details.level == 'error') {
         hasMessages = '!';
         badgeBackgroundColor = 'red';

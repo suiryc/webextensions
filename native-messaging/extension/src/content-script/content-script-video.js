@@ -148,7 +148,7 @@ function processVideo(node) {
   // probably progammatically made.
 
   function nonEmpty(field) {
-    return ((node[field] !== undefined) && (node[field] !== null) && (node[field].trim() !== ''));
+    return (node[field] && node[field].trim());
   }
 
   async function addVideoSource(field) {

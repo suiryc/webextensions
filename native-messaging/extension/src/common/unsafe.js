@@ -12,7 +12,7 @@ export class CodeExecutor {
     // We will pass useful helpers automatically.
     argNames = argNames.concat(['notif', 'unsafe', 'util', 'webext']);
     this.argNames = argNames;
-    if ((code === undefined) || (code === null) || (code.trim() === '')) return;
+    if (!code || !code.trim()) return;
     try {
       // Note: using 'Function.call' (or 'apply') instead of 'new Function' so
       // that we don't get warnings from code inspection.
@@ -78,7 +78,7 @@ export class CodeExecutor {
 
 // Executes script code.
 export async function executeCode(webext, scriptName, params, code) {
-  if ((code === undefined) || (code === null) || (code.trim() === '')) return {};
+  if (!code || !code.trim()) return {};
   var executor = new CodeExecutor(webext, scriptName, Object.keys(params), code);
   return await executor.execute(params);
 }

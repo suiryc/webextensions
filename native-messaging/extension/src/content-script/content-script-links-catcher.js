@@ -119,7 +119,7 @@ function getViewportSize() {
   // It appears 'documentElement' is right when there is a DOCTYPE, otherwise it's 'body'.
   var viewWidth = document.documentElement.clientWidth;
   var viewHeight = document.documentElement.clientHeight;
-  if ((document.doctype === null) || (document.doctype === undefined)) {
+  if (!document.doctype) {
     // When there is no DOCTYPE, use 'body' if it has a non-0 value.
     if (document.body.clientWidth > 0) viewWidth = document.body.clientWidth;
     if (document.body.clientHeight > 0) viewHeight = document.body.clientHeight;
@@ -181,15 +181,13 @@ function mergeRects(rect1, rect2) {
     var bottom = Math.max(rect1.bottom, rect2.bottom);
     return new DOMRect(left, top, right - left, bottom - top);
   }
-
-  return undefined;
 }
 
 function debugSample(kind) {
   if (!settings.debug.linksCatcher || extParams.debug.excluded.has(kind)) return FUNCTION_NOOP;
 
   var samples = extParams.debug.samples.kinds[kind];
-  if (samples === undefined) return debug;
+  if (!samples) return debug;
 
   var now = util.epoch();
   if (samples.mark != now) {
@@ -257,12 +255,12 @@ class LinkHandler {
     var rect = getNodeRect(this.link);
     this.hint = rect;
     this.refreshPosition(rect);
-    return this.rects.length != 0;
+    return !!this.rects.length;
   }
 
   refreshPosition(rect) {
     this.refresh = false;
-    if (rect === undefined) {
+    if (!rect) {
       rect = getNodeRect(this.link);
       var hint = this.hint;
       this.hint = rect;
@@ -292,7 +290,7 @@ class LinkHandler {
       }
     }
     for (rect of rects) {
-      var merged = undefined;
+      var merged;
       if (rect.width || rect.height) {
         for (var rect0 of this.rects) {
           merged = mergeRects(rect0, rect);
@@ -308,7 +306,7 @@ class LinkHandler {
       }
     }
 
-    if (this.rects.length > 0) {
+    if (this.rects.length) {
       var xMin = Number.MAX_SAFE_INTEGER;
       var yMin = Number.MAX_SAFE_INTEGER;
       var xMax = Number.MIN_SAFE_INTEGER;
@@ -327,7 +325,7 @@ class LinkHandler {
 
   // Whether this link was caught (highlighted)
   isCaught() {
-    return this.highlights.length > 0;
+    return !!this.highlights.length;
   }
 
   // Install handler
@@ -411,7 +409,7 @@ class LinksCatcher {
         debugSample(ev.type)('[LinksCatcher] Event =', ev);
       }
       self.handleMouseDown(ev);
-      if (self.catchZone !== undefined) {
+      if (self.catchZone) {
         // We are now initialized, 'mousedown' is properly handled
         document.removeEventListener('mousedown', handler);
       }
@@ -422,7 +420,7 @@ class LinksCatcher {
   init() {
     var self = this;
 
-    if (this.catchZone !== undefined) return;
+    if (self.catchZone) return;
     debug('[LinksCatcher] Initializing');
 
     // Cleanup previous nodes if any (useful when reloading extension)
@@ -435,43 +433,40 @@ class LinksCatcher {
     // position and periodically manage the last position.
     // Updating the catching zone can be done either for each received event, or
     // at the same time we handle scrolling, the latter being less consuming.
-    // Mouse tracking id ('setInterval'/'clearInterval')
-    this.mouseTracking = undefined;
-    this.lastMouseEvent = undefined;
 
     // Mutation observer
-    this.mutationObserver = new MutationObserver(function(mutations, observer) {
+    self.mutationObserver = new MutationObserver(function(mutations, observer) {
       for (var mutation of mutations) {
         self.handleMutation(mutation);
       }
     });
 
-    this.linksRefresh = {
+    self.linksRefresh = {
       last: 0
     };
     // Create our catch zone
-    this.catchZone = {
+    self.catchZone = {
       pos: {},
       node: document.createElement('div')
     }
-    this.catchZone.node.classList.add('linksCatcher_catchZone');
-    this.catchZone.node.style.display = 'none';
-    document.body.appendChild(this.catchZone.node);
+    self.catchZone.node.classList.add('linksCatcher_catchZone');
+    self.catchZone.node.style.display = 'none';
+    document.body.appendChild(self.catchZone.node);
 
     // Node to display number of caught links
-    this.linksCount = {
+    self.linksCount = {
       node: document.createElement('div'),
       value: 0
     }
-    this.linksCount.node.classList.add('linksCatcher_linksCount');
-    this.linksCount.node.style.display = 'none';
-    document.body.appendChild(this.linksCount.node);
+    self.linksCount.node.classList.add('linksCatcher_linksCount');
+    self.linksCount.node.style.display = 'none';
+    document.body.appendChild(self.linksCount.node);
 
     // Functions to dispatch events to
-    this.eventHandlers = {
-      mousedown: this.handleMouseDown.bind(this),
-      mouseup: this.handleMouseUp.bind(this),
-      mousemove: this.handleMouseMove.bind(this)
+    self.eventHandlers = {
+      mousedown: self.handleMouseDown.bind(self),
+      mouseup: self.handleMouseUp.bind(self),
+      mousemove: self.handleMouseMove.bind(self)
     };
     // Wrap handlers for debugging
     if (settings.debug.linksCatcher) {
@@ -481,7 +476,7 @@ class LinksCatcher {
       // built).
       // Hence it is better/easier to use 'forEach' than 'for...in'.
       // To iterate over keys, 'Object.keys(...)' is then necessary.
-      Object.keys(this.eventHandlers).forEach(function(kind) {
+      Object.keys(self.eventHandlers).forEach(function(kind) {
         var handler = self.eventHandlers[kind];
         self.eventHandlers[kind] = function(ev) {
           debugSample(ev.type)('[LinksCatcher] Event =', ev);
@@ -491,7 +486,7 @@ class LinksCatcher {
     }
 
     // Listen to mouse events
-    ['mousedown', 'mouseup'].forEach(this.listenEvent.bind(this));
+    ['mousedown', 'mouseup'].forEach(self.listenEvent.bind(self));
   }
 
   // Resets caught links
@@ -512,9 +507,9 @@ class LinksCatcher {
     if (this.linkHandlers) delete(this.linkHandlers);
 
     // Stop mouse tracking
-    if (this.mouseTracking !== undefined) {
+    if (this.mouseTracking) {
       clearInterval(this.mouseTracking);
-      this.mouseTracking = undefined;
+      delete(this.mouseTracking);
     }
     this.unlistenEvent('mousemove');
     // Some browsers don't have/need 'setCapture'/'releaseCapture'.
@@ -523,7 +518,7 @@ class LinksCatcher {
     }
 
     // Reset catch zone
-    this.lastMouseEvent = undefined;
+    delete(this.lastMouseEvent);
     this.updateCatchZone();
     this.catchZone.pos = {};
 
@@ -542,7 +537,7 @@ class LinksCatcher {
     var pageHeight = document.documentElement.scrollHeight
 
     // Compute zone. Don't go beyond the page borders.
-    if (ev !== undefined) {
+    if (ev) {
       // Note: don't use 'pageX'/'pageY' since when the mouse remain still it does
       // not take into account the scrolling we may trigger.
       // Instead compute the absolute position (in the page) from the relative
@@ -581,7 +576,7 @@ class LinksCatcher {
     }
 
     if (this.catchZone.enabled) {
-      if (this.linkHandlers === undefined) {
+      if (!this.linkHandlers) {
         this.linkHandlers = [];
         // Detect current links and observe mutations.
         // Handle mutations first, to ensure we will not miss any link.
@@ -601,7 +596,7 @@ class LinksCatcher {
     }
     this.updateLinksCount();
 
-    if (ev === undefined) return;
+    if (!ev) return;
     // Check if we need to scroll (when the mouse is outside the view or near the screen edge).
     // Note: requesting scrolling when page edge has been reached is harmless.
     var screenWidth = window.screen.width;
@@ -778,12 +773,8 @@ class LinksCatcher {
   // Handles 'mousedown': starts catch zone and follows mouse
   handleMouseDown(ev) {
     // Right button triggers context menu right away on Linux.
-    //if (ev.buttons != constants.MOUSE_BUTTON_RIGHT) {
-    //  return;
-    //}
-    if ((ev.buttons != constants.MOUSE_BUTTON_LEFT) || !ev.shiftKey) {
-      return;
-    }
+    //if (ev.buttons != constants.MOUSE_BUTTON_RIGHT) return;
+    if ((ev.buttons != constants.MOUSE_BUTTON_LEFT) || !ev.shiftKey) return;
     this.init();
     this.skipContextMenu = (ev.buttons == constants.MOUSE_BUTTON_RIGHT);
     // When using left button, disabling selection does not work well if there is
@@ -810,18 +801,14 @@ class LinksCatcher {
     // Start mouse tracking
     this.listenEvent('mousemove');
     // Sanity check
-    if (this.mouseTracking !== undefined) {
-      clearInterval(this.mouseTracking);
-    }
+    if (this.mouseTracking) clearInterval(this.mouseTracking);
     this.mouseTracking = setInterval(this.updateCatchZone.bind(this), extParams.mouseTrackingInterval);
   }
 
   // Handles 'mouseup': processes catch zone and resets catcher
   handleMouseUp(ev) {
-    if (this.catchZone.pos.start === undefined) {
-      // No catch zone.
-      return;
-    }
+    // Ensure there is a catch zone.
+    if (!this.catchZone.pos.start) return;
     this.lastMouseEvent = ev;
     this.updateCatchZone();
     if (this.skipContextMenu) {
@@ -847,7 +834,7 @@ class LinksCatcher {
   // Adds event listener
   listenEvent(kind) {
     var handler = this.eventHandlers[kind];
-    if (handler !== undefined) {
+    if (handler) {
       debug('[LinksCatcher] Listen event=<%s>', kind);
       document.addEventListener(kind, handler, true);
     } else {
@@ -858,7 +845,7 @@ class LinksCatcher {
   // Removes event listener
   unlistenEvent(kind) {
     var handler = this.eventHandlers[kind];
-    if (handler !== undefined) {
+    if (handler) {
       debug('[LinksCatcher] Unlisten event=<%s>', kind);
       document.removeEventListener(kind, handler, true);
     }

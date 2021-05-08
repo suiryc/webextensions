@@ -18,11 +18,8 @@ function formatObject(obj, processed, recursiveLoop) {
       : formatObject(child, processed);
   };
 
-  if (typeof(obj) == 'function') {
-    // Only keep the function name (not the code).
-    var name = obj.name;
-    return `function ${name.length ? name : '(anonymous)'}`;
-  }
+  // Only keep function name (not the code).
+  if (typeof(obj) == 'function') return `function ${obj.name || '(anonymous)'}`;
   if (Array.isArray(obj)) {
     // Recursively handle arrays.
     if (recursiveLoop) return `Array(${obj.length})`;
@@ -40,9 +37,7 @@ function formatObject(obj, processed, recursiveLoop) {
   if ((typeof(obj) != 'object') || (obj === null)) return '' + obj;
 
   // Handle errors.
-  if (obj instanceof Error) {
-    return obj.name + ' message=<' + obj.message + '>';
-  }
+  if (obj instanceof Error) return obj.name + ' message=<' + obj.message + '>';
 
   // If object has its own representation, use it. Otherwise get its name and
   // content.
@@ -56,8 +51,8 @@ function formatObject(obj, processed, recursiveLoop) {
     s += `(failed to stringify) ${error}`;
   }
   if (s.startsWith('[object ')) {
-    var s = obj.constructor.name;
-    if (s.length == 0) s = 'Object';
+    s = obj.constructor.name;
+    if (!s) s = 'Object';
     if (recursiveLoop) return s;
     var idx = 0;
     Object.keys(obj).forEach(f => {
@@ -89,7 +84,7 @@ class Deferred {
     // our embedded promise.
     for (var f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
-      if (this.promise[f] === undefined) continue;
+      if (!this.promise[f]) continue;
       this[f] = this.promise[f].bind(this.promise);
     }
   }

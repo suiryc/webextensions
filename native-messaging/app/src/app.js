@@ -38,7 +38,7 @@ async function onMessage(app, msg) {
 // Logs unhandled messages received.
 function unhandledMessage(msg) {
   console.warn('Received unhandled message feature=<%s> kind=<%s> contentSize=%d',
-    msg.feature, msg.kind, msg.content === undefined ? 0 : msg.content.length)
+    msg.feature, msg.kind, (msg.content || '').length)
   return {
     error: 'Message is not handled by native application',
     message: msg
@@ -128,9 +128,8 @@ function dl_save(app, msg) {
     if (done) return;
     done = true;
     // Upon 'exit', code or signal will be null; normalize for easier handling.
-    if (details.code === null) delete details.code;
-    if (details.code === undefined) details.code = 0;
-    if (details.signal === null) delete details.signal;
+    if (!details.code) details.code = 0;
+    if (!details.signal) delete details.signal;
     var response = { };
     // We consider the action failed if either:
     //  - the application wrote on stderr: (belt and suspenders) we actually
@@ -139,9 +138,9 @@ function dl_save(app, msg) {
     //  - application was interrupted by a signal
     //  - an error happened for the child process itself
     if (stderr.data.length) response.error = `Application failed with message=<${stderr.data}>`;
-    else if (details.code != 0) response.error = `Application failed with return code=<${details.code}>`;
-    else if (details.signal !== undefined) response.error = `Application failed with signal=<${details.signal}>`;
-    else if (details.error !== undefined) response.error = `Application failed with error: ${util.formatObject(details.error)}`;
+    else if (details.code) response.error = `Application failed with return code=<${details.code}>`;
+    else if (details.signal) response.error = `Application failed with signal=<${details.signal}>`;
+    else if ('error' in details) response.error = `Application failed with error: ${util.formatObject(details.error)}`;
     else if (stdout.data.length) response.wsPort = Number(stdout.data.toString());
     deferred.resolve(response);
     // While not strictly necessary, cleanup by destroying streams ...
