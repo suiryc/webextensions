@@ -206,12 +206,13 @@ function addMessage(details) {
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
   var tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
+  var tooltip = [];
+  if (details.source) tooltip.push(`Source: ${details.source}`);
   if (tabHandler) {
-    var tooltip = [];
     if (tabHandler.title) tooltip.push(tabHandler.title);
     if (tabHandler.url) tooltip.push(tabHandler.url);
-    if (tooltip.length) node.setAttribute('title', tooltip.join('\n'));
   }
+  if (tooltip.length) node.setAttribute('title', tooltip.join('\n'));
 
   ((tabId == activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
   updateMessagesBadges();
