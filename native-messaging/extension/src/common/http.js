@@ -365,15 +365,29 @@ export class HeaderParser {
   // When applicable caller may indicate an end character: useful for parameter
   // values that are supposed to be either quoted strings or tokens, but are not
   // quoted strings while not respecting the 'token' definition (by containing
-  // characters like '()' which are comments separators). This optional endChar
-  // is only taken into account if the value is not a quoted string.
-  parseString(endChar) {
+  // characters like '()' which are comments separators).
+  // We don't strictly enforce the expected format, parsing as much as possible.
+  parseString(endChar, skipEndChar) {
     var string;
     this.skipFWS();
     if (!this.value) return;
-    if (this.value[0] == '"') string = this.parseEscapedString(true, '"');
-    else if (endChar !== undefined) string = this.parseEscapedString(false, endChar);
-    else string = this.parseToken();
+    if (this.value[0] == '"') {
+      string = this.parseEscapedString(true, '"');
+      if (endChar && this.value && (this.value[0] != endChar)) {
+        var idx = this.value.indexOf(endChar);
+        if (idx > 0) {
+          string = `${string}${this.value.substring(0, idx).trim()}`;
+          this.value = this.value.substring(idx);
+        } else {
+          string = `${string}${this.value.trim()}`;
+          this.value = '';
+        }
+      }
+    } else if (endChar) {
+      string = this.parseEscapedString(false, endChar);
+      // Re-prepend end character if needed
+      if (!skipEndChar && this.value) this.value = `${endChar}${this.value}`;
+    } else string = this.parseToken();
     this.skipFWS();
     return string;
   }
