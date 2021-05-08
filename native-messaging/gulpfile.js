@@ -2,6 +2,7 @@
 
 const gulp = require('gulp');
 const os = require('os');
+const glob = require('glob');
 const path = require('path');
 const fse = require('fs-extra');
 const rename = require('gulp-rename');
@@ -14,6 +15,7 @@ const util = require('./app/src/util');
 exports.deployApp = deployApp;
 exports.install = gulp.series(deployApp, installApp, buildExt_dev);
 exports.buildExt = buildExt_dev;
+exports.unitTestExt = unitTestExt;
 exports.packageExt = packageExt;
 exports.signExt = signExt;
 exports.watch = gulp.series(exports.install, watch);
@@ -32,6 +34,10 @@ settings = Object.assign({
   extensionTemplatedPaths: [
     path.join(extensionPath, 'manifest.json'),
     path.join(extensionPath, 'src', 'common', 'constants.js')
+  ],
+  excludedPaths: [
+    path.join(extensionPath, '.mocharc.yaml'),
+    path.join(extensionPath, 'babel.config.js')
   ]
 }, settings);
 // ... and platform-dependent values.
@@ -78,10 +84,11 @@ function getTemplatePath(p) {
 function getIgnoredFiles() {
   // Ignore:
   //  - templates
-  //  - source file: we generate bundles
+  //  - other files: mocha/babel configuration
+  //  - source files: we generate bundles
   return settings.extensionTemplatedPaths.map(p => {
     return getTemplatePath(p).substring(extensionPath.length + 1);
-  }).concat([
+  }).concat(settings.excludedPaths).concat([
     'src'
   ]);
 }
@@ -142,6 +149,7 @@ async function buildExt(webpackMode) {
     await fill(path);
   }));
 
+  await unitTestExt();
   await webpackBundle(webpackMode);
 }
 
@@ -151,6 +159,18 @@ async function buildExt_dev() {
 
 async function buildExt_prod() {
   await buildExt('production');
+}
+
+async function unitTestExt() {
+  var deferred = new util.Deferred();
+  glob(path.posix.join('src', 'unit-test', '**', '*.js'), { cwd: extensionPath }, (err, files) => {
+    if (err) deferred.reject(err);
+    else deferred.resolve(files);
+  });
+  var files = await deferred;
+  await util.spawn('node',
+    [path.join(__dirname, 'node_modules', 'mocha', 'bin', 'mocha')].concat(files),
+    { cwd: extensionPath });
 }
 
 async function packageExt() {

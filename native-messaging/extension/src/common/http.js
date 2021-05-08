@@ -282,7 +282,7 @@ const REGEX_FWS = /^(\s*)([\s\S]*)$/m;
 // Any VCHAR, except delimiters - DQUOTE and "(),/:;<=>?@[\]{}"
 const REGEX_TOKEN = /^([^\x00-\x20\x7F"\(\),\/:;<=>\?@\[\\\]\{\}]*)([\s\S]*)$/m;
 
-class HeaderParser {
+export class HeaderParser {
 
   constructor(value) {
     this.value = value;

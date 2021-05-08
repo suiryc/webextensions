@@ -545,7 +545,8 @@ export function trackFields() {
 }
 
 // Track value changes in storage to update corresponding settings.
-browser.storage.onChanged.addListener((changes, area) => {
+// Note: check 'browser' exists (unit tests don't have it).
+if (globalThis.browser) browser.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
   for (var key of Object.keys(changes)) {
     var setting = settings.inner.perKey[key];
