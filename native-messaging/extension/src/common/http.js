@@ -139,7 +139,7 @@ export class ContentType {
     this.parse();
   }
 
-  parse() {
+  parse(keepParams) {
     if (!this.raw) return;
 
     // See: https://tools.ietf.org/html/rfc7231#section-3.1.1.5
@@ -149,7 +149,7 @@ export class ContentType {
     // Note: no 'comment' is expected in the value.
     var parser = new HeaderParser(this.raw);
     this.mimeType = parser.parseMediaType();
-    this.params = parser.parseParameters(true);
+    if (!keepParams) this.params = parser.parseParameters(true);
 
     if (!this.mimeType) return;
     var els = this.mimeType.split('/');
@@ -190,7 +190,7 @@ export class ContentType {
     if (guessed) {
       this.raw = guessed;
       this.guessed = true;
-      this.parse();
+      this.parse(true);
     }
   }
 
