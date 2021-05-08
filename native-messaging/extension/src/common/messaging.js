@@ -295,6 +295,7 @@ export class WebExtension {
   }
 
   notify(details) {
+    if (!details.source) details.source = this.params.target;
     util.notification(details);
     // Now that original information has been logged, and possibly notified,
     // format the error, if present, so that it can be properly serialized.

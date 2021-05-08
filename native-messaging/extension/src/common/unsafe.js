@@ -63,8 +63,8 @@ export class CodeExecutor {
       ['info', 'warn', 'error'].forEach(level => {
         notif[level] = function(details, error) {
           // Prepare details.
-          if (typeof(details) === 'object') details = Object.assign({}, details, {level: level});
-          else details = {level: level, message: details, error: error};
+          if (typeof(details) === 'object') details = Object.assign({source: self.scriptName}, details, {level: level});
+          else details = {source: self.scriptName, level: level, message: details, error: error};
           self.webext.notify(details);
         };
       });
