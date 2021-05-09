@@ -62,6 +62,26 @@ export class WebExtension {
     return entry;
   }
 
+  getNotif(source) {
+    // Create a re-usable dedicated notifier.
+    return this.getExtensionProperty({
+      key: `notif.${source}`,
+      create: webext => {
+        var notif = {};
+        ['info', 'warn', 'error'].forEach(level => {
+          notif[level] = function(details, error) {
+            // Prepare details.
+            if (typeof(details) === 'object') details = Object.assign({source: source}, details, {level: level});
+            else details = {source: source, level: level, message: details, error: error};
+            webext.notify(details);
+          };
+        });
+        notif.warning = notif.warn;
+        return notif;
+      }
+    });
+  }
+
   onMessage(msg, sender) {
     // Notes:
     // When the browser.runtime.onMessage listener callback returns a Promise,
