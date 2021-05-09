@@ -181,6 +181,14 @@ export class TabSuccessor {
         successor = (await browser.tabs.get(openedTab.openerTabId)).id;
       } catch(error) {
       }
+      // If opener is not there, try the previously active tab.
+      // It may have been removed too (triggering a new tab activation).
+      if (!successor && details.previousTabId) {
+        try {
+          successor = (await browser.tabs.get(details.previousTabId)).id;
+        } catch(error) {
+        }
+      }
       if (!successor) {
         // If opener is not there, fallback to the current successor of the
         // last tab (which supposedly replaces it).
