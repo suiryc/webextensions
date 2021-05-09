@@ -42,8 +42,8 @@ export class WebExtension {
   constructor(params) {
     if (!params.target) throw new Error('The target parameter is mandatory');
     this.params = params;
-    // Caller may want to attach 'attributes' related to the instance.
-    this.attributes = {};
+    // Properties managed by the extension.
+    this.extensionProperties = {};
     this.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
     // Notes:
     // More than one listener can be added.
@@ -52,6 +52,14 @@ export class WebExtension {
     browser.runtime.onMessage.addListener(this.onMessage.bind(this));
     if (this.isBackground) this.listenConnections();
     else this.connect();
+  }
+
+  getExtensionProperty(details) {
+    var key = details.key;
+    var create = details.create;
+    var entry = this.extensionProperties[key];
+    if (!entry && create) entry = this.extensionProperties[key] = create(this);
+    return entry;
   }
 
   onMessage(msg, sender) {

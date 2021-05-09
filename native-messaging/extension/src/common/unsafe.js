@@ -58,20 +58,22 @@ export class CodeExecutor {
   getNotif() {
     var self = this;
     // Create our dedicated notifier when needed.
-    if (!self.webext.attributes.codeExecutorNotif) {
-      var notif = {};
-      ['info', 'warn', 'error'].forEach(level => {
-        notif[level] = function(details, error) {
-          // Prepare details.
-          if (typeof(details) === 'object') details = Object.assign({source: self.scriptName}, details, {level: level});
-          else details = {source: self.scriptName, level: level, message: details, error: error};
-          self.webext.notify(details);
-        };
-      });
-      notif.warning = notif.warn;
-      self.webext.attributes.codeExecutorNotif = notif;
-    }
-    return self.webext.attributes.codeExecutorNotif;
+    return self.webext.getExtensionProperty({
+      key: `codeExecutor.notif.${self.scriptName}`,
+      create: webext => {
+        var notif = {};
+        ['info', 'warn', 'error'].forEach(level => {
+          notif[level] = function(details, error) {
+            // Prepare details.
+            if (typeof(details) === 'object') details = Object.assign({source: self.scriptName}, details, {level: level});
+            else details = {source: self.scriptName, level: level, message: details, error: error};
+            webext.notify(details);
+          };
+        });
+        notif.warning = notif.warn;
+        return notif;
+      }
+    });
   }
 
 }
