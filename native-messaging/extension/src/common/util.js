@@ -262,7 +262,7 @@ export function limitText(s, limit) {
   // For odd splitting, we take one more character from the start.
   // First half: from 0 to (actualLimit + 1) / 2
   // Second half: actualLimit / 2 from the end till the end
-  return `${s.slice(0, limit / 2)}…${s.slice(-(limit - 1) / 2)}`;
+  return `${s.slice(0, limit / 2)}…${limit > 2 ? s.slice(-(limit - 1) / 2) : ''}`;
 }
 
 export function checkContentScriptSetup(label) {
