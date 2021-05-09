@@ -164,6 +164,13 @@ class VideoSource {
     return title;
   }
 
+  getFilenameRefining() {
+    return this.webext.getExtensionProperty({
+      key: `scripts.video.filenameRefining`,
+      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['http', 'params'], settings.scripts.video.inner.filenameRefining)
+    });
+  }
+
   async refresh(menuHandler) {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
@@ -196,7 +203,7 @@ class VideoSource {
           filename: filename
         }
       };
-      params = await unsafe.executeCode(this.webext, 'filename refining', scriptParams, settings.scripts.video.filenameRefining);
+      params = await this.getFilenameRefining().execute(scriptParams);
       util.cleanupFields(params);
       if (params.filename) {
         changes = true;
