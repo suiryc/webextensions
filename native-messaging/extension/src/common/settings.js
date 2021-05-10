@@ -374,7 +374,10 @@ class ExtensionSetting {
       field.addEventListener('input', () => self.validateField(false));
     }
 
+    // Set field value now.
     self.updateField();
+    // Validate it (changing the value on our side does not trigger events).
+    self.validateField(false);
     return true;
   }
 
