@@ -6,43 +6,51 @@ import * as http from '../common/http.js';
 
 describe('http', function() {
 
-  describe('findHeader', function() {
+  describe('findHeader/findHeaderValue', function() {
+
+    function test(headers, name, expected) {
+      // Test findHeader
+      var r = http.findHeader(headers, name);
+      r = http.findHeader(headers, name);
+      assert.deepEqual(r, expected);
+      // Ensure that findHeader returns the original object.
+      assert.equal(http.findHeader(headers, name), http.findHeader(headers, name));
+
+      // Test findHeaderValue
+      r = http.findHeaderValue(headers, name);
+      assert.equal(r, (expected || {}).value);
+    }
 
     it('should find exact header', function() {
-      var r = http.findHeader(
+      test(
         [{name:'Header1',value:'value1'}, {name:'Header2',value:'value2'}, {name:'Header3',value:'value3'}],
-        'Header2'
+        'Header2', {name:'Header2',value:'value2'}
       );
-      assert.equal(r, 'value2');
     });
 
     it('should find header with different case', function() {
-      var r = http.findHeader(
+      test(
         [{name:'Header1',value:'value1'}, {name:'Header2',value:'value2'}, {name:'Header3',value:'value3'}],
-        'hEADER2'
+        'hEADER2', {name:'Header2',value:'value2'}
       );
-      assert.equal(r, 'value2');
     });
 
     it('should find first matching header', function() {
-      var r = http.findHeader(
+      test(
         [{name:'Header1',value:'value1'}, {name:'Header',value:'value2'}, {name:'Header',value:'value3'}],
-        'Header'
+        'Header', {name:'Header',value:'value2'}
       );
-      assert.equal(r, 'value2');
-      r = http.findHeader(
+      test(
         [{name:'Header',value:'value1'}, {name:'Header',value:'value2'}, {name:'Header',value:'value3'}],
-        'Header'
+        'Header', {name:'Header',value:'value1'}
       );
-      assert.equal(r, 'value1');
     });
 
     it('should not match missing header', function() {
-      var r = http.findHeader(
+      test(
         [{name:'Header1',value:'value1'}, {name:'Header2',value:'value2'}, {name:'Header3',value:'value3'}],
-        'Header'
+        'Header', undefined
       );
-      assert.equal(r, undefined);
     });
 
   });

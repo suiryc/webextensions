@@ -15,7 +15,11 @@ export function canDownload(url) {
 
 export function findHeader(headers, name) {
   name = name.toLowerCase();
-  var header = headers.find(h => h.name.toLowerCase() === name);
+  return headers.find(h => h.name.toLowerCase() === name);
+}
+
+export function findHeaderValue(headers, name) {
+  var header = findHeader(headers, name)
   if (header) return header.value;
 }
 
@@ -74,11 +78,11 @@ export class RequestDetails {
     var contentLength;
     if (statusCode == 200) {
       // Get content length. Use undefined if unknown.
-      contentLength = findHeader(responseHeaders, 'Content-Length');
+      contentLength = findHeaderValue(responseHeaders, 'Content-Length');
     }
     if (statusCode == 206) {
       // Determine content length through range response.
-      var range = findHeader(responseHeaders, 'Content-Range');
+      var range = findHeaderValue(responseHeaders, 'Content-Range');
       if (range && (range.split(' ').shift().toLowerCase() === 'bytes')) {
         contentLength = range.split('/').pop().trim();
       } else {
@@ -94,11 +98,11 @@ export class RequestDetails {
     if (contentLength < interceptSize) return;
 
     // Get content type.
-    this.contentType = new ContentType(findHeader(responseHeaders, 'Content-Type'));
+    this.contentType = new ContentType(findHeaderValue(responseHeaders, 'Content-Type'));
 
     // Get content disposition.
     this.contentDisposition = {
-      raw: findHeader(responseHeaders, 'Content-Disposition'),
+      raw: findHeaderValue(responseHeaders, 'Content-Disposition'),
       params: {}
     }
     if (this.contentDisposition.raw) {

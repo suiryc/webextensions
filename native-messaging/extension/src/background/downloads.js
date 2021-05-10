@@ -482,9 +482,9 @@ export class RequestsHandler {
     }
     var r = await dlMngr.download({
       url: url,
-      referrer: http.findHeader(requestDetails.sent.requestHeaders, 'Referer'),
-      cookie: http.findHeader(requestDetails.sent.requestHeaders, 'Cookie'),
-      userAgent: http.findHeader(requestDetails.sent.requestHeaders, 'User-Agent'),
+      referrer: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Referer'),
+      cookie: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Cookie'),
+      userAgent: http.findHeaderValue(requestDetails.sent.requestHeaders, 'User-Agent'),
       file: requestDetails.filename,
       size: requestDetails.contentLength
     }, {
@@ -766,7 +766,7 @@ class RequestDetails extends http.RequestDetails {
     // In this case, still check if we would intercept from the first response
     // (indicates remaining size). As a side effect the second response will not
     // be intercepted due to missing matching request (we consume it here).
-    if ((statusCode == 206) && http.findHeader(this.sent.requestHeaders, 'Range')) return handler.manageRequest(this, false, 'Skip partial content request');
+    if ((statusCode == 206) && http.findHeaderValue(this.sent.requestHeaders, 'Range')) return handler.manageRequest(this, false, 'Skip partial content request');
 
     // Parse response to get content length, type, disposition.
     this.parseResponse(settings.interceptSize);

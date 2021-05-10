@@ -527,9 +527,9 @@ class VideoSourceTabHandler {
     source.seenRequest = true;
 
     // Extract useful request details.
-    var cookie = http.findHeader(request.requestHeaders, 'Cookie');
+    var cookie = http.findHeaderValue(request.requestHeaders, 'Cookie');
     if (cookie) source.cookie = cookie;
-    var userAgent = http.findHeader(request.requestHeaders, 'User-Agent');
+    var userAgent = http.findHeaderValue(request.requestHeaders, 'User-Agent');
     if (userAgent) source.userAgent = userAgent;
   }
 
@@ -541,7 +541,7 @@ class VideoSourceTabHandler {
     // Extract redirected url when applicable.
     // Note: even though it should have no meaning/purpose in our case, url may
     // contain a fragment; so normalize it.
-    if (Math.floor(statusCode / 100) == 3) location = util.normalizeUrl(http.findHeader(response.responseHeaders, 'Location'), settings.debug.video, 'Location');
+    if (Math.floor(statusCode / 100) == 3) location = util.normalizeUrl(http.findHeaderValue(response.responseHeaders, 'Location'), settings.debug.video, 'Location');
 
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) {
@@ -592,7 +592,7 @@ class VideoSourceTabHandler {
     if (reason) return this.ignoreDownload(source, response, reason);
 
     // Keep ETag if any.
-    source.etag = http.findHeader(response.responseHeaders, 'ETag');
+    source.etag = http.findHeaderValue(response.responseHeaders, 'ETag');
     // Merge same sources.
     this.mergeSources(source);
 
