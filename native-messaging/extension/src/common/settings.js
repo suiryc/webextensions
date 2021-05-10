@@ -324,18 +324,17 @@ class ExtensionSetting {
   // Changes the setting value.
   // Also refreshes any associated field and persists value.
   async setValue(v, updated) {
-    var self = this;
-    if (v === undefined) v = self.defaultValue;
-    var oldValue = self.value;
+    if (v === undefined) v = this.defaultValue;
+    var oldValue = this.value;
     // Nothing to do if value is not changed.
     if (v === oldValue) return;
     // Update value.
-    self.value = v;
+    this.value = v;
     // Update field when applicable.
-    if (self.field) self.updateField();
+    if (this.field) this.updateField();
     if (!updated) {
       // Persist new value.
-      await self.persistValue();
+      await this.persistValue();
     }
     // else value change comes from the storage, so don't persist it: it is
     // unnecessary (the storage already has this value), and may trigger an
@@ -347,15 +346,34 @@ class ExtensionSetting {
     //  4. We are notified of 'v2' from storage, and push it back because
     //     the current value is different ('v1')
     //  ... (loop on 3. and 4.)
-    if (updated) self.notifyListeners(oldValue, v);
+    if (updated) this.notifyListeners(oldValue, v);
   }
 
   // Tracks associated field.
   // Retrieves the field from the document, and refreshes its value.
   trackField() {
     var self = this;
-    self.field = document.getElementById(self.key);
-    if (!self.field) return false;
+    var field = self.field = document.getElementById(self.key);
+    if (!field) return false;
+
+    // Setup field:
+    // The 'change' event is triggered not too often, such that we wish to save
+    // the setting value right now: immediately for checkboxes, radio buttons,
+    // and combo boxes, when focused is list for text fields.
+    // The 'input' event is triggered on text field after each modification,
+    // such that we wish to not save the setting value right now.
+    // We take advantage of the fact that the focus is lost whenever another
+    // tab, or browser action page, is selected: the setting will then be saved
+    // without us having to explicitely take care of it (e.g. by scheduling
+    // value change after some time).
+    field.addEventListener('change', () => self.validateField(true));
+    var fieldType = (field.type || field.tagName).toLowerCase();
+    if (fieldType =='checkbox') {
+      self.getFieldValue = function() { return this.field.checked; }
+    } else if ((fieldType == 'text') || (fieldType == 'textarea')) {
+      field.addEventListener('input', () => self.validateField(false));
+    }
+
     self.updateField();
     return true;
   }
@@ -387,13 +405,12 @@ class ExtensionSetting {
   // Initializes the setting value.
   // To be called first before doing anything with the setting.
   async initValue() {
-    var self = this;
     // Most callers are expected to wait for settings to be ready before doing
     // anything (and initializing the value is part of this).
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
-    await self.setValue(await getStorageValue(self.key, self.value), true);
-    return self.value;
+    await this.setValue(await getStorageValue(this.key, this.value), true);
+    return this.value;
   }
 
   // Persists the setting value.
@@ -416,18 +433,6 @@ class ExtensionBooleanSetting extends ExtensionSetting {
     this.field.checked = this.value;
   }
 
-  trackField() {
-    var self = this;
-    if (!super.trackField()) return;
-    self.field.addEventListener('click', () => {
-      self.setValue(self.getFieldValue());
-    });
-  }
-
-  getFieldValue() {
-    return this.field.checked;
-  }
-
 }
 
 // Manages an int setting.
@@ -439,17 +444,6 @@ class ExtensionIntSetting extends ExtensionSetting {
 
   updateField() {
     this.field.value = this.value;
-  }
-
-  trackField() {
-    var self = this;
-    if (!super.trackField()) return;
-    self.field.addEventListener('input', () => {
-      self.validateField(false);
-    });
-    self.field.addEventListener('change', () => {
-      self.validateField(true);
-    });
   }
 
   validateValue(v) {
@@ -470,17 +464,6 @@ class ExtensionScriptSetting extends ExtensionSetting {
   updateField() {
     if (!this.value) this.field.value = '';
     else this.field.value = this.value;
-  }
-
-  trackField() {
-    var self = this;
-    if (!super.trackField()) return;
-    self.field.addEventListener('input', () => {
-      self.validateField(false);
-    });
-    self.field.addEventListener('change', () => {
-      self.validateField(true);
-    });
   }
 
   validateValue(v) {
