@@ -86,9 +86,10 @@ function getIgnoredFiles() {
   //  - templates
   //  - other files: mocha/babel configuration
   //  - source files: we generate bundles
+  var excludedPaths = settings.excludedPaths.map(p => p.substring(extensionPath.length + 1));
   return settings.extensionTemplatedPaths.map(p => {
     return getTemplatePath(p).substring(extensionPath.length + 1);
-  }).concat(settings.excludedPaths).concat([
+  }).concat(excludedPaths).concat([
     'src'
   ]);
 }
