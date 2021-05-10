@@ -119,7 +119,7 @@ async function dl_updateVideos(sources, showTab) {
   });
   videosItemNode.setAttribute('data-badge', sources.length);
   videosItemNode.classList.toggle('badge', true);
-  if (showTab) document.querySelector('#tab-videos-item').click();
+  if (showTab) document.querySelector('#tab-item-videos').click();
 }
 
 // Adds message to display.
@@ -316,7 +316,7 @@ clearOtherMessagesButton.addEventListener('click', () => {
   if (msgs && Array.isArray(msgs) && msgs.length) {
     messages = msgs;
     refreshMessages();
-    document.querySelector('#tab-messages-item').click();
+    document.querySelector('#tab-item-messages').click();
   }
 
   dl_updateVideos(undefined, true);

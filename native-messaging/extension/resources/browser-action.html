@@ -39,54 +39,58 @@
     <!-- For the full-CSS tab trick to work, the 'tab-locator' inputs must be
       -- at the same level than the 'tabs-items' and 'tabs-content'.
       -->
-    <input type="radio" id="tab-videos-item" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-messages-item" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-options-item" name="tabs" class="tab-locator" hidden checked>
+    <input type="radio" id="tab-item-videos" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-messages" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-options" name="tabs" class="tab-locator" hidden checked>
 
     <div class="panel-nav tabs-items">
       <ul class="tab">
         <li class="tab-item">
-          <label for="tab-videos-item" class="clickable"><a id="videos-item">Videos</a></label>
+          <label for="tab-item-videos" class="clickable"><a id="videos-item">Videos</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-messages-item" class="clickable"><a id="messages-item">Messages</a></label>
+          <label for="tab-item-messages" class="clickable"><a id="messages-item">Messages</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-options-item" class="clickable"><a>Options</a></label>
+          <label for="tab-item-options" class="clickable"><a>Options</a></label>
         </li>
       </ul>
     </div>
 
     <div class="panel-body tabs-content">
 
-      <div id="tab-videos" class="tab-content">
+      <!-- Videos -->
+      <div class="tab-content">
         <div id="videos"></div>
       </div>
 
-      <div id="tab-messages" class="tab-content">
+      <!-- Messages -->
+      <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
-        <input type="radio" id="tab-messages-active-item" name="tabs-messages" class="tab-locator" hidden checked>
-        <input type="radio" id="tab-messages-other-item" name="tabs-messages" class="tab-locator" hidden>
+        <input type="radio" id="tab-item-messages-active" name="tabs-messages" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-messages-other" name="tabs-messages" class="tab-locator" hidden>
 
+        <!-- Active tab messages -->
         <div class="panel-nav tabs-items">
           <ul class="tab">
             <li class="tab-item">
-              <label for="tab-messages-active-item" class="clickable"><a id="messages-active-item">Active tab</a></label>
+              <label for="tab-item-messages-active" class="clickable"><a id="messages-active-item">Active tab</a></label>
             </li>
             <li class="tab-item">
-              <label for="tab-messages-other-item" class="clickable"><a id="messages-other-item">Other tabs</a></label>
+              <label for="tab-item-messages-other" class="clickable"><a id="messages-other-item">Other tabs</a></label>
             </li>
           </ul>
         </div>
 
+        <!-- Other tabs/scripts messages -->
         <div class="panel-body tabs-content">
-          <div id="tab-messages-active" class="tab-content">
+          <div class="tab-content">
             <div id="messages-active" class="hidden">
               <div class="center-content"><button id="clearActiveMessages" class="btn btn-primary">Clear messages</button></div>
             </div>
           </div>
 
-          <div id="tab-messages-other" class="tab-content">
+          <div class="tab-content">
             <div id="messages-other" class="hidden">
               <div class="center-content"><button id="clearOtherMessages" class="btn btn-primary">Clear messages</button></div>
             </div>
@@ -94,24 +98,26 @@
         </div>
       </div>
 
-      <div id="tab-options" class="tab-content">
+      <!-- Options -->
+      <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
-        <input type="radio" id="tab-options-main-item" name="tabs-options" class="tab-locator" hidden checked>
-        <input type="radio" id="tab-options-debug-item" name="tabs-options" class="tab-locator" hidden>
+        <input type="radio" id="tab-item-options-main" name="tabs-options" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-options-debug" name="tabs-options" class="tab-locator" hidden>
 
         <div class="panel-nav tabs-items">
           <ul class="tab">
             <li class="tab-item">
-              <label for="tab-options-main-item" class="clickable"><a>Main</a></label>
+              <label for="tab-item-options-main" class="clickable"><a>Main</a></label>
             </li>
             <li class="tab-item">
-              <label for="tab-options-debug-item" class="clickable"><a>Debug</a></label>
+              <label for="tab-item-options-debug" class="clickable"><a>Debug</a></label>
             </li>
           </ul>
         </div>
 
+        <!-- Main options -->
         <div class="panel-body tabs-content">
-          <div id="tab-options-main" class="tab-content">
+          <div class="tab-content">
             <div class="panel">
               <div class="panel-header">
                 <div class="panel-title text-bold">Interception</div>
@@ -143,7 +149,8 @@
             </div>
           </div>
 
-          <div id="tab-options-debug" class="tab-content">
+          <!-- Debug options -->
+          <div class="tab-content">
             <div class="panel">
               <div class="panel-header">
                 <div class="panel-title text-bold">Debug</div>

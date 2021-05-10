@@ -25,35 +25,36 @@
 
 
   <div class="panel">
-    <input type="radio" id="tab-options-downloads-item" name="tabs" class="tab-locator" hidden checked>
-    <input type="radio" id="tab-options-videos-item" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-options-links-item" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-options-tabs-item" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-options-misc-item" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-downloads" name="tabs" class="tab-locator" hidden checked>
+    <input type="radio" id="tab-item-videos" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-links" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-tabs" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-misc" name="tabs" class="tab-locator" hidden>
 
     <div class="panel-nav tabs-items">
       <ul class="tab">
         <li class="tab-item">
-          <label for="tab-options-downloads-item" class="clickable"><a>Downloads</a></label>
+          <label for="tab-item-downloads" class="clickable"><a>Downloads</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-options-videos-item" class="clickable"><a>Videos</a></label>
+          <label for="tab-item-videos" class="clickable"><a>Videos</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-options-links-item" class="clickable"><a>Links</a></label>
+          <label for="tab-item-links" class="clickable"><a>Links</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-options-tabs-item" class="clickable"><a>Tabs</a></label>
+          <label for="tab-item-tabs" class="clickable"><a>Tabs</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-options-misc-item" class="clickable"><a>Misc</a></label>
+          <label for="tab-item-misc" class="clickable"><a>Misc</a></label>
         </li>
       </ul>
     </div>
 
     <div class="panel-body tabs-content">
 
-      <div id="tab-options-downloads" class="tab-content">
+      <!-- Downloads options -->
+      <div class="tab-content">
         <div class="panel">
           <div class="panel-body container">
             <div class="columns">
@@ -73,7 +74,8 @@
         </div>
       </div>
 
-      <div id="tab-options-videos" class="tab-content">
+      <!-- Videos options -->
+      <div class="tab-content">
         <div class="panel">
           <div class="panel-body">
             <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Debug</span></label></div>
@@ -93,7 +95,8 @@
         </div>
       </div>
 
-      <div id="tab-options-links" class="tab-content">
+      <!-- Links options -->
+      <div class="tab-content">
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title text-bold">Links</div>
@@ -106,7 +109,8 @@
         </div>
       </div>
 
-      <div id="tab-options-tabs" class="tab-content">
+      <!-- Tabs options -->
+      <div class="tab-content">
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title text-bold">Tabs successor</div>
@@ -119,7 +123,8 @@
         </div>
       </div>
 
-      <div id="tab-options-misc" class="tab-content">
+      <!-- Misc options -->
+      <div class="tab-content">
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title text-bold">Debug</div>
