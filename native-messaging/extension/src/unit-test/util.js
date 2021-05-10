@@ -319,6 +319,26 @@ describe('util', function() {
 
   });
 
+  describe('padNumber', function() {
+
+    it('should pad number if necessary', function() {
+      assert.equal(util.padNumber(0, 4), '0000');
+      assert.equal(util.padNumber(1, 4), '0001');
+      assert.equal(util.padNumber(12, 4), '0012');
+      assert.equal(util.padNumber(123, 4), '0123');
+    });
+
+    it('should not pad number if not necessary', function() {
+      assert.equal(util.padNumber(0, 0), '0');
+      assert.equal(util.padNumber(0, 1), '0');
+      assert.equal(util.padNumber(1, 0), '1');
+      assert.equal(util.padNumber(1, 1), '1');
+      assert.equal(util.padNumber(1234, 4), '1234');
+      assert.equal(util.padNumber(123456789, 4), '123456789');
+    });
+
+  });
+
   describe('getSizeText', function() {
 
     it('should give human-readbable representation of bytes size', function() {

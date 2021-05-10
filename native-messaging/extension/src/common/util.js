@@ -237,6 +237,11 @@ export function roundNumber(num, dec, precision) {
   return Math.round(num * Math.pow(10, dec)) / Math.pow(10, dec);
 }
 
+export function padNumber(num, chars) {
+  var s = '' + num;
+  return (s.length >= chars) ? s : ('0'.repeat(chars) + s).slice(-chars);
+}
+
 const sizeUnitFactor = 1024;
 const sizeUnits = ['B', 'K', 'M', 'G', 'T'];
 
