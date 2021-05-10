@@ -12,6 +12,8 @@ import { TabSuccessor } from './tab-successor.js';
 import { TabsHandler } from './tabs.js';
 
 
+console.log('Starting %s version %s', constants.EXTENSION_ID, browser.runtime.getManifest().version);
+
 // Messages handlers
 
 // Handles received extension messages.
