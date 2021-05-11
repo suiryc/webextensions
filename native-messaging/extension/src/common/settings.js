@@ -474,13 +474,15 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
 
   validateValue(v) {
     var self = this;
-    if (self.getValues(v).some(v => !self.allowed.has(v))) throw new Error(`Allowed values: ${Array.from(self.allowed).join(', ')}`);
+    if (self.getValues(v).some(v => !self.allowed.has(v))) throw new Error(`Allowed values: ${[...self.allowed].join(', ')}`);
     return v;
   }
 
   getValues(v) {
     v = (v || this.value || '').trim();
-    return v ? Array.from(new Set(this.multi ? v.split(/[ ,\t]+/) : [v])) : [];
+    // De-duplicate values.
+    // Reminder: 'Set' keeps insertion order.
+    return v ? [...new Set(this.multi ? v.split(/[ ,\t]+/) : [v])] : [];
   }
 
 }

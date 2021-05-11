@@ -231,7 +231,7 @@ export class WebExtension {
                 kind: constants.KIND_TABS_EVENT,
                 event: {
                   kind: key,
-                  args: util.toJSON(Array.from(arguments))
+                  args: util.toJSON([...arguments])
                 }
               };
               return msg;
@@ -253,7 +253,7 @@ export class WebExtension {
               kind: constants.KIND_TABS_EVENT,
               event: {
                 kind: key,
-                args: util.toJSON(Array.from(arguments))
+                args: util.toJSON([...arguments])
               }
             });
           }

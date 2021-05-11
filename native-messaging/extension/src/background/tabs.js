@@ -892,7 +892,7 @@ export class TabsHandler {
     var dummyObserver = {};
     constants.EVENTS_TABS.forEach(key => {
       dummyObserver[key] = function() {
-        if (settings.debug.tabs.events) console.log.apply(this, [`observer.${key}`].concat(Array.from(arguments)))
+        if (settings.debug.tabs.events) console.log.apply(this, [`observer.${key}`, ...arguments]);
       }
     });
     this.addObserver(dummyObserver);
@@ -900,14 +900,14 @@ export class TabsHandler {
     // Listen to windows being removed or focused.
     // windows.onRemoved parameters: windowId
     browser.windows.onRemoved.addListener(function(windowId) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onRemoved'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onRemoved', ...arguments]);
       self.removeWindow(windowId);
     });
     // Note: listening on focus change triggers an initial event (so that we
     // known which window is focused).
     // windows.onFocusChanged parameters: windowId
     browser.windows.onFocusChanged.addListener(function(windowId) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onFocusChanged'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['windows.onFocusChanged', ...arguments]);
       self.focusWindow(windowId);
     });
 
@@ -920,32 +920,32 @@ export class TabsHandler {
     //  - tabId
     //  - removeInfo: {windowId, isWindowClosing}
     browser.tabs.onRemoved.addListener(function(tabId, details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onRemoved'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onRemoved', ...arguments]);
       self.removeTab(tabId, details.windowId);
     });
     // tabs.onActivated parameters:
     //  - activeInfo: {tabId, windowId, previousTabId}
     browser.tabs.onActivated.addListener(function(details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onActivated'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onActivated', ...arguments]);
       self.activateTab(details);
     });
     // tabs.onCreated parameters: Tab
     browser.tabs.onCreated.addListener(function(details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onCreated'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onCreated', ...arguments]);
       self.createTab(details);
     });
     // tabs.onAttached parameters:
     //  - tabId
     //  - attachInfo: {newWindowId, newPosition}
     browser.tabs.onAttached.addListener(function(tabId, details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onAttached'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onAttached', ...arguments]);
       self.attachTab(Object.assign({tabId}, details));
     });
     // tabs.onDetached parameters:
     //  - tabId
     //  - detachInfo: {oldWindowId, oldPosition}
     browser.tabs.onDetached.addListener(function(tabId, details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onDetached'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onDetached', ...arguments]);
       self.detachTab(Object.assign({tabId}, details));
     });
 
@@ -956,11 +956,11 @@ export class TabsHandler {
     // in 'about:blank'/'about:home'/etc. cases.
     var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
     browser.webNavigation.onBeforeNavigate.addListener(function(details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onBeforeNavigate'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onBeforeNavigate', ...arguments]);
       self.resetFrame(details);
     });
     browser.webNavigation.onDOMContentLoaded.addListener(function(details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onDOMContentLoaded'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onDOMContentLoaded', ...arguments]);
       self.addFrame(details);
     }, webNavigationFilter);
     browser.webNavigation.onCompleted.addListener(function(details) {
@@ -968,7 +968,7 @@ export class TabsHandler {
       // assume onDOMContentLoaded was triggered.
       // For now we don't expect the situation (onDOMContentLoaded skipped) to
       // happen on the main frame, which would require more specific handling.
-      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onCompleted'].concat(Array.from(arguments)))
+      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onCompleted', ...arguments]);
       self.addFrame(details, {skipExisting: true});
     }, webNavigationFilter);
 
