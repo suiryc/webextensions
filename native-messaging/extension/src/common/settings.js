@@ -457,6 +457,34 @@ class ExtensionIntSetting extends ExtensionSetting {
 
 }
 
+// Manages an enumeration setting.
+class ExtensionEnumerationSetting extends ExtensionSetting {
+
+  constructor(key, value, allowed, multi) {
+    super(key, value, '');
+    if (!allowed) throw new Error('Passing allowed values is mandatory for enumeration setting');
+    this.allowed = allowed;
+    this.multi = multi;
+  }
+
+  updateField() {
+    if (!this.value) this.field.value = '';
+    else this.field.value = this.value;
+  }
+
+  validateValue(v) {
+    var self = this;
+    if (self.getValues(v).some(v => !self.allowed.has(v))) throw new Error(`Allowed values: ${Array.from(self.allowed).join(', ')}`);
+    return v;
+  }
+
+  getValues(v) {
+    v = (v || this.value || '').trim();
+    return v ? Array.from(new Set(this.multi ? v.split(/[ ,\t]+/) : [v])) : [];
+  }
+
+}
+
 // Manages a script (string) setting.
 class ExtensionScriptSetting extends ExtensionSetting {
 
