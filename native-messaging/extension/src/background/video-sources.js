@@ -165,9 +165,10 @@ class VideoSource {
   }
 
   getFilenameRefining() {
+    var key = 'scripts.video.filenameRefining';
     return this.webext.getExtensionProperty({
-      key: `scripts.video.filenameRefining`,
-      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['params'], settings.scripts.video.inner.filenameRefining)
+      key,
+      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['params'], settings.inner.perKey[key])
     });
   }
 
@@ -651,6 +652,15 @@ export class VideoSourceHandler {
     self.menuHandler = menuHandler;
     // Buffered requests, per tab frame.
     self.bufferedRequests = {};
+
+    // Setup our (bound to us) callbacks (used as listeners).
+    // Note: we need those callbacks to remain the same so that we can remove
+    // any listener that was previously added.
+    self.listeners = {};
+    ['onRequest', 'onResponse'].forEach(key => {
+      self.listeners[key] = self[key].bind(self);
+    });
+
     // Listen changes in interception settings to apply them.
     settings.inner.interceptVideo.addListener((setting, oldValue, newValue) => {
       self.setupInterception();
@@ -733,24 +743,11 @@ export class VideoSourceHandler {
 
   setupInterception() {
     // Check whether we now need to intercept anything
-    this.interceptVideo = settings.interceptVideo;
-
-    // If not done, setup our (bound to us) callbacks (used as listeners).
-    // Note: we need those callbacks to remain the same so that we can remove
-    // any listener that was previously added.
-    if (!this.listeners) {
-      this.listeners = {};
-      ['onRequest', 'onResponse'].forEach(key => {
-        this.listeners[key] = this[key].bind(this);
-      });
-    }
-
+    var interceptVideo = settings.interceptVideo;
     // Determine whether we were listening.
-    // Note: alternatively we could get 'this.interceptVideo' etc before
-    // changing the value, but here we emphasize the use of our listeners.
     var interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
     // Add/remove listeners as requested.
-    if (this.interceptVideo && !interceptingVideo) {
+    if (interceptVideo && !interceptingVideo) {
       if (settings.debug.video) console.log('Installing video webRequest interception');
       // Notes:
       // We need to intercept media ('video' and 'audio' elements) and object
@@ -771,15 +768,13 @@ export class VideoSourceHandler {
         webRequestFilter,
         ['responseHeaders']
       );
-    } else if (!this.interceptVideo && interceptingVideo) {
+    } else if (!interceptVideo && interceptingVideo) {
       if (settings.debug.video) console.log('Uninstalling video webRequest interception');
       browser.webRequest.onSendHeaders.removeListener(this.listeners.onRequest);
       browser.webRequest.onHeadersReceived.removeListener(this.listeners.onResponse);
     }
     // Cleanup resources when applicable.
-    if (!this.interceptVideo) {
-      this.bufferedRequests = {};
-    }
+    if (!interceptVideo) this.bufferedRequests = {};
   }
 
   async onRequest(request) {
