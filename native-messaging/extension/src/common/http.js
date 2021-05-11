@@ -545,3 +545,109 @@ export class HeaderParser {
   }
 
 }
+
+
+// RFC 6265 defines cookies
+// See: https://datatracker.ietf.org/doc/html/rfc6265
+//
+// Each cookie is defined with a name-value-pair of the form 'name=value'.
+// Cookies should not be nameless, neither in the form 'value' nor '=value'.
+// However legacy implementations *may* use such forms, so try to cope with it.
+//
+// Even though the RFC asks to sort cookies (by path length and creation date),
+// it also asks for server to NOT rely on any specific order.
+// Here we try to keep the original cookie and order whenever possible.
+//
+// The RFC grammar does not allow spaces inside name and values, nor in leading
+// or trailing positions. Legacy implementations may however use spaces.
+// The RFC gives a permissive parsing algorithm that:
+//  - trims leading/trailing spaces in name and value
+//  - keeps spaces found inside name and value
+//
+// Quoting value only served to keep leading/trailing spaces in value.
+// In particular there is no character escaping handled in cookies.
+
+export class Cookie {
+
+  // The given cookie string is parsed and remembered.
+  // When cookies are removed/changed/added, the string representation is reset
+  // and rebuilt when accessed.
+
+  constructor(cookie) {
+    this.cookie = cookie || undefined;
+    this.cookies = [];
+    if (cookie) {
+      this.cookies = cookie.split(';').map(s => {
+        s = s.trim();
+        var split = s.split('=', 2).map(v => v.trim());
+        return ((split.length < 2) || !split[0]) ? ['', this._decodeValue(s)] : [split[0], this._decodeValue(split[1])];
+      });
+    }
+  }
+
+  _decodeValue(s) {
+    return (s.startsWith('"') && s.endsWith('"')) ? s.slice(1, -1) : s;
+  }
+
+  _encodeValue(s) {
+    return (s.startsWith(' ') || s.endsWith(' ')) ? `"${s}"` : s;
+  }
+
+  value() {
+    // Rebuild cookie string if necessary.
+    if (!this.cookie && this.cookies.length) {
+      this.cookie = this.cookies.map(a => {
+        var name = a[0];
+        var value = this._encodeValue(a[1]);
+        return name ? `${name}=${value}` : value;
+      }).join('; ');
+    }
+    return this.cookie;
+  }
+
+  find(name) {
+    var cookie = this.cookies.find(a => a[0] == name);
+    if (cookie) return cookie[1];
+  }
+
+  findAll(name) {
+    return this.cookies.filter(a => a[0] == name).map(a => a[1]);
+  }
+
+  remove(name, first) {
+    delete(this.cookie);
+    var found = false;
+    this.cookies = this.cookies.filter(a => {
+      if (a[0] != name) return true;
+      var keep = first && found;
+      found = true;
+      return keep;
+    });
+    return this;
+  }
+
+  add(name, value) {
+    delete(this.cookie);
+    this.cookies.push([name || '', value || '']);
+    return this;
+  }
+
+  set(name, value, first) {
+    delete(this.cookie);
+    var found = false;
+    var cookies = [];
+    this.cookies.forEach(c => {
+      if (c[0] != name) {
+        cookies.push(c);
+        return;
+      }
+      if (!found) cookies.push([name, value]);
+      else if (first) cookies.push(c);
+      found = true;
+    });
+    this.cookies = cookies;
+    if (!found) this.add(name, value);
+    return this;
+  }
+
+}

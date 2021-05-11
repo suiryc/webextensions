@@ -376,3 +376,68 @@ describe('ContentType', function() {
   });
 
 });
+
+
+describe('Cookie', function() {
+
+  it('should handle unexisting value', function() {
+    assert.equal((new http.Cookie()).value(), undefined);
+    assert.equal((new http.Cookie(null)).value(), undefined);
+  });
+
+  it('should handle nominal cookies', function() {
+    var cookie = 'a=b; A=c; a=d; a=';
+    var c = new http.Cookie(cookie);
+    assert.equal(c.value(), cookie);
+    assert.equal(c.find('a'), 'b');
+    assert.equal(c.find('A'), 'c');
+    assert.deepEqual(c.findAll('a'), ['b', 'd', '']);
+  });
+
+  it('should handle spaceless cookies', function() {
+    var cookie = 'a=b;A=c;a=d;a=';
+    var c = new http.Cookie(cookie);
+    assert.equal(c.find('a'), 'b');
+    assert.equal(c.find('A'), 'c');
+    assert.deepEqual(c.findAll('a'), ['b', 'd', '']);
+  });
+
+  it('should handle removing cookies', function() {
+    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=; b=1');
+    assert.equal(c.remove('a', true).value(), 'a=2; a=3; A=1; A=2; a=; b=1');
+    assert.equal(c.remove('A').value(), 'a=2; a=3; a=; b=1');
+  });
+
+  it('should handle adding cookies', function() {
+    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
+    assert.equal(c.add('a', '1').value(), 'a=1; a=2; a=3; A=1; A=2; a=4; b=1; a=1');
+  });
+
+  it('should handle setting cookies', function() {
+    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
+    assert.equal(c.set('a', '4', true).value(), 'a=4; a=2; a=3; A=1; A=2; a=4; b=1');
+    assert.equal(c.set('a', '5').value(), 'a=5; A=1; A=2; b=1');
+    assert.equal(c.set('B', '1').value(), 'a=5; A=1; A=2; b=1; B=1');
+  });
+
+  it('should handle quoted values', function() {
+    var c = new http.Cookie(' a = 1 ; a = "2" ; a = " 3 " ; a = "" ');
+    assert.deepEqual(c.findAll('a'), ['1', '2', ' 3 ', '']);
+    assert.equal(c.set('a', ' 1', true).value(), 'a=" 1"; a=2; a=" 3 "; a=');
+    assert.equal(c.set('a', '1 ', true).value(), 'a="1 "; a=2; a=" 3 "; a=');
+    assert.equal(c.set('a', '1', true).value(), 'a=1; a=2; a=" 3 "; a=');
+    assert.equal(c.set('b', '1 ').value(), 'a=1; a=2; a=" 3 "; a=; b="1 "');
+  });
+
+  it('should handle nameless cookies', function() {
+    var c = new http.Cookie('=1; 2; ; ""; b=1;');
+    assert.equal(c.find(''), '=1');
+    assert.deepEqual(c.findAll(''), ['=1', '2', '', '', '']);
+    assert.equal(c.add('a', '1').value(), '=1; 2; ; ; b=1; ; a=1');
+    assert.equal(c.set('', '1', true).value(), '1; 2; ; ; b=1; ; a=1');
+    assert.equal(c.set('', '=1', true).value(), '=1; 2; ; ; b=1; ; a=1');
+    assert.equal(c.remove('', true).value(), '2; ; ; b=1; ; a=1');
+    assert.equal(c.set('', ' 2', true).value(), '" 2"; ; ; b=1; ; a=1');
+  });
+
+});
