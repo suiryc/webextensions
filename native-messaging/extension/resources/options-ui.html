@@ -27,6 +27,7 @@
   <div class="panel">
     <input type="radio" id="tab-item-downloads" name="tabs" class="tab-locator" hidden checked>
     <input type="radio" id="tab-item-videos" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-requests" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-links" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-tabs" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-misc" name="tabs" class="tab-locator" hidden>
@@ -38,6 +39,9 @@
         </li>
         <li class="tab-item">
           <label for="tab-item-videos" class="clickable"><a>Videos</a></label>
+        </li>
+        <li class="tab-item">
+          <label for="tab-item-requests" class="clickable"><a>Requests</a></label>
         </li>
         <li class="tab-item">
           <label for="tab-item-links" class="clickable"><a>Links</a></label>
@@ -112,6 +116,43 @@
 
           <div class="tab-content">
             <textarea class="form-input input-script" id="scripts.video.filenameRefining" rows="60" spellcheck="false" autocorrect="off"></textarea>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Requests options -->
+      <div class="tab-content">
+        <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
+        <input type="radio" id="tab-item-requests-main" name="tabs-requests" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-requests-webRequest-onBeforeSendHeaders" name="tabs-requests" class="tab-locator" hidden>
+
+        <div class="panel-nav tabs-items">
+          <ul class="tab">
+            <li class="tab-item">
+              <label for="tab-item-requests-main" class="clickable"><a>Main</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-requests-webRequest-onBeforeSendHeaders" class="clickable"><a>onBeforeSendHeaders</a></label>
+            </li>
+          </ul>
+        </div>
+
+        <div class="panel-body tabs-content">
+
+          <div class="tab-content">
+            <div class="panel">
+              <div class="panel-body">
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="intercept.webRequest.onBeforeSendHeaders.enabled"><i class="form-icon"></i><span>Intercept onBeforeSendHeaders</span></label></div>
+                <div>
+                  <label class="form-label"><span>onBeforeSendHeaders types:</span><input type="text" id="intercept.webRequest.onBeforeSendHeaders.requestTypes" class="form-input"></label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-content">
+            <textarea class="form-input input-script" id="intercept.webRequest.onBeforeSendHeaders.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
         </div>

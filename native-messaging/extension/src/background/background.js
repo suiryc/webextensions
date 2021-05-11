@@ -5,6 +5,7 @@ import * as util from '../common/util.js';
 import { waitForSettings, settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { ContentScriptHandler } from './content-scripts.js';
+import { RequestsInterceptor } from './requests-interceptor.js';
 import { dlMngr, RequestsHandler } from './downloads.js';
 import { MenuHandler } from './menus.js';
 import { VideoSourceHandler } from './video-sources.js';
@@ -357,6 +358,7 @@ waitForSettings(true).then(() => {
 
 
   // Listen to requests and downloads.
+  new RequestsInterceptor(webext);
   dlMngr.setup(webext, nativeApp);
   requestsHandler = new RequestsHandler(webext);
   // Handle menus.
