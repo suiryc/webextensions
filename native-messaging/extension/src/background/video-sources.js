@@ -167,7 +167,7 @@ class VideoSource {
   getFilenameRefining() {
     return this.webext.getExtensionProperty({
       key: `scripts.video.filenameRefining`,
-      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['http', 'params'], settings.scripts.video.inner.filenameRefining)
+      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['params'], settings.scripts.video.inner.filenameRefining)
     });
   }
 
@@ -191,7 +191,6 @@ class VideoSource {
     var params = {};
     if (!this.filenameFromUrl) {
       var scriptParams = {
-        http: http,
         params: {
           videoSource: this,
           title: this.tabTitle,

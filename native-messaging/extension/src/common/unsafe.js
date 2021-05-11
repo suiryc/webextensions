@@ -1,6 +1,7 @@
 'use strict';
 
 import * as util from './util.js';
+import * as http from './http.js';
 import * as unsafe from './unsafe.js';
 
 
@@ -11,7 +12,7 @@ export class CodeExecutor {
     self.webext = webext;
     self.scriptName = scriptName;
     // We will pass useful helpers automatically.
-    argNames = argNames.concat(['notif', 'unsafe', 'util', 'webext']);
+    argNames = argNames.concat(['http', 'notif', 'unsafe', 'util', 'webext']);
     self.argNames = argNames;
 
     if ((typeof(code) === 'object') && code.addListener) {
@@ -47,6 +48,7 @@ export class CodeExecutor {
     var argValues = [];
     var notif = this.getNotif();
     args = Object.assign({
+      http: http,
       notif: notif,
       unsafe: unsafe,
       util: util,
