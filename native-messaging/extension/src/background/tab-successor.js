@@ -41,7 +41,8 @@ function sortTabs(tabs) {
   if (tabs.length < 2) return tabs;
   tabs.sort((a, b) => {
     // Active tab is always first.
-    if (a.active) return -1;
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
     if (a.lastAccessed > b.lastAccessed) return -1;
     if (a.lastAccessed < b.lastAccessed) return 1;
     return 0;
