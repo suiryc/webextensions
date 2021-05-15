@@ -104,17 +104,17 @@ export class TabSuccessor {
   async setupSuccessors(reset) {
     var self = this;
     var tabs = await browser.tabs.query({});
-    var tabsPerWindow = {};
+    var tabsByWindow = {};
     // Gather tabs per window.
     for (var tab of tabs) {
       // Leave alone tabs that already have a successor.
       if (!reset && tab.successorTabId) continue;
-      var entry = tabsPerWindow[tab.windowId] || [];
+      var entry = tabsByWindow[tab.windowId] || [];
       entry.push(tab);
-      tabsPerWindow[tab.windowId] = entry;
+      tabsByWindow[tab.windowId] = entry;
     }
-    for (var windowId in tabsPerWindow) {
-      var entry = tabsPerWindow[windowId];
+    for (var windowId in tabsByWindow) {
+      var entry = tabsByWindow[windowId];
       // Closing tab should activate the next one with most recent access time.
       sortTabs(entry);
       await self.chainTabs(entry);
@@ -122,7 +122,7 @@ export class TabSuccessor {
     // 'chainTabs' does call 'scheduleCheckTabs'.
     // Belt and suspenders: ensure we at least call it once, in the case we
     // don't find any tab to setup.
-    if (!tabsPerWindow.length) self.scheduleCheckTabs();
+    if (!tabsByWindow.length) self.scheduleCheckTabs();
   }
 
   async tabCreated(details) {
