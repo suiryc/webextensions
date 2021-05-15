@@ -32,18 +32,23 @@ import * as util from '../common/util.js';
 // show the root entry.
 // When other entries are removed, we gets back to the initial state.
 
+// For now, this menu handler only manages download links.
+// Especially don't target 'all' so that we can create other menu entries for
+// other contexts.
+const DL_CONTEXTS = ['link', 'video', 'audio'];
+
 export class MenuHandler {
 
   constructor(requestsHandler) {
     this.requestsHandler = requestsHandler;
     this.extraEntries = [];
 
-    // Root menu, initially invisible.
+    // Root menu for dl links, initially invisible.
     browser.contextMenus.create({
       id: 'root',
       title: 'dl-mngr',
       icons: { '16': '/resources/icon.svg' },
-      contexts: ['all'],
+      contexts: DL_CONTEXTS,
       visible: false
     });
 
@@ -54,7 +59,7 @@ export class MenuHandler {
       id: 'dl.link',
       title: 'Download link',
       icons: { '16': '/resources/icon.svg' },
-      contexts: ['link', 'video', 'audio'],
+      contexts: DL_CONTEXTS,
       targetUrlPatterns: ['*://*/*'],
       onclick: requestsHandler.manageClick.bind(requestsHandler)
     });
@@ -65,7 +70,7 @@ export class MenuHandler {
       parentId: 'root',
       title: 'Download link',
       icons: { '16': '/resources/icon.svg' },
-      contexts: ['link', 'video', 'audio'],
+      contexts: DL_CONTEXTS,
       targetUrlPatterns: ['*://*/*'],
       onclick: requestsHandler.manageClick.bind(requestsHandler)
     });
@@ -74,7 +79,7 @@ export class MenuHandler {
       id: 'dl.link-2-sep',
       parentId: 'root',
       type: 'separator',
-      contexts: ['link', 'video', 'audio'],
+      contexts: DL_CONTEXTS,
       targetUrlPatterns: ['*://*/*']
     });
   }
@@ -113,7 +118,7 @@ export class MenuHandler {
       id: util.uuidv4(),
       parentId: 'root',
       icons: { '16': '/resources/icon.svg' },
-      contexts: ['all'],
+      contexts: DL_CONTEXTS,
     }, details);
     var id = details.id;
     this.extraEntries.push(id);
