@@ -33,8 +33,12 @@ import * as util from '../common/util.js';
 // When other entries are removed, we gets back to the initial state.
 
 // For now, this menu handler only manages download links.
-// Especially don't target 'all' so that we can create other menu entries for
-// other contexts.
+// However, for simplicity the root entry and sub-entries (available downloads)
+// can target 'all', as it actually:
+//  - encompasses sensible contexts: page, frames, ...; there is also no issue
+//    targeting browser_action (or page_action which we don't have) through it
+//  - leaves out the ones we don't want to target, especially 'tab'; but also
+//    'bookmark' and 'tools_menu'
 const DL_CONTEXTS = ['link', 'video', 'audio'];
 
 export class MenuHandler {
@@ -48,7 +52,7 @@ export class MenuHandler {
       id: 'root',
       title: 'dl-mngr',
       icons: { '16': '/resources/icon.svg' },
-      contexts: DL_CONTEXTS,
+      contexts: ['all'],
       visible: false
     });
 
@@ -118,7 +122,7 @@ export class MenuHandler {
       id: util.uuidv4(),
       parentId: 'root',
       icons: { '16': '/resources/icon.svg' },
-      contexts: DL_CONTEXTS,
+      contexts: ['all'],
     }, details);
     var id = details.id;
     this.extraEntries.push(id);
