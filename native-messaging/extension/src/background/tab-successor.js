@@ -99,6 +99,17 @@ export class TabSuccessor {
     });
     if (settings.handleTabSuccessor) self.tabsHandler.addObserver(self, true);
     await _setup(resetSuccessors);
+
+    // Context menu entry to unload tab(s).
+    browser.contextMenus.create({
+      id: 'tab.unload',
+      title: 'Unload tab(s)',
+      contexts: ['tab'],
+      onclick: function(info, tab) {
+        if (settings.debug.tabs.successor) console.log.apply(this, [`tab.unload`, ...arguments]);
+        self.unloadTabs(tab);
+      }
+    });
   }
 
   async setupSuccessors(reset) {
@@ -251,6 +262,50 @@ export class TabSuccessor {
 
   tabAttached(details) {
     this.scheduleCheckTabs();
+  }
+
+  // Unload (that is, discard) tab(s).
+  async unloadTabs(tab) {
+    var windowId = tab.windowId;
+    // If multiple tabs are highlighted, and the ation is requested on one of
+    // them, it is applied on all of them.
+    var highlighted = await browser.tabs.query({highlighted: true});
+    var tabs = highlighted.some(t => t.id == tab.id) ? highlighted : [tab];
+    // We cannot discard 'about:' tabs, except 'about:newtab'.
+    tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab'));
+    if (settings.debug.tabs.successor) console.log('Unload tabs:', tabs);
+    // We cannot discard the active tab: in this case we must first select
+    // another one (its successor).
+    var discard = {};
+    var active;
+    for (tab of tabs) {
+      discard[tab.id] = tab;
+      if (tab.active) active = tab;
+    }
+    function findSuccessor(tab) {
+      while (tab) {
+        tab = tab.successorTabId;
+        // Belt and suspenders: gracefully handle missing successor.
+        if (!tab) break;
+        // Ensure we are not also discarding the successor.
+        if (!(tab in discard)) break;
+        // We will also discard the successor, keep on searching.
+        tab = discard[tab];
+      }
+      return tab;
+    }
+    active = findSuccessor(active);
+    // Note: we don't expect this tab to not exist anymore, thus we don't
+    // expect this action to fail.
+    if (active) await browser.tabs.update(active, {active: true});
+    // Now remove the tabs to discard from the succession chain.
+    tabs = await browser.tabs.query({discarded: false, windowId});
+    for (tab of tabs) {
+      if (!(tab.id in discard)) continue;
+      this.chainTabs([tab], findSuccessor(tab));
+    }
+    // And finally discard the tabs.
+    browser.tabs.discard(Object.values(discard).map(t => t.id));
   }
 
   // Schedules checkTabs call.
