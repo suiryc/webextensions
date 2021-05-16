@@ -269,7 +269,7 @@ export class TabSuccessor {
     var windowId = tab.windowId;
     // If multiple tabs are highlighted, and the ation is requested on one of
     // them, it is applied on all of them.
-    var highlighted = await browser.tabs.query({highlighted: true});
+    var highlighted = await browser.tabs.query({highlighted: true, windowId});
     var tabs = highlighted.some(t => t.id == tab.id) ? highlighted : [tab];
     // We cannot discard 'about:' tabs, except 'newtab', 'home' and 'privatebrowsing'.
     tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab') || (tab.url == 'about:home') || (tab.url == 'about:privatebrowsing'));
