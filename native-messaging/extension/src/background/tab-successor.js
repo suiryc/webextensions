@@ -271,8 +271,8 @@ export class TabSuccessor {
     // them, it is applied on all of them.
     var highlighted = await browser.tabs.query({highlighted: true});
     var tabs = highlighted.some(t => t.id == tab.id) ? highlighted : [tab];
-    // We cannot discard 'about:' tabs, except 'about:newtab'.
-    tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab'));
+    // We cannot discard 'about:' tabs, except 'newtab', 'home' and 'privatebrowsing'.
+    tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab') || (tab.url == 'about:home') || (tab.url == 'about:privatebrowsing'));
     if (settings.debug.tabs.successor) console.log('Unload tabs:', tabs);
     // We cannot discard the active tab: in this case we must first select
     // another one (its successor).
