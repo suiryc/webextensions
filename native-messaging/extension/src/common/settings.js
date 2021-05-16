@@ -156,7 +156,7 @@ class Settings extends SettingsBranch {
     if (globalThis.browser && browser.webRequest) {
       var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
-      new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', true, requestTypes, true);
+      new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', '', requestTypes, true);
     }
     new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
     new ExtensionBooleanSetting('notifyDownload', true);
