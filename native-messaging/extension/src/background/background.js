@@ -353,7 +353,7 @@ waitForSettings(true).then(() => {
   }).then(specs => {
     console.log('Native application %s started: %o', nativeApp.appId, specs);
   }).catch(err => {
-    console.log('Native application %s failed to start: %o', nativeApp.appId, err);
+    webext.getNotif().error(`Native application ${nativeApp.appId} failed to start`, err);
   });
 
 
@@ -370,4 +370,7 @@ waitForSettings(true).then(() => {
   // Handle video sources.
   videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
   new TabsObserver(tabsHandler, videoSourceHandler);
+}).catch(err => {
+  if (webext) webext.getNotif().error(`Failure starting ${constants.EXTENSION_ID}`, err);
+  else console.log(`Failure starting ${constants.EXTENSION_ID}:`, constants.EXTENSION_ID, err);
 });
