@@ -373,7 +373,7 @@ class PortHandler {
     // Re-register events to observe.
     var events = this.params.tabsEvents || new Set();
     if (events.size) {
-      self.postMessage({
+      this.postMessage({
         kind: constants.KIND_REGISTER_TABS_EVENTS,
         events: events
       });
