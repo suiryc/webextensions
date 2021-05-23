@@ -104,7 +104,7 @@ export class WebExtension {
     if (msg.kind === constants.KIND_ECHO) {
       return Promise.resolve({
         msg: msg,
-        sender: sender
+        sender: actualSender
       });
     } else if (msg.kind === constants.KIND_REGISTER_PORT) {
       this.registerPort(sender, msg.name);
