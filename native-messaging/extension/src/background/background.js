@@ -2,7 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
-import { waitForSettings, settings } from '../common/settings.js';
+import { settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { ContentScriptHandler } from './content-scripts.js';
 import { RequestsInterceptor } from './requests-interceptor.js';
@@ -333,7 +333,7 @@ var videoSourceHandler;
 var nativeApp;
 var applicationMessages = [];
 var videosSources = {};
-waitForSettings(true).then(() => {
+settings.ready.then(() => {
   // Handle tabs.
   tabsHandler = new TabsHandler();
   // Extension handler

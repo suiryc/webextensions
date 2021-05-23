@@ -2,12 +2,12 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
-import { waitForSettings, trackFields } from '../common/settings.js';
+import { settings, trackFields } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
 
 // Wait for settings to be ready, then track fields changes (to persist settings).
-waitForSettings().then(() => trackFields());
+settings.ready.then(() => trackFields());
 
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.

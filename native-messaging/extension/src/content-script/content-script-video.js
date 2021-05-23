@@ -3,7 +3,7 @@
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import * as unsafe from '../common/unsafe.js';
-import { waitForSettings, settings } from '../common/settings.js';
+import { settings } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
 
@@ -234,7 +234,7 @@ var nodesObserver = new MutationObserver(function(mutations, observer) {
   }
 });
 
-waitForSettings().then(() => {
+settings.ready.then(() => {
   return util.waitForDocument();
 }).then(() => {
   // Observe mutations in document, to detect new video tags being added.

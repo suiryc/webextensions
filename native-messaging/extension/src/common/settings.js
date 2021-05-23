@@ -60,7 +60,7 @@
 // many value changes (until last) to have a too negative impact.
 //
 // Since interacting with storage is asynchronous, when creating a setting
-// instance its value is not immediatly known. 'waitForSettings' is used to
+// instance its value is not immediatly known. 'settings.ready' is used to
 // wait for all setting to be initialized (returns a Promise).
 // 'trackFields' is an helper to setup UI input fields associated to settings.
 //
@@ -138,6 +138,8 @@ class Settings extends SettingsBranch {
     this.latestSettingsVersion = 2;
   }
 
+  // Note: registering uses the 'settings' variable, hence the need to do it
+  // separately from the constructor.
   registerSettings() {
     // Create settings (auto-registered).
     new ExtensionIntSetting('settingsVersion', 0);
@@ -189,7 +191,61 @@ class Settings extends SettingsBranch {
     // request as-is.
     new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
 
-    return this;
+    // If there is no 'window', assume we are not running inside browser and
+    // don't need to do anything else.
+    if (!globalThis.window) return;
+
+    // If extension has a background page, we knows it; otherwise a dummy
+    // 'extension://<extension-internal-id>/_generated_background_page.html'
+    // is created.
+    // We can thus determine whether we are running in the background script.
+    var href = window.location.href;
+    var backgroundPage = browser.runtime.getManifest().background.page;
+    var isBackgroundScript = backgroundPage
+      ? (href === browser.runtime.getManifest().background.page)
+      : href.endsWith('/_generated_background_page.html')
+      ;
+
+    // Start settings loading right away as we expect caller to need them.
+    // Caller can wait for settings to be ready (initialized).
+    this.ready = (async () => {
+      // First migrate settings if necessary.
+      // Only one caller (the background script) needs to do it.
+      // Other listeners will get notified of storage changes if any.
+      if (isBackgroundScript) await this.migrate();
+
+      var promises = [];
+      this.forEach(setting => promises.push(setting.initValue()));
+      // Knowing the browser is sometimes useful/necessary.
+      // browser.runtime.getBrowserInfo exists in Firefox >= 51
+      // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
+      if (browser.runtime.getBrowserInfo) {
+        promises.push(browser.runtime.getBrowserInfo().then(info => {
+          // Note: replacing the variable, instead of altering its content, means
+          // caller really *must* wait for us to be ready *before* getting this
+          // exported variable.
+          // Retrieving it *before* we are done gives the empty initial object.
+          // If we did replace its content instead, caller would get it empty
+          // initially and later see the altered content.
+          // Anyway all callers are supposed to wait 'settings.ready'.
+          browserInfo = {
+            raw: info,
+            version: parseInt(info.version)
+          };
+        }));
+      }
+      await Promise.all(promises);
+    })();
+  }
+
+  // Loops over declared settings, passing each one to given callback.
+  forEach(cb) {
+    var self = this;
+    Object.keys(self.perKey).forEach(key => {
+      var setting = self.perKey[key];
+      if (!(setting instanceof ExtensionSetting)) return;
+      cb(setting);
+    });
   }
 
   async migrate_v2() {
@@ -522,52 +578,9 @@ settings.registerSettings();
 
 export var browserInfo = {};
 
-// Loops over declared settings, passing each one to given callback.
-function forSettings(cb) {
-  Object.keys(settings.inner.perKey).forEach(key => {
-    var setting = settings.inner.perKey[key];
-    if (!(setting instanceof ExtensionSetting)) return;
-    cb(setting);
-  });
-}
-
-// Waits for settings to be ready (initialized).
-// Only one caller (the background script) is expected to ask for migration.
-// Other listeners will get notified of storage changes if any.
-export async function waitForSettings(migrate) {
-  // First migrate settings if necessary.
-  if (migrate) await settings.migrate();
-
-  var promises = [];
-  forSettings(setting => {
-    promises.push(setting.initValue());
-  });
-  // Knowing the browser is sometimes useful/necessary.
-  // browser.runtime.getBrowserInfo exists in Firefox >= 51
-  // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
-  if (browser.runtime.getBrowserInfo) {
-    promises.push(browser.runtime.getBrowserInfo().then(info => {
-      // Note: replacing the variable, instead of altering its content, means
-      // caller really *must* wait for us to be ready *before* getting this
-      // exported variable.
-      // Retrieving it *before* we are done gives the empty initial object.
-      // If we did replace its content instead, caller would get it empty
-      // initially and later see the altered content.
-      // Anyway all callers are supposed to 'waitForSettings'.
-      browserInfo = {
-        raw: info,
-        version: parseInt(info.version)
-      };
-    }));
-  }
-  await Promise.all(promises);
-}
-
 // Tracks all fields.
 export function trackFields() {
-  forSettings(setting => {
-    setting.trackField();
-  });
+  settings.forEach(setting => setting.trackField());
 }
 
 // Track value changes in storage to update corresponding settings.

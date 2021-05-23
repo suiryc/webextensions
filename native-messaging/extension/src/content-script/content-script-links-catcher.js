@@ -2,7 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
-import { waitForSettings, settings } from '../common/settings.js';
+import { settings } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
 
@@ -31,7 +31,7 @@ function unhandledMessage(msg, sender) {
 // Extension handler
 var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
-waitForSettings().then(() => {
+settings.ready.then(() => {
   return util.waitForDocument();
 }).then(() => {
   new LinksCatcher();
