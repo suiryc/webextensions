@@ -37,7 +37,7 @@ function unhandledMessage(msg, sender) {
 
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)
-var webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
+var webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
 try {
   linksCatcher.run();
   tw.run();

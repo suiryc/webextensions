@@ -109,7 +109,7 @@ async function dl_updateVideos(sources, showTab) {
       webext.sendMessage({
         target: constants.TARGET_BACKGROUND_PAGE,
         kind: constants.KIND_DOWNLOAD,
-        details: details,
+        details,
         params: source.download.params
       });
       // Close the browser action page.
@@ -150,7 +150,7 @@ class TabsObserver {
 }
 
 // Extension handler
-var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage: onMessage });
+var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
 var tabsObserver = new TabsObserver(webext);
 
 var windowId = -1;
@@ -276,7 +276,7 @@ clearActiveMessagesButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_CLEAR_MESSAGES,
-    windowId: windowId,
+    windowId,
     tabId: activeTabId,
     otherTabs: false
   }).then(() => {
@@ -290,7 +290,7 @@ clearOtherMessagesButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_CLEAR_MESSAGES,
-    windowId: windowId,
+    windowId,
     tabId: activeTabId,
     otherTabs: true
   }).then(() => {

@@ -71,8 +71,8 @@ export class WebExtension {
         ['info', 'warn', 'error'].forEach(level => {
           notif[level] = function(details, error) {
             // Prepare details.
-            if (typeof(details) === 'object') details = Object.assign({source: source}, details, {level: level});
-            else details = {source: source, level: level, message: details, error: error};
+            if (typeof(details) === 'object') details = Object.assign({source}, details, {level});
+            else details = {source, level, message: details, error};
             webext.notify(details);
           };
         });
@@ -104,7 +104,7 @@ export class WebExtension {
       case constants.KIND_ECHO:
         // Handle 'echo' message internally.
         return Promise.resolve({
-          msg: msg,
+          msg,
           sender: actualSender
         });
 
@@ -296,7 +296,7 @@ export class WebExtension {
       self.sendMessage({
         target: constants.TARGET_BACKGROUND_PAGE,
         kind: constants.KIND_REGISTER_TABS_EVENTS,
-        events: events
+        events
       });
     }
   }
@@ -349,7 +349,7 @@ export class WebExtension {
     this.sendMessage({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_NOTIFICATION,
-      details: details
+      details
     });
   }
 
@@ -392,14 +392,14 @@ class PortHandler {
     // Register us in background script.
     this.postMessage({
       kind: constants.KIND_REGISTER_PORT,
-      name: name
+      name
     });
     // Re-register events to observe.
     var events = this.params.tabsEvents || new Set();
     if (events.size) {
       this.postMessage({
         kind: constants.KIND_REGISTER_TABS_EVENTS,
-        events: events
+        events
       });
     }
   }
@@ -460,7 +460,7 @@ class PortHandler {
     // the correlationId, which is used to reply to the original sender in case
     // of (background script) forwarding.
     // To prevent any altering, duplicate the message.
-    msg = Object.assign({}, msg, {correlationId: correlationId});
+    msg = Object.assign({}, msg, {correlationId});
 
     // Post message
     self.postMessage(msg);

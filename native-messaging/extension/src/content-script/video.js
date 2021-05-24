@@ -132,7 +132,7 @@ function processVideo(node) {
     await delayed;
     var scriptParams = {
       params: {
-        src: src
+        src
       }
     };
     var scriptResult = await unsafe.executeCode(webext, 'download refining', scriptParams, settings.scripts.video.downloadRefining);
@@ -140,7 +140,7 @@ function processVideo(node) {
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_ADD_VIDEO_SOURCE,
-      src: src
+      src
     }, scriptResult));
   }
 

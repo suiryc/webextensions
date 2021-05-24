@@ -257,7 +257,7 @@ function addExtensionMessage(details) {
   webext.sendMessage({
     target: constants.TARGET_BROWSER_ACTION,
     kind: constants.KIND_EXT_MESSAGE,
-    details: details
+    details
   });
   applicationMessages.push(details);
 
@@ -297,13 +297,13 @@ function updateStatus(windowId) {
     }
 
     if (!hasMessages && !hasVideos) {
-      browser.browserAction.setBadgeText({windowId: windowId, text: null});
-      browser.browserAction.setBadgeBackgroundColor({windowId: windowId, color: null});
+      browser.browserAction.setBadgeText({windowId, text: null});
+      browser.browserAction.setBadgeBackgroundColor({windowId, color: null});
       continue;
     }
 
-    browser.browserAction.setBadgeText({windowId: windowId, text: `${hasVideos}${hasMessages}`});
-    browser.browserAction.setBadgeBackgroundColor({windowId: windowId, color: badgeBackgroundColor});
+    browser.browserAction.setBadgeText({windowId, text: `${hasVideos}${hasMessages}`});
+    browser.browserAction.setBadgeBackgroundColor({windowId, color: badgeBackgroundColor});
   }
 }
 
@@ -345,7 +345,7 @@ class TabsObserver {
       webext.sendMessage({
         target: constants.TARGET_BROWSER_ACTION,
         kind: constants.KIND_DL_UPDATE_VIDEOS,
-        sources: sources
+        sources
       });
     }
     updateStatus(windowId);
@@ -380,8 +380,8 @@ try {
   // Extension handler
   var webext = new WebExtension({
     target: constants.TARGET_BACKGROUND_PAGE,
-    onMessage: onMessage,
-    tabsHandler: tabsHandler
+    onMessage,
+    tabsHandler
   });
   // Native application handler
   var nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });

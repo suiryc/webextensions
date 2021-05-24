@@ -111,8 +111,8 @@ function getViewportSize() {
   }
 
   return {
-    viewWidth: viewWidth,
-    viewHeight: viewHeight
+    viewWidth,
+    viewHeight
   };
 }
 

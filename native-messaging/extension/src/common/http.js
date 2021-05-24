@@ -25,7 +25,7 @@ export function findHeaderValue(headers, name) {
 
 // Gets cookie for given URL.
 export function getCookie(url) {
-  var search = {url: url};
+  var search = {url};
   // 'firstPartyDomain' is useful/needed, but only exists in Firefox >= 59.
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/getAll
   if (browserInfo.version >= 59) search.firstPartyDomain = null;
@@ -470,8 +470,8 @@ export class HeaderParser {
     if (section !== undefined) {
       parameter.sections = parameter.sections || {};
       parameter.sections[section] = {
-        encoded: encoded,
-        value: value
+        encoded,
+        value
       };
     } else {
       parameter.value = encoded ? this.decodeString(value) : value;

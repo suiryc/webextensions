@@ -59,7 +59,7 @@ class FrameHandler {
         frameId: this.id,
         frameHandler: this,
         csUuid: this.csUuid,
-        sameUrl: sameUrl
+        sameUrl
       });
       if (this.id == 0) this.getTabsHandler().notifyObservers(constants.EVENT_TAB_RESET, notifyDetails);
       this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_RESET, notifyDetails);
@@ -209,8 +209,8 @@ class TabHandler {
       this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_ADDED, {
         tabId: this.id,
         tabHandler: this,
-        frameId: frameId,
-        frameHandler: frameHandler
+        frameId,
+        frameHandler
       });
     }
   }
@@ -375,14 +375,14 @@ export class TabsHandler {
     // Reminder: object keys are strings.
     if (hasTabAdded || hasFrameAdded) {
       for (var tabHandler of Object.values(this.tabs)) {
-        if (hasTabAdded) this.notifyObserver(observer, constants.EVENT_TAB_ADDED, { windowId: tabHandler.windowId, tabId: tabHandler.id, tabHandler: tabHandler });
+        if (hasTabAdded) this.notifyObserver(observer, constants.EVENT_TAB_ADDED, { windowId: tabHandler.windowId, tabId: tabHandler.id, tabHandler });
         if (hasFrameAdded) {
           for (var frameHandler of Object.values(tabHandler.frames)) {
             this.notifyObserver(observer, constants.EVENT_FRAME_ADDED, {
               tabId: tabHandler.id,
-              tabHandler: tabHandler,
+              tabHandler,
               frameId: frameHandler.id,
-              frameHandler: frameHandler
+              frameHandler
             });
           }
         }
@@ -396,8 +396,8 @@ export class TabsHandler {
           windowId: tabActive.windowId,
           previousTabId: tabId,
           previousTabHandler: tabHandler,
-          tabId: tabId,
-          tabHandler: tabHandler
+          tabId,
+          tabHandler
         });
       }
     }
@@ -412,9 +412,9 @@ export class TabsHandler {
         previousWindowId: windowId,
         previousTabId: tabId,
         previousTabHandler: tabHandler,
-        windowId: windowId,
-        tabId: tabId,
-        tabHandler: tabHandler
+        windowId,
+        tabId,
+        tabHandler
       });
     }
   }
@@ -454,7 +454,7 @@ export class TabsHandler {
 
     if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
-    this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId, tabId, tabHandler });
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
@@ -468,7 +468,7 @@ export class TabsHandler {
         // We manage the tab now, and it really is the active tab.
         // previousTabId points to the active tab too, so that observer can
         // deduce there is no actual change (except for the handler known).
-        this.activateTab({ previousTabId: tabId, tabId: tabId, windowId: windowId });
+        this.activateTab({ previousTabId: tabId, tabId, windowId });
       }
     }
     return tabHandler;
@@ -492,17 +492,17 @@ export class TabsHandler {
     var focused = (windowId === this.focusedWindowId);
     this.activeTabs[windowId] = {
       id: tabId,
-      windowId: windowId,
+      windowId,
       handler: tabHandler
     };
     if (focused) this.focusedTab = this.activeTabs[windowId];
     if (settings.debug.misc) console.log('Activated window=<%s> tab=<%s>', windowId, tabId);
     this.notifyObservers(constants.EVENT_TAB_ACTIVATED, {
-      windowId: windowId,
-      previousTabId: previousTabId,
-      previousTabHandler: previousTabHandler,
-      tabId: tabId,
-      tabHandler: tabHandler
+      windowId,
+      previousTabId,
+      previousTabHandler,
+      tabId,
+      tabHandler
     });
     if (focused) {
       // This tab window is focused, which means the activated tab is the
@@ -511,11 +511,11 @@ export class TabsHandler {
       // window: window is focused then tab activated.
       this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
         previousWindowId: windowId,
-        previousTabId: previousTabId,
-        previousTabHandler: previousTabHandler,
-        windowId: windowId,
-        tabId: tabId,
-        tabHandler: tabHandler
+        previousTabId,
+        previousTabHandler,
+        windowId,
+        tabId,
+        tabHandler
       });
     }
     // else: this tab is not focused because its parent window is not.
@@ -531,14 +531,14 @@ export class TabsHandler {
       if (windowId !== browser.windows.WINDOW_ID_NONE) console.log('Focused window=<%s>', windowId);
       else console.log('No more window focused');
     }
-    this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId: previousWindowId, windowId: windowId });
+    this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId, windowId });
     // Don't notify tab focusing if there is none.
     if (focusedTab.id) {
       this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
-        previousWindowId: previousWindowId,
+        previousWindowId,
         previousTabId: previousFocusedTab.id,
         previousTabHandler: previousFocusedTab.handler,
-        windowId: windowId,
+        windowId,
         tabId: focusedTab.id,
         tabHandler: focusedTab.handler
       });
@@ -580,14 +580,14 @@ export class TabsHandler {
   createTab(tab) {
     var windowId = tab.windowId;
     var tabId = tab.id;
-    this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId: windowId, tabId: tabId, tab: tab });
+    this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tab });
   }
 
   detachTab(details) {
     var windowId = details.oldWindowId;
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
-    this.notifyObservers(constants.EVENT_TAB_DETACHED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_DETACHED, { windowId, tabId, tabHandler });
   }
 
   attachTab(details) {
@@ -595,7 +595,7 @@ export class TabsHandler {
     var tabId = details.tabId;
     var tabHandler = this.tabs[tabId];
     if (tabHandler) tabHandler.windowId = windowId;
-    this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId, tabId, tabHandler });
   }
 
   removeTab(tabId, windowId) {
@@ -603,9 +603,9 @@ export class TabsHandler {
     // handler, so notify them even if we don't know the tab.
     var tabHandler = this.tabs[tabId];
     this.notifyObservers(constants.EVENT_TAB_REMOVED, {
-      windowId: windowId,
-      tabId: tabId,
-      tabHandler: tabHandler
+      windowId,
+      tabId,
+      tabHandler
     });
     if (!tabHandler) return;
     if (settings.debug.misc) console.log('Removing window=<%s> tab=<%s>', tabHandler.windowId, tabHandler.id);
@@ -614,7 +614,7 @@ export class TabsHandler {
   }
 
   removeWindow(windowId) {
-    this.notifyObservers(constants.EVENT_WINDOW_REMOVED, {windowId: windowId});
+    this.notifyObservers(constants.EVENT_WINDOW_REMOVED, {windowId});
     if (settings.debug.misc) console.log('Removing window=<%s>', windowId);
     delete(this.activeTabs[windowId]);
   }

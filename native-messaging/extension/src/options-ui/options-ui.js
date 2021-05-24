@@ -29,7 +29,7 @@ function unhandledMessage(msg, sender) {
 }
 
 // Extension handler
-var webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage: onMessage });
+var webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage });
 
 var exportButton = document.querySelector('#export');
 var importButton = document.querySelector('#import');
@@ -39,14 +39,14 @@ var resetButton = document.querySelector('#reset');
 function downloadDone(url, id) {
   // Remove download entry when applicable.
   // (id starts at 1, at least in Firefox)
-  var p = id ? browser.downloads.erase({id: id}) : util.defer;
+  var p = id ? browser.downloads.erase({id}) : util.defer;
   p.catch(() => {}).then(() => {
     URL.revokeObjectURL(url);
   });
 }
 
 function revokeDownloadURL(url, id) {
-  browser.downloads.search({id: id}).then(r => {
+  browser.downloads.search({id}).then(r => {
     var ok = !r;
     if (!ok) {
       var state = r[0].state;
@@ -68,7 +68,7 @@ exportButton.addEventListener('click', () => {
     var blob = new Blob([json], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     browser.downloads.download({
-      url: url,
+      url,
       filename: 'settings.json',
       saveAs: true
     }).then(id => {
@@ -80,7 +80,7 @@ exportButton.addEventListener('click', () => {
         webext.notify({
           title: 'Failed to export settings',
           level: 'error',
-          error: error
+          error
         });
       }
       downloadDone(url);
@@ -104,7 +104,7 @@ importFile.addEventListener('change', function() {
     webext.notify({
       title: 'Failed to import settings',
       level: 'error',
-      error: error
+      error
     });
   }
 
@@ -131,7 +131,7 @@ resetButton.addEventListener('click', () => {
     webext.notify({
       title: 'Failed to reset settings',
       level: 'error',
-      error: error
+      error
     });
   });
 });

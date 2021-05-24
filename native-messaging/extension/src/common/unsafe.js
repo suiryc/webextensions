@@ -38,7 +38,7 @@ export class CodeExecutor {
     } catch (error) {
       this.getNotif().error({
         title: 'Script code setup failed',
-        error: error
+        error
       });
     }
   }
@@ -48,10 +48,10 @@ export class CodeExecutor {
     var argValues = [];
     var notif = this.getNotif();
     args = Object.assign({
-      http: http,
-      notif: notif,
-      unsafe: unsafe,
-      util: util,
+      http,
+      notif,
+      unsafe,
+      util,
       webext: this.webext
     }, args);
     for (var arg of this.argNames) {
@@ -63,7 +63,7 @@ export class CodeExecutor {
     } catch (error) {
       notif.error({
         title: 'Script code execution failed',
-        error: error
+        error
       });
     }
     return {};

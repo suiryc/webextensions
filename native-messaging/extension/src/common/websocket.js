@@ -94,7 +94,7 @@ export class WebSocketClient {
   }
 
   onError(error) {
-    this.wsConnected.reject({error: error});
+    this.wsConnected.reject({error});
     console.error('WebSocket error:', error);
   }
 

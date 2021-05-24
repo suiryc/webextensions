@@ -113,9 +113,7 @@ class DlMngrClient {
       } catch (error) {
         // Wrap error to handle it properly (as an error coming from the remote
         // applicaton).
-        r = {
-          error: error
-        };
+        r = {error};
       }
       return handleError(r);
     }
@@ -481,7 +479,7 @@ export class RequestsHandler {
     } catch (error) {
     }
     var r = await dlMngr.download({
-      url: url,
+      url,
       referrer: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Referer'),
       cookie: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Cookie'),
       userAgent: http.findHeaderValue(requestDetails.sent.requestHeaders, 'User-Agent'),
@@ -490,7 +488,7 @@ export class RequestsHandler {
     }, {
       addComment: true,
       mimeFilename: requestDetails.filename,
-      tabTitle: tabTitle
+      tabTitle
     });
     // Cancel the request if we successfully managed to trigger the download.
     return {cancel: !r.error};
@@ -683,7 +681,7 @@ export class RequestsHandler {
 
     // Determine the referrer: either the frame or the page.
     return await dlMngr.download({
-      url: url,
+      url,
       referrer: info.frameUrl || info.pageUrl
     }, {
       addCookie: true,

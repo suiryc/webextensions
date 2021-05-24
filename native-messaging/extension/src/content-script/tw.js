@@ -189,8 +189,8 @@ function injectMessageBox() {
     webext.sendMessage({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_TW_SAVE,
-      path: path,
-      content: content
+      path,
+      content
     }).then(r => {
       // Error are notified though the response 'error' field
       if (r.error) throw r.error;

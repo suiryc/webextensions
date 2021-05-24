@@ -198,9 +198,9 @@ class VideoSource {
           tabUrl: this.tabUrl,
           frameUrl: this.frameUrl,
           url: this.getUrl(),
-          name: name,
-          extension: extension,
-          filename: filename
+          name,
+          extension,
+          filename
         }
       };
       params = await this.getFilenameRefining().execute(scriptParams);
@@ -222,9 +222,9 @@ class VideoSource {
       }
     } else {
       params = {
-        name: name,
-        extension: extension,
-        filename: filename
+        name,
+        extension,
+        filename
       };
     }
     if (!params.name) {
@@ -232,9 +232,9 @@ class VideoSource {
       filename = util.buildFilename(name, extension);
     }
     var downloadFile = {
-      name: name,
-      extension: extension,
-      filename: filename
+      name,
+      extension,
+      filename
     };
     // Detect changes in filename.
     changes = !util.deepEqual(this.downloadFile, downloadFile);
@@ -694,7 +694,7 @@ export class VideoSourceHandler {
       keepOnReset: true
     });
     return {
-      handler: handler,
+      handler,
       frameUrl: frameHandler.url
     };
   }
@@ -783,8 +783,8 @@ export class VideoSourceHandler {
     var tabId = request.tabId;
     var frameId = request.frameId;
     var { handler } = this.getTabHandler({
-      tabId: tabId,
-      frameId: frameId
+      tabId,
+      frameId
     }, true);
     if (!handler) {
       this.getBufferedRequests(tabId, frameId).addRequest(request);
@@ -800,8 +800,8 @@ export class VideoSourceHandler {
     var tabId = response.tabId;
     var frameId = response.frameId;
     var { handler } = this.getTabHandler({
-      tabId: tabId,
-      frameId: frameId
+      tabId,
+      frameId
     }, true);
     if (!handler) {
       this.getBufferedRequests(tabId, frameId).addResponse(response);
@@ -831,8 +831,8 @@ export class VideoSourceHandler {
     // Process buffered requests.
     // Belt and suspenders: ensure we do know the frame now.
     var { handler } = this.getTabHandler({
-      tabId: tabId,
-      frameId: frameId
+      tabId,
+      frameId
     }, true);
     if (!handler) {
       // Should not happen.
@@ -912,9 +912,7 @@ class RequestBuffer {
   addRequest(request) {
     if (this.timeStamp < request.timeStamp) this.timeStamp = request.timeStamp;
     this.urls.add(request.url);
-    this.buffer.push({
-      request: request
-    });
+    this.buffer.push({request});
   }
 
   addResponse(response, location) {
@@ -940,9 +938,7 @@ class RequestBuffer {
     }
 
     // We don't have the request, simply remember the response.
-    this.buffer.push({
-      response: response
-    });
+    this.buffer.push({response});
   }
 
   async replay(target) {
