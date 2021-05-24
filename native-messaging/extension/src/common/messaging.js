@@ -419,6 +419,7 @@ class PortHandler {
   // Posts message without needing to get the reply.
   postMessage(msg) {
     if (this.port) this.port.postMessage(msg);
+    else console.warning('Cannot post message on closed port:', msg);
   }
 
   // Posts request and return reply through Promise.
