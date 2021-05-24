@@ -731,7 +731,7 @@ export class VideoSourceHandler {
     var { handler, frameUrl } = this.getTabHandler(details, true);
     if (!handler) {
       // Note: this is the only time we log the csUuid.
-      // If we found the frame, then the csUuid matches, and there is not more
+      // If we found the frame, then the csUuid matches, and there is no more
       // need to log it.
       if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> csUuid=<%s> video url=<%s>: Unknown tab frame', details.tabId, details.frameId, details.csUuid, details.url);
       return;

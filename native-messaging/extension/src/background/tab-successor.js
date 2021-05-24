@@ -85,6 +85,8 @@ export class TabSuccessor {
   async setup(resetSuccessors) {
     var self = this;
 
+    await settings.ready;
+
     async function _setup(resetSuccessors) {
       // Show current state upon debugging.
       if (settings.debug.tabs.successor) await self.checkTabs();

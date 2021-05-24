@@ -4,33 +4,7 @@ import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import * as unsafe from '../common/unsafe.js';
 import { settings } from '../common/settings.js';
-import { WebExtension } from '../common/messaging.js';
 
-
-util.checkContentScriptSetup('video');
-
-// Handles received extension messages.
-// Note: 'async' so that we don't block and process the code asynchronously.
-async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
-    default:
-      return unhandledMessage(msg, sender);
-      break;
-  }
-}
-
-// Logs unhandled messages received.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-  return {
-    error: 'Message is not handled by video content script',
-    message: msg
-  };
-}
-
-
-// Extension handler
-var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
 
 function findShadows(node) {
   // If the node itself is a shadow host, process it.
@@ -166,7 +140,6 @@ function processVideo(node) {
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_ADD_VIDEO_SOURCE,
-      csUuid: csParams.uuid,
       src: src
     }, scriptResult));
   }
@@ -234,11 +207,15 @@ var nodesObserver = new MutationObserver(function(mutations, observer) {
   }
 });
 
-settings.ready.then(() => {
-  return util.waitForDocument();
-}).then(() => {
+export async function run() {
+  if (!document.URL.startsWith('http')) return;
+
+  await settings.ready;
+  if (!settings.interceptVideo) return;
+
+  await util.waitForDocument();
   // Observe mutations in document, to detect new video tags being added.
   nodesObserver.observe(document.body, { childList: true, subtree: true });
   // Lookup existing video tags.
   findVideo(document.body);
-});
+}

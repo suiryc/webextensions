@@ -100,21 +100,37 @@ export class WebExtension {
       if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, this.params.target, msg.target);
       return;
     }
-    // Handle 'echo' message internally.
-    if (msg.kind === constants.KIND_ECHO) {
-      return Promise.resolve({
-        msg: msg,
-        sender: actualSender
-      });
-    } else if (msg.kind === constants.KIND_REGISTER_PORT) {
-      this.registerPort(sender, msg.name);
-      return;
-    } else if (msg.kind === constants.KIND_REGISTER_TABS_EVENTS) {
-      this.registerTabsEvents(sender, msg.events);
-      return;
-    } else if ((msg.kind === constants.KIND_TABS_EVENT) && this.params.tabsEventsObserver) {
-      util.callMethod(this.params.tabsEventsObserver, msg.event.kind, msg.event.args);
-      return;
+    switch (msg.kind || '') {
+      case constants.KIND_ECHO:
+        // Handle 'echo' message internally.
+        return Promise.resolve({
+          msg: msg,
+          sender: actualSender
+        });
+
+      case constants.KIND_REGISTER_PORT:
+        var handler = this.registerPort(sender, msg.name);
+        var tab = actualSender.tab;
+        if (!tab || !this.params.tabsHandler) return;
+        // Hand over frame information to the tabs handler, which will check
+        // whether this is a brand new one or is already known.
+        this.params.tabsHandler.addFrame({
+          windowId: tab.windowId,
+          tabId: tab.id,
+          frameId: actualSender.frameId,
+          url: actualSender.url,
+          csUuid: msg.csUuid
+        });
+        return;
+
+      case constants.KIND_REGISTER_TABS_EVENTS:
+        this.registerTabsEvents(sender, msg.events);
+        return;
+
+      case constants.KIND_TABS_EVENT:
+        if (!this.params.tabsEventsObserver) break;
+        util.callMethod(this.params.tabsEventsObserver, msg.event.kind, msg.event.args);
+        return;
     }
     var r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
@@ -164,10 +180,11 @@ export class WebExtension {
     // Remember the remote endpoint target kind once known (first message it
     // should send).
     handler.params.target = target;
-    if (!target) return;
+    if (!target) return handler;
     var targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
+    return handler;
   }
 
   unregisterPort(port, handler) {
@@ -363,12 +380,19 @@ class PortHandler {
   connect() {
     if (this.port) return;
 
+    var name = this.params.target;
+    if (name == constants.TARGET_CONTENT_SCRIPT) {
+      // Generate a unique content script UUID, shared between all content
+      // scripts running in the frame.
+      this.csUuid = globalThis.csUuid = globalThis.csUuid || util.uuidv4();
+    }
+
     this.autoReconnect = true;
     this.setPort(browser.runtime.connect());
     // Register us in background script.
     this.postMessage({
       kind: constants.KIND_REGISTER_PORT,
-      name: this.params.target
+      name: name
     });
     // Re-register events to observe.
     var events = this.params.tabsEvents || new Set();
@@ -418,6 +442,8 @@ class PortHandler {
 
   // Posts message without needing to get the reply.
   postMessage(msg) {
+    // Set csUuid in messages when applicable.
+    if (this.csUuid) msg.csUuid = this.csUuid;
     if (this.port) this.port.postMessage(msg);
     else console.warning('Cannot post message on closed port:', msg);
   }

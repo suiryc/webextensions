@@ -270,17 +270,6 @@ export function limitText(s, limit) {
   return `${s.slice(0, limit / 2)}…${limit > 2 ? s.slice(-(limit - 1) / 2) : ''}`;
 }
 
-export function checkContentScriptSetup(label) {
-  if (!globalThis.csParams) {
-    // Assume there was a race condition: frame changed after injecting content
-    // scripts params and before we could be injected.
-    var msg = `Not executing ${label} content script: frame not setup yet`;
-    console.log(msg);
-    // Throw an Error, as throwing a mere string results in 'An unexpected error occurred'.
-    throw new Error(msg);
-  }
-}
-
 // Waits for DOM content to be loaded (i.e. document ready to be used).
 // Executes given callback if any once ready.
 // Returns a Promise resolved when ready, with passed callback result if any.

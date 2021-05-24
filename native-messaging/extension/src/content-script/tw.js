@@ -3,66 +3,48 @@
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
-import { WebExtension } from '../common/messaging.js';
 
-
-util.checkContentScriptSetup('tw');
 
 // Whether the 'concurrent' warning is displayed
 // (to only display it only once until discarded)
-var tw_warningConcurrent = false;
-
-// Handles received extension messages.
-// Note: 'async' so that we don't block and process the code asynchronously.
-async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
-    case constants.KIND_TW_WARN_CONCURRENT:
-      return tw_warnConcurrent(msg);
-      break;
-
-    default:
-      return unhandledMessage(msg, sender);
-      break;
-  }
-}
-
-// Logs unhandled messages received.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-  return {
-    error: 'Message is not handled by TW content script',
-    message: msg
-  };
-}
+var warningConcurrent = false;
 
 // Displays modal message warning TiddlyWiki file (URL) is open in more than one tab/window.
-function tw_warnConcurrent(msg) {
+export function warnConcurrent(msg) {
   // Display warning (unless already showing)
-  if (!tw_warningConcurrent) {
-    tw_warningConcurrent = true;
+  if (!warningConcurrent) {
+    warningConcurrent = true;
     displayModal('TiddlyWiki file already open', {
       body: 'This TiddlyWiki file is already open in another tab or window!',
       kind: 'error',
       callback: () => {
-        tw_warningConcurrent = false;
+        warningConcurrent = false;
       }
     });
   }
 }
 
-// Extension handler
-var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
+export async function run() {
+  // We only work in top frame of 'file:' documents.
+  if ((window !== window.top) || !document.URL.match(/^file:.*html?$/i)) return;
 
-settings.ready.then(() => {
-  return util.waitForDocument();
-}).then(() => {
+  await settings.ready;
+  await util.waitForDocument();
+
+  // Inject our CSS.
+  var link = document.createElement('link');
+  link.href = browser.extension.getURL('/resources/content-script-tw.css');
+  link.type = 'text/css';
+  link.rel = 'stylesheet';
+  document.head.appendChild(link);
+
   // Enable TiddlyWiki handling when applicable.
   var ready = false;
   if (isTW5()) {
     if (settings.debug.misc) console.log('Is TW5');
     try {
-      tw_injectMessageBox();
-      tw_checkConcurrent();
+      injectMessageBox();
+      checkConcurrent();
       ready = true;
     } catch (error) {
       displayModal('Failed to initialize TiddlyWiki handling', {
@@ -89,7 +71,7 @@ settings.ready.then(() => {
       }
     });
   }
-});
+}
 
 // Displays a modal message.
 // See: https://www.w3schools.com/howto/howto_css_modals.asp
@@ -144,7 +126,7 @@ function isTW5() {
 }
 
 // Checks whether a same TiddlyWiki is open in other tabs/windows.
-function tw_checkConcurrent() {
+function checkConcurrent() {
   // Delegate checking to background script, which will notify concerned tabs.
   // Remove fragment from URL so that querying tabs will work as expected: in
   // Firefox 69, querying does not take into account the fragment part in tabs
@@ -157,7 +139,7 @@ function tw_checkConcurrent() {
 }
 
 // Interoperate with TiddlyWiki save mechanism
-function tw_injectMessageBox() {
+function injectMessageBox() {
   // See: https://groups.google.com/forum/#!msg/tiddlywiki/BWkudgla4ms/mvv6mxeg0lAJ
   // TW5 will emit an 'tiddlyfox-save-file' event on 'tiddlyfox-message-box' node,
   // containing text and path to save.

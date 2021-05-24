@@ -6,41 +6,23 @@ import { settings } from '../common/settings.js';
 
 
 // Notes:
-// Instead of statically (through manifest) have content scripts loaded on
-// pages, those (along with CSS) can be injected dynamically.
-// webNavigation allows to finely follow tab frames changes, however:
-//  - an existing tab can be reused for a brand new content: re-loading page
-//    or navigating to a new page
-//  - sub-frames content can also change
-//  - even though code execution it mono-threaded, the use of Promises and
-//    async/await make it so that callback/code can be executed while the
-//    origin tab/frame is being/has been changed; akin to 'race conditions'
+// We could try to manage frames and content scripts injection from here, by
+// listening to webNavigation stages, however it requires fine and complex
+// handing in order to prevent - as much as possible - race conditions due to
+// the use of Promise/async when tab/frame is reset/reloaded, and also try
+// to prevent multiple injection of the same script in the frame.
 //
-// We want to avoid injecting more than once the same script, which can lead
-// to unexpected/unwanted results.
-// Similarly, if a content script sends a message, we may want to know whether
-// the sender page has been changed in-between in order to ignore it.
-// A solution is to:
-//  - setup frame by injecting a first common code with context that can probe
-//    itself in case it is already present
-//  - have content script fail if setup is missing: we assume the frame content
-//    has changed in-between, requiring to re-setup the frame
-//  - generate a new UUID for each new injected context
-//  - remember previously injected scripts, until frame content changes
-// Since we may have to deal with frames other than the main one in tabs, we
-// manage this at the frame level; as a special case, a tab is actually
-// represented by its main (id 0) frame.
-// To avoid 'race conditions' (due to asynchronous execution), we also ensure
-// script injection is done sequentially, so that we can more finely react when
-// frame content changes.
+// Alternatively we can let the extension (manifest) execute content script
+// automatically, and have it notify us so that we discover new tab/frames.
+// We generate one uuid in content scripts. It is shared in frame global
+// context between all scripts running there, and automatically embedded
+// in messages sent by scripts.
+// It can then be used to:
+//  - let tabs handler detect whether a frame is brand new or already known
+//  - let caller ensure a message to process is still valid (belongs to a
+//    frame not yet resetted/removed)
 //
-// Dynamically injecting content script only make code executed slightly later
-// (in a barely visible way when navigating) compared to static declaration.
-//
-// Firefox prevents content script injection in many domains.
-// See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts
-var excludedHosts = new Set(['accounts-static.cdn.mozilla.net', 'accounts.firefox.com', 'addons.cdn.mozilla.net', 'addons.mozilla.org', 'api.accounts.firefox.com', 'content.cdn.mozilla.net', 'content.cdn.mozilla.net', 'discovery.addons.mozilla.org', 'input.mozilla.org', 'install.mozilla.org', 'oauth.accounts.firefox.com', 'profile.accounts.firefox.com', 'support.mozilla.org', 'sync.services.mozilla.com', 'testpilot.firefox.com'
-]);
+// We assume that most of the time the ordering of events will be correct.
 
 class FrameHandler {
 
@@ -63,12 +45,12 @@ class FrameHandler {
 
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
+    this.csUuid = details.csUuid;
     var sameUrl = this.url == details.url;
     this.setUrl(details.url);
     // For each script (id), remember the associated promise, resolved with its
     // injection success and result/error.
     this.scripts = {};
-    if (!this.cleared) this.actionNext = [];
     if (notify) {
       var notifyDetails = Object.assign({}, notify, {
         windowId: this.tabHandler.windowId,
@@ -86,16 +68,6 @@ class FrameHandler {
 
   // Clears frame, which is about to be removed.
   clear(notify) {
-    // Code being executed asynchronously (async functions, or right after an
-    // await statement) have to check whether 'cleared' has been set.
-    this.cleared = true;
-    // Belt and suspenders: remove actionNext entirely, to prevent any other
-    // action to be queued/executed. (code is expected to check cleared
-    // before using it)
-    for (var action of this.actionNext) {
-      action.deferred.reject('Frame has been cleared');
-    }
-    delete(this.actionNext);
     if (notify) this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_REMOVED, {
       tabId: this.tabHandler.id,
       tabHandler: this.tabHandler,
@@ -113,209 +85,6 @@ class FrameHandler {
     this.url = url;
     // Update parent tab url if we are the main frame.
     if (this.id == 0) this.tabHandler.url = url;
-    delete(this.excludedHost);
-  }
-
-  isExcludedHost() {
-    if (!('excludedHost' in this)) {
-      this.excludedHost = false;
-      var idx = this.url.indexOf('//');
-      if (idx > 0) {
-        var start = idx + 2;
-        idx = this.url.indexOf('/', start);
-        var domain = (idx > 0) ? this.url.substring(start, idx) : this.url.substring(start);
-        this.excludedHost = excludedHosts.has(domain);
-      }
-    }
-    return this.excludedHost;
-  }
-
-  // Queue a new action to execute sequentially.
-  async newAction(callback) {
-    if (this.cleared) return;
-    var entry = {
-      callback: callback,
-      deferred: new util.Deferred()
-    };
-    this.actionNext.push(entry);
-    this.nextAction();
-    return await entry.deferred.promise;
-  }
-
-  // Executes pending actions sequentially.
-  nextAction() {
-    var self = this;
-    // Let current action end if any.
-    if (self.actionRunning) return;
-    // Get next action if any.
-    if (self.cleared) return;
-    var next = self.actionNext.shift();
-    if (!next) return;
-    // Trigger callback, and complete its promise.
-    self.actionRunning = next.deferred.promise;
-    next.deferred.completeWith(next.callback);
-    // Once done, execute next action if any.
-    self.actionRunning.finally(() => {
-      delete(self.actionRunning);
-      self.nextAction();
-    });
-  }
-
-  async setup() {
-    var tabHandler = this.tabHandler;
-    var tabId = tabHandler.id;
-    var frameId = this.id;
-
-    // Probe the frame: inject some context (prepare a new UUID) and check
-    // whether there already/still is a previous context.
-    // If there is a previous context: page has not changed.
-    // If there is no previous context: use the new one.
-    // In either case, we should be only called right upon setting up the first
-    // script, in which case there is nothing much to do in either situation.
-    var newUuid = util.uuidv4();
-    const csParams = {
-      tabId: tabId,
-      tabUrl: tabHandler.url,
-      frameId: frameId,
-      uuid: newUuid
-    };
-    var details = {
-      frameId: frameId,
-      code: `if (!csParams) {
-  var csParams = ${JSON.stringify(csParams)};
-  var result = { csUuid: csParams.uuid, existed: false, url: location.href };
-} else result = { csUuid: csParams.uuid, existed: true, url: location.href };
-result;`,
-      runAt: 'document_start'
-    };
-
-    // Notes:
-    // Injection may fail if we are not permitted to execute script in the
-    // frame. In this case, we usually get the error:
-    //  Frame not found, or missing host permission
-    // In may happen in various cases:
-    //  - '<all_urls>' not used in permissions
-    //  - frame is 'about:blank' and we did not enable matchAboutBlank
-    //  - frame is privileged; this is e.g. the case for PDF files displayed
-    //    with PDF.js by Firefox
-    // Caller is expected to exclude those cases.
-    var reused = this.used;
-    try {
-      var result = (await browser.tabs.executeScript(tabId, details))[0];
-      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> scripts existed=<%s> csUuid=<%s>', tabId, frameId, result.existed, result.csUuid);
-      this.used = true;
-       // Use our brand new uuid when applicable.
-      if (!result.existed) this.csUuid = newUuid;
-      // Refresh our url.
-      this.setUrl(result.url);
-      // We should have our known uuid (previous one, or brand new).
-      if (result.csUuid !== this.csUuid) console.log('Tab=<%s> frame=<%s> already had been initialised with csUuid=<%s> instead of csUuid=<%s>', tabId, frameId, result.csUuid, this.csUuid);
-      return {
-        reused: reused,
-        success: true,
-        existed: result.existed
-      };
-    } catch (error) {
-      console.log('Failed to setup tab=<%s> title=<%s> frame=<%s> url=<%s>: %o', tabId, tabHandler.title, frameId, this.url, error);
-      return {
-        reused: reused,
-        success: false,
-        existed: false
-      };
-    }
-  }
-
-  async setupScript(id, callback) {
-    var self = this;
-
-    if (self.isExcludedHost()) {
-      if (settings.debug.misc) console.log('Not setting up script=<%s> in tab=<%s> title=<%s> frame=<%s> url=<%s>: host is excluded', id, self.tabHandler.id, self.tabHandler.title, self.id, self.url);
-      return;
-    }
-
-    return await self.newAction(() => {
-      return self._setupScript(id, callback)
-    });
-  }
-
-  // Setups script (to inject).
-  // When applicable, injection is done through callback.
-  // If script (id) is already injected, return the previously associated
-  // promise.
-  //
-  // We take care of possible situations relatively to frame being updated
-  // after script setup was queued and before its execution completes.
-  // In all cases:
-  //  - 'reset' is called right upon change; it clears any previously pending
-  //    actions, and resets known injected scripts
-  //  - caller is notified of change and will re-setup scripts if applicable;
-  //    this can only happen after this script setup completes.
-  //
-  // 1. If frame is updated right before execution
-  // Frame setup will be done before script setup. At 'worst':
-  //  - script is not meant for the page after change, but should cope with it
-  //  - caller will try to setup script again, which we will dismiss because
-  //    already done
-  //
-  // 2. If frame is updated after frame setup check and before script injection
-  // This script setup will fail due to missing frame setup.
-  async _setupScript(id, callback) {
-    var self = this;
-    var tabHandler = self.tabHandler;
-    var tabId = tabHandler.id;
-    var frameId = self.id;
-
-    if (self.cleared) return;
-    // Setup frame for first script.
-    if (!Object.keys(self.scripts).length) {
-      var setup = await self.setup();
-      if (self.cleared) return;
-      if (!setup.existed && setup.reused) {
-        // Frame did change.
-        // There is no sure way to known it this script setup was requested
-        // before the frame changed, or because of it; only when frame has not
-        // been used can we assume it's its very first setup.
-        // In all cases, go on with the script setup.
-        // Also, do not touch 'actionNext': reset does clear it; any pending
-        // action are scripts re-setup added by caller after reset.
-        if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> csUuid=<%s> has been updated', tabId, frameId, self.csUuid);
-        // Notes:
-        // Going on is the best approach.
-        // If frame setup could be done, we will inject this script (and
-        // possibly others pending).
-        // If frame setup failed, we don't expect any other injection to
-        // succeed. This would trigger multiple error logs though: for each
-        // other script setup, we will re-try to setup frame.
-        // In particular, upon issue it is not a good idea to re-trigger
-        // (through observers) script setup without enough hinting, as it
-        // may end in an endless injection attempt loop:
-        //  1. first script setup triggers frame setup, which fails
-        //  2. observer, notified of failure, queues a new script setup
-        //  3. we got back to 1.
-      }
-    }
-    // Nothing to do if script already setup.
-    if (self.scripts[id]) {
-      if (settings.debug.misc) console.log('Tab=<%s> frame=<%s> csUuid=<%s> already has script=<%s>', tabId, frameId, self.csUuid, id);
-      return self.scripts[id];
-    }
-    self.scripts[id] = callback().then(result => {
-      if (settings.debug.misc) console.log('Set up script=<%s> in tab=<%s> frame=<%s> csUuid=<%s>: %o', id, tabId, frameId, self.csUuid, result);
-      return {
-        success: true,
-        result: result
-      };
-    }).catch(error => {
-      // Script injection actually failed: forget it, so that it can be injected
-      // again if needed.
-      delete(self.scripts[id]);
-      console.log('Failed to setup script=<%s> in tab=<%s> title=<%s> frame=<%s> url=<%s> csUuid=<%s>: %o', id, tabId, tabHandler.title, frameId, this.url, self.csUuid, error);
-      return {
-        success: false,
-        error: error
-      };
-    });
-    return await self.scripts[id];
   }
 
 }
@@ -415,30 +184,14 @@ class TabHandler {
     if (entry) return entry.prop;
   }
 
-  async findFrames() {
-    var self = this;
-    await browser.webNavigation.getAllFrames({tabId: self.id}).then(frames => {
-      for (var details of frames) {
-        // Ignore 'about:blank' etc.
-        if (!details.url.startsWith('http') && !details.url.startsWith('file')) continue;
-        // Don't add frames we already known about: frames are only searched
-        // when extension starts and is processing existing tabs. If a frame is
-        // already known, we assume we were notified of its change before we
-        // could explicitely add the tab: there is nothing else to do, as
-        // scripts setup is already being done.
-        self.addFrame(details, {skipExisting: true});
-      }
-    });
-  }
-
-  async addFrame(details, params) {
+  async addFrame(details) {
     if (this.cleared) return;
-    params = params || {};
     var frameId = details.frameId;
     var frameHandler = this.frames[frameId];
     if (frameHandler) {
-      // If requested, skip processing existing frame.
-      if (params.skipExisting) return;
+      // If the uuid is the same, we already know this frame (content script
+      // maybe reconnected, or there are multiple content scripts running).
+      if (frameHandler.csUuid == details.csUuid) return;
       // Get fresh tab information.
       try {
         var tab = await browser.tabs.get(this.id);
@@ -450,7 +203,7 @@ class TabHandler {
     } else {
       // New frame.
       frameHandler = new FrameHandler(this, details);
-      if (settings.debug.misc) console.log('Managing new tab=<%s> frame=<%s> url=<%s>', this.id, frameId, frameHandler.url);
+      if (settings.debug.misc) console.log('Managing new tab=<%s> frame=<%s> csUuid=<%s> url=<%s>', this.id, frameId, frameHandler.csUuid, frameHandler.url);
       this.frames[frameId] = frameHandler;
       if (frameId === 0) this.frameHandler = frameHandler;
       this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_ADDED, {
@@ -690,7 +443,7 @@ export class TabsHandler {
 
   // Adds tab and return tab handler.
   // If tab is known, existing handler is returned.
-  async addTab(tab, findFrames) {
+  async addTab(tab) {
     var windowId = tab.windowId;
     var tabId = tab.id;
     var tabHandler = this.tabs[tabId];
@@ -702,7 +455,6 @@ export class TabsHandler {
     if (settings.debug.misc) console.log('Managing new window=<%s> tab=<%s> url=<%s>', windowId, tabId, tab.url);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
     this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId: windowId, tabId: tabId, tabHandler: tabHandler });
-    if (findFrames) await tabHandler.findFrames();
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
@@ -797,7 +549,7 @@ export class TabsHandler {
   // If frame is known, existing handler is returned.
   // If tab is not yet known and this is its main frame, tab is added first.
   // If tab is not known and this is a subframe, frame is not added.
-  async addFrame(details, params) {
+  async addFrame(details) {
     var self = this;
     var tabId = details.tabId;
     var tabHandler = self.tabs[tabId];
@@ -816,7 +568,7 @@ export class TabsHandler {
       });
     }
     if (!tabHandler) return;
-    return await tabHandler.addFrame(details, params);
+    return await tabHandler.addFrame(details);
   }
 
   resetFrame(details) {
@@ -867,26 +619,10 @@ export class TabsHandler {
     delete(this.activeTabs[windowId]);
   }
 
-  setup() {
+  async setup() {
     var self = this;
-    // We register for changes before getting all current tabs, to prevent
-    // missing any due to race conditions.
-    // We listen to frames changes:
-    //  - onBeforeNavigate: to trigger frame reset ASAP (before page is loaded)
-    //  - onDOMContentLoaded: to inject scripts where appropriate
-    //  - onCompleted: because sometimes onDOMContentLoaded is skipped
-    //    e.g.: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/embed
-    // We don't listen to onCommitted (instead of onDOMContentLoaded) because
-    // we may be called right before the frame document actually changes for
-    // its new committed target; e.g. we may end up injecting script in the
-    // previous (often 'about:blank' for subframes) page, which will be wiped
-    // out right after.
-    //
-    // Depending on when script injection is requested and how the frame
-    // behaves, it may be necessary to 'runAt' ASAP, i.e. 'document_start'
-    // instead of 'document_end'. When listening to onDOMContentLoaded, this
-    // should not make a difference though.
-    // See: https://bugzilla.mozilla.org/show_bug.cgi?id=1499667
+    // First ensure settings have been loaded.
+    await settings.ready;
 
     // Register a dummy observer for debugging purposes.
     var dummyObserver = {};
@@ -954,34 +690,9 @@ export class TabsHandler {
     // onBeforeNavigate which we listen to reset known tabs/frames, it is better
     // to track all pages so that we do reset whenever the url do change, even
     // in 'about:blank'/'about:home'/etc. cases.
-    var webNavigationFilter = { url: [{ schemes: ['file', 'http', 'https'] }] };
     browser.webNavigation.onBeforeNavigate.addListener(function(details) {
       if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onBeforeNavigate', ...arguments]);
       self.resetFrame(details);
-    });
-    browser.webNavigation.onDOMContentLoaded.addListener(function(details) {
-      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onDOMContentLoaded', ...arguments]);
-      self.addFrame(details);
-    }, webNavigationFilter);
-    browser.webNavigation.onCompleted.addListener(function(details) {
-      // Don't add frames we already known about: if frame is already known we
-      // assume onDOMContentLoaded was triggered.
-      // For now we don't expect the situation (onDOMContentLoaded skipped) to
-      // happen on the main frame, which would require more specific handling.
-      if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onCompleted', ...arguments]);
-      self.addFrame(details, {skipExisting: true});
-    }, webNavigationFilter);
-
-    // Get all live (non-discarded) tabs to handle.
-    // First get the focused window, as it is needed to properly populate the
-    // focused tab too.
-    browser.windows.getLastFocused().then(w => {
-      self.focusWindow(w.id);
-      browser.tabs.query({discarded: false}).then(tabs => {
-        for (var tab of tabs) {
-          self.addTab(tab, true);
-        }
-      });
     });
   }
 

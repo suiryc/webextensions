@@ -7,8 +7,17 @@ import * as unsafe from '../common/unsafe.js';
 export class RequestsInterceptor {
 
   constructor(webext) {
+    this.setup(webext);
+  }
+
+  async setup(webext) {
     var self = this;
     self.listeners = {};
+    // Wait for settings to be loaded (and start interception when applicable).
+    // Not strictly necessary, but 'better' because we listen to more than one
+    // setting change (and would probably remove/add listener twice while
+    // settings are loaded).
+    await settings.ready;
     // Setup interception scripts, and listen to changes in settings.
     // Note: we need listeners to remain the same over time, so that we can
     // unlisten.

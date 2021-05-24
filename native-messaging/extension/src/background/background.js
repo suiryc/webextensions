@@ -4,7 +4,6 @@ import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
-import { ContentScriptHandler } from './content-scripts.js';
 import { RequestsInterceptor } from './requests-interceptor.js';
 import { dlMngr, RequestsHandler } from './downloads.js';
 import { MenuHandler } from './menus.js';
@@ -14,6 +13,35 @@ import { TabsHandler } from './tabs.js';
 
 
 console.log('Starting %s version %s', constants.EXTENSION_ID, browser.runtime.getManifest().version);
+
+// Notes on content script injection/execution:
+// There are 3 ways to inject/execute content script:
+// 1. Declaring it in the manifest
+// 2. Using browser.contentScripts.register
+// 3. Using browser.tabs.executeScript
+//
+// 1. and 2. are nominal ways of doing it, either through conf or code.
+// 3. may give more possibilites, but the extension has to properly manage it
+// and especially do it at the right time: basically anytime starting at
+// browser.webNavigation.onCommitted
+//  - all previous stages precede the frame being reset to load the new content,
+//    point at which existing scripts are wiped out
+//  - one could listen to browser.webRequest for frames requests, but only the
+//    onCompleted stage would work, and happens far later than onCommitted
+//
+// Usually scripts handled through 1. are executed a bit before 2., which are
+// executed a bit before 3. It may also happen that between onCommitted and
+// script injection, the frame url becomes 'about:blank' triggering a failed
+// Promise unless 'matchAboutBlank' is enabled.
+//
+// When (re)loading extension, 1. takes care of injecting scripts on existing
+// matching frames, while extension has to handle it for 2. and 3.
+//
+// For CSS injection, we can:
+// 1. Declare it in the manifest
+// 2. Use browser.tabs.insertCSS
+// 3. Add a 'link' stylesheet in the document 'head' node
+
 
 // Messages handlers
 
@@ -326,24 +354,37 @@ class TabsObserver {
 }
 
 
-var webext;
-var requestsHandler;
-var tabsHandler;
-var videoSourceHandler;
-var nativeApp;
 var applicationMessages = [];
 var videosSources = {};
-settings.ready.then(() => {
+
+// In order to properly handle/receive messages from other scripts, we need to
+// listen right now, and thus need to create our WebExtension instance now.
+// Resources needed by WebExtension do wait for settings to be ready if needed,
+// or because it is more efficient to do so before actually running.
+//
+// Features that rely on 'settings.debug' would need to wait for settings, since
+// debugging is disabled by default while it is useful to debug early actions.
+//
+// Most features are enabled by default and rarely disabled. For most of them we
+// don't strictly have to ensure settings have been loaded: at worst it will run
+// for a short while - and be mostly innocuous by having nothing much to do -
+// before settings are finally loaded and feature effectively disabled.
+// e.g. RequestsHandler
+//
+// Some features use 'settings.debug' but are better started right now, because
+// they may receive messages from content scripts.
+// e.g. VideoSourceHandler
+try {
   // Handle tabs.
-  tabsHandler = new TabsHandler();
+  var tabsHandler = new TabsHandler();
   // Extension handler
-  webext = new WebExtension({
+  var webext = new WebExtension({
     target: constants.TARGET_BACKGROUND_PAGE,
     onMessage: onMessage,
     tabsHandler: tabsHandler
   });
   // Native application handler
-  nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });
+  var nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });
 
   // Start native application and request its specs
   nativeApp.connect();
@@ -360,17 +401,15 @@ settings.ready.then(() => {
   // Listen to requests and downloads.
   new RequestsInterceptor(webext);
   dlMngr.setup(webext, nativeApp);
-  requestsHandler = new RequestsHandler(webext);
+  var requestsHandler = new RequestsHandler(webext);
   // Handle menus.
   var menuHandler = new MenuHandler(requestsHandler);
   // Handle tab successor (tab closing).
   new TabSuccessor(tabsHandler);
-  // Handle content script injection.
-  new ContentScriptHandler(tabsHandler);
   // Handle video sources.
-  videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
+  var videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
   new TabsObserver(tabsHandler, videoSourceHandler);
-}).catch(err => {
+} catch (err) {
   if (webext) webext.getNotif().error(`Failure starting ${constants.EXTENSION_ID}`, err);
   else console.log(`Failure starting ${constants.EXTENSION_ID}:`, constants.EXTENSION_ID, err);
-});
+}

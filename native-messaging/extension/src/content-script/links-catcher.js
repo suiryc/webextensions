@@ -3,39 +3,24 @@
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
-import { WebExtension } from '../common/messaging.js';
 
 
-util.checkContentScriptSetup('links-catcher');
+export async function run() {
+  // We only work in top frame.
+  if (window !== window.top) return;
 
-// Handles received extension messages.
-// Note: 'async' so that we don't block and process the code asynchronously.
-async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
-    default:
-      return unhandledMessage(msg, sender);
-      break;
-  }
-}
+  await settings.ready;
+  if (!settings.catchLinks) return;
+  await util.waitForDocument();
 
-// Logs unhandled messages received.
-function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
-  return {
-    error: 'Message is not handled by video content script',
-    message: msg
-  };
-}
+  var link = document.createElement('link');
+  link.href = browser.extension.getURL('/resources/content-script-links-catcher.css');
+  link.type = 'text/css';
+  link.rel = 'stylesheet';
+  document.head.appendChild(link);
 
-
-// Extension handler
-var webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage: onMessage });
-
-settings.ready.then(() => {
-  return util.waitForDocument();
-}).then(() => {
   new LinksCatcher();
-});
+}
 
 
 // Extension parameters, not important enough to be managed as stored settings.
