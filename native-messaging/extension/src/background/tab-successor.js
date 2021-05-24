@@ -273,9 +273,12 @@ export class TabSuccessor {
   // Unload (that is, discard) tab(s).
   async unloadTabs(tab) {
     var windowId = tab.windowId;
+    // Get all this window tabs now, as we will need them twice, and we can
+    // filter wanted ones on our side.
+    var wTabs = await browser.tabs.query({windowId});
     // If multiple tabs are highlighted, and the ation is requested on one of
     // them, it is applied on all of them.
-    var highlighted = await browser.tabs.query({highlighted: true, windowId});
+    var highlighted = wTabs.filter(t => t.highlighted);
     var tabs = highlighted.some(t => t.id == tab.id) ? highlighted : [tab];
     // We cannot discard 'about:' tabs, except 'newtab', 'home' and 'privatebrowsing'.
     tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab') || (tab.url == 'about:home') || (tab.url == 'about:privatebrowsing'));
@@ -309,7 +312,7 @@ export class TabSuccessor {
     // to rebuild/reset all active tabs chains by removing discarded tabs;
     // the browser will do it for us automatically if we call moveInSuccession
     // on discarded tabs.
-    tabs = await browser.tabs.query({discarded: false, windowId});
+    tabs = wTabs.filter(t => !t.discarded);
     for (tab of tabs) {
       if (!(tab.id in discard)) continue;
       this.chainTabs([tab], findSuccessor(tab));
