@@ -76,6 +76,8 @@ export class TabSuccessor {
       // We need at least one tab to chain.
       if (!tabs.length) return;
     }
+    // Reminder: the first tab of the chain will be moved out of its current
+    // line of succession: its predecessor will be assigned another successor.
     await browser.tabs.moveInSuccession(tabs.map(tab => tab.id), successor, options);
     self.scheduleCheckTabs();
   }
@@ -183,6 +185,10 @@ export class TabSuccessor {
       for (var tab of opened) {
         delete self.inactiveOpenedTabs.byId[tab.id];
       }
+      // Ignore tabs that have been discarded.
+      // Don't forget to consider our newly activated tab as not discarded.
+      openedTab.discarded = false;
+      opened = opened.filter(t => !t.discarded);
       // Link those tabs from activated->first->last->opener
       var index = opened.indexOf(openedTab);
       opened = [openedTab].concat(opened.slice(0, index).reverse()).concat(opened.slice(index + 1));
@@ -299,10 +305,23 @@ export class TabSuccessor {
     // expect this action to fail.
     if (active) await browser.tabs.update(active, {active: true});
     // Now remove the tabs to discard from the succession chain.
+    // Note: the easy way is to work on discarded tabs, otherwise we would need
+    // to rebuild/reset all active tabs chains by removing discarded tabs;
+    // the browser will do it for us automatically if we call moveInSuccession
+    // on discarded tabs.
     tabs = await browser.tabs.query({discarded: false, windowId});
     for (tab of tabs) {
       if (!(tab.id in discard)) continue;
       this.chainTabs([tab], findSuccessor(tab));
+      // If this tab is part of inactiveOpenedTabs, we wish to remember it is
+      // discarded so that we won't include it in the chain we will build when
+      // one of them is activated (unless we activate this discarded tab).
+      // We don't remove it from inactiveOpenedTabs - e.g. as a side effect of
+      // calling tabRemoved - because we wish for this discarded to still be
+      // part of the chain if we activate it.
+      // The easy way is to simply change 'discarded' here; otherwise we would
+      // have to 'query' each activated tab in the inactive chain.
+      (this.inactiveOpenedTabs.byId[tab.id] || {}).discarded = true;
     }
     // And finally discard the tabs.
     browser.tabs.discard(Object.values(discard).map(t => t.id));
