@@ -374,6 +374,23 @@ export class TabSuccessor {
         if ('successor' in info) info = info.successor;
         // else: next loop will automatically break on test
       }
+      // For each new tab info, build the full successor chain list.
+      // Notes:
+      // All elements of the built chain were not already in 'chained', and
+      // have not yet their full successor chain known. To ease building we
+      // do it from last to first, since:
+      //  - if chain building ended because its tail successor was already
+      //    known, this successor already has its own chain successor we
+      //    can just use
+      //  - otherwise, the last element is on its own and we can 'easily'
+      //    build its predecessors chains this way
+      // Use 'slice' first because 'reverse' mutates the array.
+      // Doing this is useful because chains starting at a given tab may have
+      // more than one predecessor, and for debugging it is better to see
+      // the full chains.
+      for (var info0 of chain.slice().reverse()) {
+        chained[info0.id] = info0.successor ? [info0, ...chained[info0.successor.id]] : [info0];
+      }
       // Only process tab if it is not already part of an existing chain (in
       // which case 'chain' is empty because the tab was in 'chained').
       if (!chain.length) continue;
@@ -392,8 +409,10 @@ export class TabSuccessor {
         // Prepend it.
         chainSuccessor.unshift.apply(chainSuccessor, chain);
       } else {
-        // This is a new chain.
-        tabsByWindow[tab.windowId].chains.push(chain);
+        // This is a new chain: use the full chain instead of the one we built
+        // since it may be 'incomplete' (stopped because successor already
+        // known with its own chain).
+        tabsByWindow[tab.windowId].chains.push(chained[tab.id]);
       }
     }
 
