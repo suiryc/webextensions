@@ -193,23 +193,40 @@ export class TabSuccessor {
       var index = opened.indexOf(openedTab);
       opened = [openedTab].concat(opened.slice(0, index).reverse()).concat(opened.slice(index + 1));
       var successor;
-      // If the opener tab still exists, use it as successor.
-      // If not, getting it will fail.
+      // Notes:
+      // We wish the successor to not be discarded, and thus will have to keep
+      // on searching in its chain for a valid successor if needed.
+      // However we expect the opener tab, or previously active tab, to still be
+      // there and non-discarded in nominal case; thus don't query all tabs
+      // (to have all details available) but only do it one at a time if needed.
+      async function findSuccessor(tabId, firstOnly) {
+        while (tabId > 0) {
+          var tab = await browser.tabs.get(tabId);
+          if (!tab.discarded) break;
+          if (firstOnly) {
+            tabId = 0;
+            break;
+          }
+          tabId = tab.successorTabId;
+        }
+        if (tabId > 0) return tabId;
+      }
+      // Opener tab is the natural successor.
       try {
-        successor = (await browser.tabs.get(openedTab.openerTabId)).id;
+        // Note: if the opener exists but is discarded, we don't wish to search
+        // for a non-discarded successor but use the previously active tab.
+        successor = await findSuccessor(openedTab.openerTabId, true);
       } catch(error) {
       }
-      // If opener is not there, try the previously active tab.
-      // It may have been removed too (triggering a new tab activation).
+      // Fallback to previously active tab.
       if (!successor && details.previousTabId) {
         try {
-          successor = (await browser.tabs.get(details.previousTabId)).id;
+          successor = await findSuccessor(details.previousTabId);
         } catch(error) {
         }
       }
+      // Fallback to the original successor of the last tab.
       if (!successor) {
-        // If opener is not there, fallback to the current successor of the
-        // last tab (which supposedly replaces it).
         try {
           successor = (await browser.tabs.get(opened.slice(-1)[0].id)).successorTabId;
         } catch(error) {
