@@ -340,12 +340,11 @@ export class TabSuccessor {
     for (var tab of tabs) {
       var tabId = tab.id;
       var info = tabsInfo[tabId];
-      var windowInfo = tabsByWindow[tab.windowId] || {
+      var windowInfo = tabsByWindow[tab.windowId] = tabsByWindow[tab.windowId] || {
         withSuccessor: {},
         withoutSuccessor: {},
         chains: []
       };
-      tabsByWindow[tab.windowId] = windowInfo;
       if (tab.active) {
         info.active = true;
         windowInfo.active = info;
@@ -360,9 +359,14 @@ export class TabSuccessor {
 
     // Determine chains of successors, sorted by descending last access time.
     sortTabs(tabs);
+    // Now determine tabs chains. We don't have to explicitly compare window
+    // ids, as successor can only belong to the same window; we just need to
+    // build chains, and then remember them by window (id retrieved from any
+    // tab in the chain).
     for (var tab of tabs) {
-      var tabId = tab.id;
-      var info = tabsInfo[tabId];
+      var info = tabsInfo[tab.id];
+      // For each tab, determine the chain of successors.
+      // Reminder: chains may be circular, so remember processed tabs.
       var chain = [];
       while (!(info.id in chained)) {
         chained[info.id] = info;
@@ -370,24 +374,26 @@ export class TabSuccessor {
         if ('successor' in info) info = info.successor;
         // else: next loop will automatically break on test
       }
-      // Only process tab if it is not already part of an existing chain.
-      if (chain.length) {
-        // Check any chain that would be the successor of our chain last tab.
-        var chainSuccessor;
-        for (var chainExisting of tabsByWindow[tab.windowId].chains) {
-          if (chainExisting[0].id == info.id) {
-            chainSuccessor = chainExisting;
-            break;
-          }
+      // Only process tab if it is not already part of an existing chain (in
+      // which case 'chain' is empty because the tab was in 'chained').
+      if (!chain.length) continue;
+      // The chain we have may actually precede a previous chain we built, in
+      // which case we want to merge (prepend) this chain to the existing one:
+      // check any chain that would be the successor of our chain last tab.
+      var chainSuccessor = undefined;
+      for (var chainExisting of tabsByWindow[tab.windowId].chains) {
+        if (chainExisting[0].id == info.id) {
+          chainSuccessor = chainExisting;
+          break;
         }
-        if (chainSuccessor) {
-          // Our chain actually precedes another chain we already built.
-          // Prepend it.
-          chainSuccessor.unshift.apply(chainSuccessor, chain);
-        } else {
-          // This is a new chain.
-          tabsByWindow[tab.windowId].chains.push(chain);
-        }
+      }
+      if (chainSuccessor) {
+        // Our chain actually precedes another chain we already built.
+        // Prepend it.
+        chainSuccessor.unshift.apply(chainSuccessor, chain);
+      } else {
+        // This is a new chain.
+        tabsByWindow[tab.windowId].chains.push(chain);
       }
     }
 
