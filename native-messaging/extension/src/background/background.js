@@ -286,7 +286,8 @@ function updateStatus(windowId) {
     var tabId = tabHandler ? tabHandler.id : -1;
     for (var details of applicationMessages) {
       if (details.windowId && (details.windowId != windowId)) continue;
-      if (details.tabId && (details.tabId != tabId)) continue;
+      // Note: don't filter out messages of other tabs; we wish to see the
+      // visual hint to know there messages for this window.
       if (details.level == 'error') {
         hasMessages = '!';
         badgeBackgroundColor = 'red';
