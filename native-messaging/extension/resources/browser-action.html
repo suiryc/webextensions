@@ -102,12 +102,16 @@
       <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
         <input type="radio" id="tab-item-options-main" name="tabs-options" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-options-scripts" name="tabs-options" class="tab-locator" hidden>
         <input type="radio" id="tab-item-options-debug" name="tabs-options" class="tab-locator" hidden>
 
         <div class="panel-nav tabs-items">
           <ul class="tab">
             <li class="tab-item">
               <label for="tab-item-options-main" class="clickable"><a>Main</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-options-scripts" class="clickable"><a>Scripts</a></label>
             </li>
             <li class="tab-item">
               <label for="tab-item-options-debug" class="clickable"><a>Debug</a></label>
@@ -135,8 +139,7 @@
                     <label class="form-label"><span>Notification TTL:</span><input type="text" id="notifyTtl" class="form-input"></label>
                   </div>
                 </div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label></div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="intercept.webRequest.onBeforeSendHeaders.enabled"><i class="form-icon"></i><span>Intercept onBeforeSendHeaders</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.intercept"><i class="form-icon"></i><span>Intercept video</span></label></div>
               </div>
             </div>
             <div class="panel">
@@ -146,6 +149,20 @@
               <div class="panel-body">
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="catchLinks"><i class="form-icon"></i><span>Catch links</span></label></div>
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="handleTabSuccessor"><i class="form-icon"></i><span>Handle tab successor</span></label></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scripts options -->
+          <div class="tab-content">
+            <div class="panel">
+              <div class="panel-header">
+                <div class="panel-title text-bold">Scripts</div>
+              </div>
+              <div class="panel-body">
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.downloadRefining.enabled"><i class="form-icon"></i><span>Refine video download</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.filenameRefining.enabled"><i class="form-icon"></i><span>Refine video filename</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="intercept.webRequest.onBeforeSendHeaders.enabled"><i class="form-icon"></i><span>Intercept onBeforeSendHeaders</span></label></div>
               </div>
             </div>
           </div>

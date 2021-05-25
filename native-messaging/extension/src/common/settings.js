@@ -140,7 +140,7 @@ class Settings extends SettingsBranch {
   constructor() {
     super();
     // The latest settings version.
-    this.latestSettingsVersion = 2;
+    this.latestSettingsVersion = 3;
   }
 
   // Note: registering uses the 'settings' variable, hence the need to do it
@@ -160,7 +160,6 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('interceptDownloads', true);
     new ExtensionBooleanSetting('interceptRequests', true);
     new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
-    new ExtensionBooleanSetting('interceptVideo', true);
     if (globalThis.browser && browser.webRequest) {
       var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
@@ -180,7 +179,8 @@ class Settings extends SettingsBranch {
     //  - filenameFromUrl: whether to retrieve filename from url (instead of title)
     // Code is executed inside the frame containing the video source, and can
     // be synchronous or asynchronous (Promise).
-    new ExtensionScriptSetting('scripts.video.downloadRefining');
+    new ExtensionBooleanSetting('video.downloadRefining.enabled', true);
+    new ExtensionScriptSetting('video.downloadRefining.script');
     // 'filename refining' script input params:
     //  - videoSource: the video source object
     //  - title: the tab title
@@ -194,7 +194,9 @@ class Settings extends SettingsBranch {
     // extension and filename.
     // Code is executed inside the background script and can be synchronous or
     // asynchronous (Promise).
-    new ExtensionScriptSetting('scripts.video.filenameRefining');
+    new ExtensionBooleanSetting('video.filenameRefining.enabled', true);
+    new ExtensionScriptSetting('video.filenameRefining.script');
+    new ExtensionBooleanSetting('video.intercept', true);
 
     // If there is no 'window', assume we are not running inside browser and
     // don't need to do anything else.
@@ -250,6 +252,14 @@ class Settings extends SettingsBranch {
       var setting = self.perKey[key];
       if (!(setting instanceof ExtensionSetting)) return;
       cb(setting);
+    });
+  }
+
+  async migrate_v3() {
+    await this.migrateKeys({
+      'interceptVideo': 'video.intercept',
+      'scripts.video.downloadRefining': 'video.downloadRefining.script',
+      'scripts.video.filenameRefining': 'video.filenameRefining.script'
     });
   }
 

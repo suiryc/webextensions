@@ -86,7 +86,7 @@ async function onMessage(extension, msg, sender) {
     case constants.KIND_ADD_VIDEO_SOURCE:
       // We may receive messages from scripts injected before disabling video
       // interception.
-      if (!settings.interceptVideo) return;
+      if (!settings.video.intercept) return;
       return dl_addVideoSource(msg, sender);
       break;
 

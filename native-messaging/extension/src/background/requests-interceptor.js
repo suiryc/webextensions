@@ -22,7 +22,7 @@ export class RequestsInterceptor {
     // Note: we need listeners to remain the same over time, so that we can
     // unlisten.
     ['onBeforeSendHeaders'].forEach(stage => {
-      var setting = settings.intercept.webRequest[stage].inner.script;
+      var setting = settings.intercept.webRequest[stage];
       var scriptExecutor = webext.getExtensionProperty({
         key: setting.getKey(),
         create: webext => new unsafe.CodeExecutor({webext, name: `webRequest.${stage}`, args: ['params'], setting})

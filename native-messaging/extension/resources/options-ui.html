@@ -27,7 +27,7 @@
   <div class="panel">
     <input type="radio" id="tab-item-downloads" name="tabs" class="tab-locator" hidden checked>
     <input type="radio" id="tab-item-videos" name="tabs" class="tab-locator" hidden>
-    <input type="radio" id="tab-item-requests" name="tabs" class="tab-locator" hidden>
+    <input type="radio" id="tab-item-scripts" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-links" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-tabs" name="tabs" class="tab-locator" hidden>
     <input type="radio" id="tab-item-misc" name="tabs" class="tab-locator" hidden>
@@ -41,7 +41,7 @@
           <label for="tab-item-videos" class="clickable"><a>Videos</a></label>
         </li>
         <li class="tab-item">
-          <label for="tab-item-requests" class="clickable"><a>Requests</a></label>
+          <label for="tab-item-scripts" class="clickable"><a>Scripts</a></label>
         </li>
         <li class="tab-item">
           <label for="tab-item-links" class="clickable"><a>Links</a></label>
@@ -105,35 +105,33 @@
             <div class="panel">
               <div class="panel-body">
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="debug.video"><i class="form-icon"></i><span>Debug</span></label></div>
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="interceptVideo"><i class="form-icon"></i><span>Intercept video</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.intercept"><i class="form-icon"></i><span>Intercept video</span></label></div>
               </div>
             </div>
           </div>
 
           <div class="tab-content">
-            <textarea class="form-input input-script" id="scripts.video.downloadRefining" rows="60" spellcheck="false" autocorrect="off"></textarea>
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.downloadRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="video.downloadRefining.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
           <div class="tab-content">
-            <textarea class="form-input input-script" id="scripts.video.filenameRefining" rows="60" spellcheck="false" autocorrect="off"></textarea>
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.filenameRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="video.filenameRefining.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
         </div>
       </div>
 
-      <!-- Requests options -->
+      <!-- Scripts options -->
       <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
-        <input type="radio" id="tab-item-requests-main" name="tabs-requests" class="tab-locator" hidden checked>
-        <input type="radio" id="tab-item-requests-webRequest-onBeforeSendHeaders" name="tabs-requests" class="tab-locator" hidden>
+        <input type="radio" id="tab-item-scripts-webRequest-onBeforeSendHeaders" name="tabs-scripts" class="tab-locator" hidden checked>
 
         <div class="panel-nav tabs-items">
           <ul class="tab">
             <li class="tab-item">
-              <label for="tab-item-requests-main" class="clickable"><a>Main</a></label>
-            </li>
-            <li class="tab-item">
-              <label for="tab-item-requests-webRequest-onBeforeSendHeaders" class="clickable"><a>onBeforeSendHeaders</a></label>
+              <label for="tab-item-scripts-webRequest-onBeforeSendHeaders" class="clickable"><a>onBeforeSendHeaders</a></label>
             </li>
           </ul>
         </div>
@@ -141,17 +139,10 @@
         <div class="panel-body tabs-content">
 
           <div class="tab-content">
-            <div class="panel">
-              <div class="panel-body">
-                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="intercept.webRequest.onBeforeSendHeaders.enabled"><i class="form-icon"></i><span>Intercept onBeforeSendHeaders</span></label></div>
-                <div>
-                  <label class="form-label"><span>onBeforeSendHeaders types:</span><input type="text" id="intercept.webRequest.onBeforeSendHeaders.requestTypes" class="form-input"></label>
-                </div>
-              </div>
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="intercept.webRequest.onBeforeSendHeaders.enabled"><i class="form-icon"></i><span>Intercept</span></label></div>
+            <div>
+              <label class="form-label" style="display: flex; align-items: center;"><span>Types:&nbsp;</span><input type="text" id="intercept.webRequest.onBeforeSendHeaders.requestTypes" class="form-input" style="flex: 2"></label>
             </div>
-          </div>
-
-          <div class="tab-content">
             <textarea class="form-input input-script" id="intercept.webRequest.onBeforeSendHeaders.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
           </div>
 

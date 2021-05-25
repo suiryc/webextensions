@@ -17,10 +17,33 @@ export class CodeExecutor {
       self.setup(params.code);
       return;
     }
-    // We should have been given a setting.
+    // We should have been given a setting, or setting branch.
     // We will listen to setting changes, unless code is expected to be executed
     // only once (caller should do it right after the instance is built).
     var setting = params.setting;
+    if (setting.addListener) {
+      if (!params.once) setting.addListener(() => {
+        self.setup(setting.value);
+      });
+      self.setup(setting.value);
+      return;
+    }
+    if (!setting.inner.script) {
+      this.getNotif().warn({
+        title: 'Script code setup failed',
+        msg: `Unhandled setting=<${setting.getKey()}>`
+      });
+      return;
+    }
+    var enabled = setting.inner.enabled;
+    if (enabled) {
+      // Setting that can switch on/off script.
+      if (!params.once) enabled.addListener(() => {
+        self.disabled = !enabled.value;
+      });
+      self.disabled = !enabled.value;
+    }
+    setting = setting.inner.script;
     if (!params.once) setting.addListener(() => {
       self.setup(setting.value);
     });
@@ -29,7 +52,7 @@ export class CodeExecutor {
 
   setup(code) {
     delete(this.f);
-    if (!code || !code.trim()) return;
+    if (this.disabled || !code || !code.trim()) return;
     try {
       // Note: using 'Function.call' (or 'apply') instead of 'new Function' so
       // that we don't get warnings from code inspection.

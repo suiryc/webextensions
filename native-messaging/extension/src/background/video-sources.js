@@ -165,7 +165,7 @@ class VideoSource {
   }
 
   getFilenameRefining() {
-    var setting = settings.scripts.video.inner.filenameRefining;
+    var setting = settings.video.filenameRefining;
     return this.webext.getExtensionProperty({
       key: setting.getKey(),
       create: webext => new unsafe.CodeExecutor({webext, name: 'filename refining', args: ['params'], setting})
@@ -662,7 +662,7 @@ export class VideoSourceHandler {
     });
 
     // Listen changes in interception settings to apply them.
-    settings.inner.interceptVideo.addListener((setting, oldValue, newValue) => {
+    settings.video.inner.intercept.addListener((setting, oldValue, newValue) => {
       self.setupInterception();
     });
     self.setupInterception();
@@ -743,7 +743,7 @@ export class VideoSourceHandler {
 
   setupInterception() {
     // Check whether we now need to intercept anything
-    var interceptVideo = settings.interceptVideo;
+    var interceptVideo = settings.video.intercept;
     // Determine whether we were listening.
     var interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
     // Add/remove listeners as requested.

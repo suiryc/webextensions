@@ -135,7 +135,7 @@ function processVideo(node) {
         src
       }
     };
-    var scriptResult = await unsafe.executeCode({webext, name: 'download refining', args, code: settings.scripts.video.downloadRefining});
+    var scriptResult = await unsafe.executeCode({webext, name: 'download refining', args, setting: settings.video.downloadRefining});
     util.cleanupFields(scriptResult);
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
@@ -211,7 +211,7 @@ export async function run() {
   if (!document.URL.startsWith('http')) return;
 
   await settings.ready;
-  if (!settings.interceptVideo) return;
+  if (!settings.video.intercept) return;
 
   await util.waitForDocument();
   // Observe mutations in document, to detect new video tags being added.
