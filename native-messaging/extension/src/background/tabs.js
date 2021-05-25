@@ -554,12 +554,6 @@ export class TabsHandler {
     var tabId = details.tabId;
     var tabHandler = self.tabs[tabId];
     if (!tabHandler) {
-      // Tab is unknown.
-      // If this is the main frame, we will manage this new tab.
-      // Otherwise, ignore this frame: we expect to be notified of a subframe
-      // change before caller had time to initiate itself and get all current
-      // tabs (and add associated frames).
-      if (details.frameId !== 0) return;
       // Tab is not known yet, add it first.
       tabHandler = await browser.tabs.get(tabId).then(tab => {
         return self.addTab(tab);
