@@ -96,12 +96,17 @@ async function removeStorageValue(keys) {
 
 class SettingsBranch {
 
-  constructor() {
+  constructor(name, parent) {
+    if (name) this._key = (parent && parent._key) ? `${parent._key}.${name}` : name;
     var handler = {
       get: this.proxy_get.bind(this)
       , set: this.proxy_set.bind(this)
     };
     this.proxy = new Proxy(this, handler);
+  }
+
+  getKey() {
+    return this._key;
   }
 
   proxy_get(target, property) {
@@ -362,13 +367,17 @@ class ExtensionSetting {
           throw new Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
         }
         // Recursively create a Settings Proxy for subfield if needed.
-        if (!target[leaf]) target[leaf] = new SettingsBranch().proxy;
+        if (!target[leaf]) target[leaf] = new SettingsBranch(leaf, target).proxy;
         target = target[leaf].inner;
       } else {
         // Reached leaf: assign us.
         target[leaf] = this;
       }
     }
+  }
+
+  getKey() {
+    return this.key;
   }
 
   addListener(listener) {
