@@ -282,11 +282,17 @@ class Settings extends SettingsBranch {
         }
         var newKeys = newKey;
         if (!Array.isArray(newKeys)) newKeys = [newKeys];
+        var remove = true;
         for (newKey of newKeys) {
+          if (newKey == key) {
+            // We are actually keeping the old key.
+            remove = false;
+            continue;
+          }
           await setStorageValue(newKey, value);
           console.log(`Migrated oldKey=<${key}> newKey=<${newKey}> value=<%o>`, value);
         }
-        await removeStorageValue(key);
+        if (remove) await removeStorageValue(key);
       } catch (error) {
         console.log(`Failed to migrate oldKey=<${key}> newKey=<${newKey}>:`, error);
       }
