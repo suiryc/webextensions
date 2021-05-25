@@ -28,7 +28,6 @@ export async function run() {
   // We only work in top frame of 'file:' documents.
   if ((window !== window.top) || !document.URL.match(/^file:.*html?$/i)) return;
 
-  await settings.ready;
   await util.waitForDocument();
 
   // Inject our CSS.

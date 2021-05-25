@@ -2,6 +2,8 @@
 
 import { constants } from '../common/constants.js';
 import { WebExtension } from '../common/messaging.js';
+import * as unsafe from '../common/unsafe.js';
+import { settings } from '../common/settings.js';
 import * as linksCatcher from './links-catcher.js';
 import * as tw from './tw.js';
 import * as video from './video.js';
@@ -38,10 +40,20 @@ function unhandledMessage(msg, sender) {
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)
 var webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
-try {
-  linksCatcher.run();
-  tw.run();
-  video.run();
-} catch (err) {
-  console.log('Failure starting content scripts:', err);
-}
+(async function() {
+  // All scripts actually want to wait, at one point or another, for settings
+  // to be ready.
+  await settings.ready;
+  try {
+    unsafe.executeCode({webext, name: 'custom content script', args: {}, setting: settings.content_scripts.custom});
+  } catch (err) {
+    console.log('Failure executing custom content script:', err);
+  }
+  try {
+    linksCatcher.run();
+    tw.run();
+    video.run();
+  } catch (err) {
+    console.log('Failure starting content scripts:', err);
+  }
+})();

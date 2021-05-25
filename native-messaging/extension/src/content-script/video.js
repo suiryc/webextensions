@@ -208,10 +208,7 @@ var nodesObserver = new MutationObserver(function(mutations, observer) {
 });
 
 export async function run() {
-  if (!document.URL.startsWith('http')) return;
-
-  await settings.ready;
-  if (!settings.video.intercept) return;
+  if (!settings.video.intercept || !document.URL.startsWith('http')) return;
 
   await util.waitForDocument();
   // Observe mutations in document, to detect new video tags being added.

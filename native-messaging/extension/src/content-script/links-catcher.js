@@ -7,10 +7,8 @@ import { settings } from '../common/settings.js';
 
 export async function run() {
   // We only work in top frame.
-  if (window !== window.top) return;
+  if (!settings.catchLinks || (window !== window.top)) return;
 
-  await settings.ready;
-  if (!settings.catchLinks) return;
   await util.waitForDocument();
 
   var link = document.createElement('link');

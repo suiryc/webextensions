@@ -150,6 +150,9 @@ class Settings extends SettingsBranch {
     new ExtensionIntSetting('settingsVersion', 0);
     new ExtensionBooleanSetting('catchLinks', true);
     new ExtensionBooleanSetting('clearDownloads', true);
+    // 'custom' content script.
+    new ExtensionBooleanSetting('content_scripts.custom.enabled', true);
+    new ExtensionScriptSetting('content_scripts.custom.script');
     new ExtensionBooleanSetting('debug.misc', false);
     new ExtensionBooleanSetting('debug.tabs.events', false);
     new ExtensionBooleanSetting('debug.tabs.successor', false);

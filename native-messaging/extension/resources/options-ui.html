@@ -127,11 +127,15 @@
       <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
         <input type="radio" id="tab-item-scripts-webRequest-onBeforeSendHeaders" name="tabs-scripts" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-scripts-content_scripts-custom" name="tabs-scripts" class="tab-locator" hidden>
 
         <div class="panel-nav tabs-items">
           <ul class="tab">
             <li class="tab-item">
               <label for="tab-item-scripts-webRequest-onBeforeSendHeaders" class="clickable"><a>onBeforeSendHeaders</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-scripts-content_scripts-custom" class="clickable"><a>Content script</a></label>
             </li>
           </ul>
         </div>
@@ -144,6 +148,11 @@
               <label class="form-label" style="display: flex; align-items: center;"><span>Types:&nbsp;</span><input type="text" id="intercept.webRequest.onBeforeSendHeaders.requestTypes" class="form-input" style="flex: 2"></label>
             </div>
             <textarea class="form-input input-script" id="intercept.webRequest.onBeforeSendHeaders.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
+          </div>
+
+          <div class="tab-content">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="content_scripts.custom.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="content_scripts.custom.script" rows="60" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
         </div>
