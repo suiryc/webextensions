@@ -633,8 +633,6 @@ export class TabsHandler {
       if (settings.debug.tabs.events) console.log.apply(this, ['windows.onRemoved', ...arguments]);
       self.removeWindow(windowId);
     });
-    // Note: listening on focus change triggers an initial event (so that we
-    // known which window is focused).
     // windows.onFocusChanged parameters: windowId
     browser.windows.onFocusChanged.addListener(function(windowId) {
       if (settings.debug.tabs.events) console.log.apply(this, ['windows.onFocusChanged', ...arguments]);
@@ -688,6 +686,18 @@ export class TabsHandler {
       if (settings.debug.tabs.events) console.log.apply(this, ['webNavigation.onBeforeNavigate', ...arguments]);
       self.resetFrame(details);
     });
+
+    // Notes:
+    // Listening on focus change usually triggers an initial event, but not
+    // not always.
+    // Moreover if content script is not injected in active tab(s), we won't
+    // determine the active (/focused) tab until another one is activated.
+    // This is especially visible when debugging and reloading the extension.
+    // So ensure we determine focused window and active tabs.
+    self.focusWindow((await browser.windows.getLastFocused()).id);
+    for (var tab of await browser.tabs.query({active: true})) {
+      self.addTab(tab);
+    }
   }
 
 }
