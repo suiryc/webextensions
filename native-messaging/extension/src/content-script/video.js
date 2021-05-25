@@ -130,12 +130,12 @@ function processVideo(node) {
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
-    var scriptParams = {
+    var args = {
       params: {
         src
       }
     };
-    var scriptResult = await unsafe.executeCode(webext, 'download refining', scriptParams, settings.scripts.video.downloadRefining);
+    var scriptResult = await unsafe.executeCode({webext, name: 'download refining', args, code: settings.scripts.video.downloadRefining});
     util.cleanupFields(scriptResult);
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,

@@ -7,24 +7,24 @@ import * as unsafe from './unsafe.js';
 
 export class CodeExecutor {
 
-  constructor(webext, scriptName, argNames, code) {
+  constructor(params) {
     var self = this;
-    self.webext = webext;
-    self.scriptName = scriptName;
+    self.webext = params.webext;
+    self.scriptName = params.name;
     // We will pass useful helpers automatically.
-    argNames = argNames.concat(['http', 'notif', 'unsafe', 'util', 'webext']);
-    self.argNames = argNames;
-
-    if ((typeof(code) === 'object') && code.addListener) {
-      // Assume we were given a setting: automatically listen to changes.
-      code.addListener(() => {
-        self.setup(code.value);
-      });
-      self.setup(code.value);
+    self.argNames = params.args.concat(['http', 'notif', 'unsafe', 'util', 'webext']);
+    if (params.code) {
+      self.setup(params.code);
       return;
     }
-
-    self.setup(code);
+    // We should have been given a setting.
+    // We will listen to setting changes, unless code is expected to be executed
+    // only once (caller should do it right after the instance is built).
+    var setting = params.setting;
+    if (!params.once) setting.addListener(() => {
+      self.setup(setting.value);
+    });
+    self.setup(setting.value);
   }
 
   setup(code) {
@@ -76,8 +76,7 @@ export class CodeExecutor {
 }
 
 // Executes script code.
-export async function executeCode(webext, scriptName, params, code) {
-  if (!code || !code.trim()) return {};
-  var executor = new CodeExecutor(webext, scriptName, Object.keys(params), code);
-  return await executor.execute(params);
+export async function executeCode(params) {
+  var executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
+  return await executor.execute(params.args);
 }

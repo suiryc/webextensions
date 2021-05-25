@@ -159,13 +159,18 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('handleTabSuccessor', true);
     new ExtensionBooleanSetting('interceptDownloads', true);
     new ExtensionBooleanSetting('interceptRequests', true);
+    new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
     new ExtensionBooleanSetting('interceptVideo', true);
     if (globalThis.browser && browser.webRequest) {
       var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
       new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', '', requestTypes, true);
+      // 'webRequest.onBeforeSendHeaders' script input params:
+      //  - request: the request about to be sent
+      // Output is the request to actually perform, or undefined to keep the
+      // request as-is.
+      new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
     }
-    new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
     new ExtensionBooleanSetting('notifyDownload', true);
     new ExtensionIntSetting('notifyTtl', 4000);
     // 'download refining' script input 'params':
@@ -190,11 +195,6 @@ class Settings extends SettingsBranch {
     // Code is executed inside the background script and can be synchronous or
     // asynchronous (Promise).
     new ExtensionScriptSetting('scripts.video.filenameRefining');
-    // 'webRequest.onBeforeSendHeaders' script input params:
-    //  - request: the request about to be sent
-    // Output is the request to actually perform, or undefined to keep the
-    // request as-is.
-    new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
 
     // If there is no 'window', assume we are not running inside browser and
     // don't need to do anything else.

@@ -165,10 +165,10 @@ class VideoSource {
   }
 
   getFilenameRefining() {
-    var key = 'scripts.video.filenameRefining';
+    var setting = settings.scripts.video.inner.filenameRefining;
     return this.webext.getExtensionProperty({
-      key,
-      create: webext => new unsafe.CodeExecutor(webext, 'filename refining', ['params'], settings.inner.perKey[key])
+      key: setting.getKey(),
+      create: webext => new unsafe.CodeExecutor({webext, name: 'filename refining', args: ['params'], setting})
     });
   }
 
