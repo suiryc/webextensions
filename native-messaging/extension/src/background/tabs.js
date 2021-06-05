@@ -92,14 +92,26 @@ class FrameHandler {
 class TabHandler {
 
   constructor(tabsHandler, tab) {
-    this.id = tab.id;
-    this.windowId = tab.windowId;
-    this.url = tab.url;
-    this.title = tab.title;
-    this.tabsHandler = tabsHandler;
-    this.frames = {};
+    var self = this;
+    self.id = tab.id;
+    self.windowId = tab.windowId;
+    self.url = tab.url;
+    self.title = tab.title;
+    self.tabsHandler = tabsHandler;
+    self.frames = {};
     // Properties managed by the extension.
-    this.extensionProperties = {};
+    self.extensionProperties = {};
+
+    // Freshly created tab title is often the url without scheme. In this case,
+    // listen to changes (and unlisten once tab loading is complete).
+    if ((tab.status == 'loading') && (tab.url.endsWith(tab.title))) {
+      var listener = function(tabId, changeInfo, tab) {
+        if (settings.debug.tabs.events) console.log.apply(this, ['tabs.onUpdated', ...arguments]);
+        self.title = tab.title;
+        if (tab.status == 'complete') browser.tabs.onUpdated.removeListener(listener);
+      };
+      browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
+    }
   }
 
   // Only keep important fields (and prevent 'cyclic object value' error) for JSON.
