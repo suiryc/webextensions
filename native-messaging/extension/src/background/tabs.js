@@ -92,26 +92,14 @@ class FrameHandler {
 class TabHandler {
 
   constructor(tabsHandler, tab) {
-    var self = this;
-    self.id = tab.id;
-    self.windowId = tab.windowId;
-    self.url = tab.url;
-    self.title = tab.title;
-    self.tabsHandler = tabsHandler;
-    self.frames = {};
+    this.id = tab.id;
+    this.windowId = tab.windowId;
+    this.url = tab.url;
+    this.tabsHandler = tabsHandler;
+    this.frames = {};
     // Properties managed by the extension.
-    self.extensionProperties = {};
-
-    // Freshly created tab title is often the url without scheme. In this case,
-    // listen to changes (and unlisten once tab loading is complete).
-    if ((tab.status == 'loading') && (tab.url.endsWith(tab.title))) {
-      var listener = function(tabId, changeInfo, tab) {
-        if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
-        self.title = tab.title;
-        if (tab.status == 'complete') browser.tabs.onUpdated.removeListener(listener);
-      };
-      browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
-    }
+    this.extensionProperties = {};
+    this.update(tab);
   }
 
   // Only keep important fields (and prevent 'cyclic object value' error) for JSON.
@@ -122,6 +110,22 @@ class TabHandler {
       url: this.url,
       title: this.title
     };
+  }
+
+  update(tab) {
+    var self = this;
+    // Note: the url is updated through main frame handling.
+    self.title = tab.title;
+    // Freshly created tab title is often the url without scheme. In this case,
+    // listen to changes (and unlisten once tab loading is complete).
+    if ((tab.status == 'loading') && tab.url.endsWith(tab.title)) {
+      var listener = function(tabId, changeInfo, tab) {
+        if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
+        self.title = tab.title;
+        if (tab.status == 'complete') browser.tabs.onUpdated.removeListener(listener);
+      };
+      browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
+    }
   }
 
   getTabsHandler() {
@@ -204,11 +208,15 @@ class TabHandler {
       // If the uuid is the same, we already know this frame (content script
       // maybe reconnected, or there are multiple content scripts running).
       if (frameHandler.csUuid == details.csUuid) return;
-      // Get fresh tab information.
-      try {
-        var tab = await browser.tabs.get(this.id);
-        this.title = tab.title;
-      } catch (error) {
+      // If this is the main frame, we expect the tab to be reused (reloading
+      // or navigation to new url): update handler with fresh tab information.
+      // Note: since we reset (and remove) non-main frames in this case, we
+      // actually don't expect to be here for non-main frames.
+      if (!frameId) {
+        try {
+          this.update(await browser.tabs.get(this.id));
+        } catch (error) {
+        }
       }
       // Frame is being reused: reset it.
       frameHandler.reset(details, { beforeNavigate: false, domLoaded: true });
