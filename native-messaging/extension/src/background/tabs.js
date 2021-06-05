@@ -506,16 +506,14 @@ export class TabsHandler {
     var previousTabHandler = this.getActiveTab(windowId).handler;
     if (!previousTabHandler && previousTabId) previousTabHandler = this.tabs[previousTabId];
     // Note: we still notify observers when handler is not (yet) known. In this
-    // case the passed handled is undefined.
+    // case the passed handler is undefined.
     // Once the tab become known, we are called again, and can then pass the
     // associated handler.
-    var focused = (windowId === this.focusedWindowId);
     this.activeTabs[windowId] = {
       id: tabId,
       windowId,
       handler: tabHandler
     };
-    if (focused) this.focusedTab = this.activeTabs[windowId];
     if (settings.debug.misc) console.log('Activated window=<%s> tab=<%s>', windowId, tabId);
     this.notifyObservers(constants.EVENT_TAB_ACTIVATED, {
       windowId,
@@ -524,21 +522,32 @@ export class TabsHandler {
       tabId,
       tabHandler
     });
-    if (focused) {
-      // This tab window is focused, which means the activated tab is the
-      // currently focused tab.
-      // Also happens when user selects a non-activate tab in a non-focused
-      // window: window is focused then tab activated.
-      this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
-        previousWindowId: windowId,
-        previousTabId,
-        previousTabHandler,
-        windowId,
-        tabId,
-        tabHandler
-      });
-    }
-    // else: this tab is not focused because its parent window is not.
+    if (windowId === this.focusedWindowId) this.focusTab(windowId);
+  }
+
+  focusTab(windowId) {
+    var focusedTab = this.focusedTab;
+    var previousWindowId = focusedTab.windowId;
+    var previousTabId = focusedTab.id;
+    var previousTabHandler = focusedTab.handler;
+    focusedTab = this.focusedTab = this.getActiveTab(windowId);
+    var tabId = focusedTab.id;
+    // Don't bother if we don't know previous nor new tab id.
+    if (!tabId && !previousTabId) return;
+    // Note: beware that tab handlers may be undefined (tab not handled yet or
+    // at all).
+    var tabHandler = focusedTab.handler;
+    // Belt and suspenders: if window and tab ids are the same, but tab handler
+    // was not known yet, send the notification with the handler.
+    if ((windowId == previousWindowId) && (tabId == previousTabId) && (tabHandler === previousTabHandler)) return;
+    this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
+      previousWindowId,
+      previousTabId,
+      previousTabHandler,
+      windowId,
+      tabId,
+      tabHandler
+    });
   }
 
   focusWindow(windowId) {
@@ -546,24 +555,12 @@ export class TabsHandler {
     if (windowId === browser.windows.WINDOW_ID_NONE) windowId = undefined;
     var previousWindowId = this.focusedWindowId;
     this.focusedWindowId = windowId;
-    var previousFocusedTab = this.focusedTab;
-    var focusedTab = this.focusedTab = this.activeTabs[windowId] || {};
     if (settings.debug.misc) {
       if (windowId) console.log('Focused window=<%s>', windowId);
       else console.log('No more window focused');
     }
     this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId, windowId });
-    // Don't notify tab focusing if there is none.
-    if (focusedTab.id) {
-      this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
-        previousWindowId,
-        previousTabId: previousFocusedTab.id,
-        previousTabHandler: previousFocusedTab.handler,
-        windowId,
-        tabId: focusedTab.id,
-        tabHandler: focusedTab.handler
-      });
-    }
+    this.focusTab(windowId);
   }
 
   // Adds frame and return frame handler.
