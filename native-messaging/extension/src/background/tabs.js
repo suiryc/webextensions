@@ -543,12 +543,13 @@ export class TabsHandler {
 
   focusWindow(windowId) {
     // Note: windows.WINDOW_ID_NONE is used when no window has the focus.
+    if (windowId === browser.windows.WINDOW_ID_NONE) windowId = undefined;
     var previousWindowId = this.focusedWindowId;
     this.focusedWindowId = windowId;
     var previousFocusedTab = this.focusedTab;
     var focusedTab = this.focusedTab = this.activeTabs[windowId] || {};
     if (settings.debug.misc) {
-      if (windowId !== browser.windows.WINDOW_ID_NONE) console.log('Focused window=<%s>', windowId);
+      if (windowId) console.log('Focused window=<%s>', windowId);
       else console.log('No more window focused');
     }
     this.notifyObservers(constants.EVENT_WINDOW_FOCUSED, { previousWindowId, windowId });
