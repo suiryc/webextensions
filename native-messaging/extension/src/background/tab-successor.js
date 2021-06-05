@@ -110,7 +110,7 @@ export class TabSuccessor {
       title: 'Unload tab(s)',
       contexts: ['tab'],
       onclick: function(info, tab) {
-        if (settings.debug.tabs.successor) console.log.apply(this, [`tab.unload`, ...arguments]);
+        if (settings.debug.tabs.successor) console.log.apply(console, [`tab.unload`, ...arguments]);
         self.unloadTabs(tab);
       }
     });
