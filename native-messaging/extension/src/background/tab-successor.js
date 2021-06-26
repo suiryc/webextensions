@@ -123,7 +123,7 @@ export class TabSuccessor {
     // Gather tabs per window.
     for (var tab of tabs) {
       // Leave alone tabs that already have a successor.
-      if (!reset && tab.successorTabId) continue;
+      if (!reset && (tab.successorTabId > 0)) continue;
       var entry = tabsByWindow[tab.windowId] || [];
       entry.push(tab);
       tabsByWindow[tab.windowId] = entry;
