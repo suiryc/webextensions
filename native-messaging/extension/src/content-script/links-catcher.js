@@ -12,7 +12,7 @@ export async function run() {
   await util.waitForDocument();
 
   var link = document.createElement('link');
-  link.href = browser.extension.getURL('/resources/content-script-links-catcher.css');
+  link.href = browser.runtime.getURL('/resources/content-script-links-catcher.css');
   link.type = 'text/css';
   link.rel = 'stylesheet';
   document.head.appendChild(link);

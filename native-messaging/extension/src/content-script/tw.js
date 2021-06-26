@@ -32,7 +32,7 @@ export async function run() {
 
   // Inject our CSS.
   var link = document.createElement('link');
-  link.href = browser.extension.getURL('/resources/content-script-tw.css');
+  link.href = browser.runtime.getURL('/resources/content-script-tw.css');
   link.type = 'text/css';
   link.rel = 'stylesheet';
   document.head.appendChild(link);
