@@ -178,7 +178,10 @@ function ext_clearMessages(msg) {
     applicationMessages = [];
   } else {
     applicationMessages = applicationMessages.filter(details => {
-      if (details.windowId != windowId) return true;
+      // Messages sent by non-window code (e.g. background script) have no
+      // windowId and are considered as 'Other tabs' (we don't bother setting a
+      // dedicated section for such messages): clear them when applicable.
+      if ((details.windowId || !msg.otherTabs) && (details.windowId != windowId)) return true;
       var matchTab = details.tabId == msg.tabId;
       return msg.otherTabs ? matchTab : !matchTab;
     });
