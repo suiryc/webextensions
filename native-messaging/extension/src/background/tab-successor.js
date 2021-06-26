@@ -430,7 +430,11 @@ export class TabSuccessor {
       // more than one predecessor, and for debugging it is better to see
       // the full chains.
       for (var info0 of chain.slice().reverse()) {
-        chained[info0.id] = info0.successor ? [info0, ...chained[info0.successor.id]] : [info0];
+        // Beware of circular chain: the last entry successor may be the first
+        // tab of the chain, in which case we did not yet build its chain.
+        var successorChain = info0.successor ? chained[info0.successor.id] : [];
+        successorChain = Array.isArray(successorChain) ? successorChain : [successorChain];
+        chained[info0.id] = [info0, ...successorChain];
       }
       // Only process tab if it is not already part of an existing chain (in
       // which case 'chain' is empty because the tab was in 'chained').
