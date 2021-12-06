@@ -388,7 +388,7 @@ try {
     tabsHandler
   });
   // Native application handler
-  var nativeApp = new NativeApplication(constants.APPLICATION_ID, { onMessage: onNativeMessage });
+  var nativeApp = new NativeApplication(constants.APPLICATION_ID, webext, { onMessage: onNativeMessage });
 
   // Start native application and request its specs
   nativeApp.connect();

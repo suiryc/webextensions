@@ -170,7 +170,7 @@ export class WebExtension {
     // Create the handler the first time.
     var handler = this.ports.get(port);
     if (!handler) {
-      handler = new PortHandler({
+      handler = new PortHandler(this, {
         onMessage: this.onMessage.bind(this),
         onDisconnect: this.unregisterPort.bind(this)
       });
@@ -304,7 +304,7 @@ export class WebExtension {
   // Connects (to background script).
   // Only used from scripts other than the background.
   connect() {
-    this.portHandler = new PortHandler({
+    this.portHandler = new PortHandler(this, {
       target: this.params.target,
       onMessage: this.onMessage.bind(this)
     });
@@ -361,7 +361,8 @@ export class WebExtension {
 // Port); native application messaging needs some more complex handling though.
 class PortHandler {
 
-  constructor(params) {
+  constructor(webext, params) {
+    this.webext = webext;
     this.params = params;
     this.requests = {};
     this.defaultTimeout = constants.MESSAGE_RESPONSE_TIMEOUT;
@@ -489,7 +490,18 @@ class PortHandler {
         // 'error' field. For simplicity, we don't transform an error into a
         // failed Promise, but let caller check whether this in an error
         // through the field.
-        promise.resolve('reply' in msg ? msg.reply : msg);
+        var actual = 'reply' in msg ? msg.reply : msg;
+        if (actual && actual.warning) {
+          console.log('A warning was received in request response:', actual);
+          this.webext.notify({
+            title: 'Request response warning',
+            level: 'warning',
+            message: 'A warning was received in request response',
+            error: actual.warning,
+            silent: true
+          });
+        }
+        promise.resolve(actual);
         callback = false;
       }
     }
@@ -562,8 +574,8 @@ const FRAGMENT_KIND_CONT = 'cont';
 // Native application messages handler.
 export class NativeApplication extends PortHandler {
 
-  constructor(appId, params) {
-    super(params);
+  constructor(appId, webext, params) {
+    super(webext, params);
     this.appId = appId;
     this.fragments = {};
     this.lastJanitoring = util.getTimestamp();

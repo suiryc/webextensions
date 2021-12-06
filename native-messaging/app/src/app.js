@@ -137,11 +137,24 @@ function dl_save(app, msg) {
     //  - return code is non-0
     //  - application was interrupted by a signal
     //  - an error happened for the child process itself
-    if (stderr.data.length) response.error = `Application failed with message=<${stderr.data}>`;
-    else if (details.code) response.error = `Application failed with return code=<${details.code}>`;
-    else if (details.signal) response.error = `Application failed with signal=<${details.signal}>`;
-    else if ('error' in details) response.error = `Application failed with error: ${util.formatObject(details.error)}`;
-    else if (stdout.data.length) response.wsPort = Number(stdout.data.toString());
+    var error = [];
+    // We really failed if either there is:
+    //  - an error code
+    //  - a signal
+    //  - a cause issue
+    if (details.code) error.push(`Return code=<${details.code}>`);
+    if (details.signal) error.push(`Signal=<${details.signal}>`);
+    if ('error' in details) error.push(`Embedded error: ${util.formatObject(details.error)}`);
+    // If stderr is not empty, consider it as a warning unless we got a real
+    // error.
+    if (stderr.data.length) {
+      if (error.length) error.push(stderr.data.toString());
+      else response.warning = stderr.data.toString();
+    }
+    if (error.length) {
+      error.unshift('Application failed');
+      response.error = error.join('\n');
+    } else if (stdout.data.length) response.wsPort = Number(stdout.data.toString());
     deferred.resolve(response);
     // While not strictly necessary, cleanup by destroying streams ...
     child.stdout.destroy();
