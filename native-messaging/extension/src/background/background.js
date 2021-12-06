@@ -252,7 +252,7 @@ function notification(details, sender) {
     }
   }
 
-  util.notification(details);
+  if (!details.silent) util.notification(details);
   addExtensionMessage(details);
 }
 
