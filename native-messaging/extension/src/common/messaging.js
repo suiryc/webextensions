@@ -601,7 +601,7 @@ export class NativeApplication extends PortHandler {
     // Note: this.port is undefined if *we* asked to disconnect.
     if (this.port && (port !== this.port)) {
       // This is not our connection; should not happen
-      console.warn('Received unknown native application %s port %o disconnection', nativeApp.appId, port);
+      console.warn('Received unknown native application %s port %o disconnection', this.appId, port);
       return;
     }
     var error;
@@ -609,7 +609,7 @@ export class NativeApplication extends PortHandler {
       // We don't expect the native application (port) to close itself: this
       // should mean an error was encoutered.
       error = port.error;
-      console.warn('Native application %s port disconnected: %o', nativeApp.appId, port.error);
+      console.warn('Native application %s port disconnected: %o', this.appId, port.error);
     }
     delete(this.port);
     this.fragments = {};
