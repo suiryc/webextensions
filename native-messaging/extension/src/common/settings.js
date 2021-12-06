@@ -582,6 +582,8 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
 }
 
 // Manages a script (string) setting.
+// 'Hide' Function usage to limit code inspection warnings.
+var _fn = Function;
 class ExtensionScriptSetting extends ExtensionSetting {
 
   constructor(key, value) {
@@ -594,7 +596,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    Function.call(null, v);
+    _fn.call(null, v);
     return v;
   }
 

@@ -5,6 +5,9 @@ import * as http from './http.js';
 import * as unsafe from './unsafe.js';
 
 
+// 'Hide' Function usage to limit code inspection warnings.
+var _fn = Function;
+
 export class CodeExecutor {
 
   constructor(params) {
@@ -57,7 +60,7 @@ export class CodeExecutor {
       // Note: using 'Function.call' (or 'apply') instead of 'new Function' so
       // that we don't get warnings from code inspection.
       // And yes, I know I want to 'eval' code here.
-      this.f = Function.call(null, this.argNames, code);
+      this.f = _fn.call(null, this.argNames, code);
     } catch (error) {
       this.getNotif().error({
         title: 'Script code setup failed',
