@@ -14,6 +14,12 @@ function checkVideoContentType(contentType) {
 }
 
 
+// When looking to strip ending of title, we actually first split the last part
+// based on known separators: if splitted ending part matches, it is removed.
+// We look for two kind of ending parts to strip:
+//  - when the title contains the site name (extracted from url, testing all of
+//    'www.sitename.tld', 'sitename.tld' and 'sitename')
+//  - regexp (see below)
 const TITLE_SEPARATORS = [' - ', ' | '];
 const TITLE_END_PART_REGEXPS = [
   /^(?:Watch|Free)[^|-]*Online(?: Free)?$/i
