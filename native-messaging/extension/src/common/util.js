@@ -185,6 +185,24 @@ export function normalizeUrl(url, log, label) {
   return normalized;
 }
 
+export function parseSiteUrl(url) {
+  // First ensure we have an URL object
+  url = new URL(url);
+  var hostname = url.hostname;
+  var nameParts = hostname.split('.');
+  var name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
+  // pathname starts with '/', so splitting creates an empty entry in first position.
+  var pathParts = url.pathname.split('/').slice(1).map(decodeURIComponent);
+
+  return {
+    url: url,
+    hostname: hostname,
+    pathParts: pathParts,
+    name: name,
+    nameParts: nameParts
+  };
+}
+
 // Gets filename, deduced from URL when necessary.
 // Returns filename or empty value if unknown.
 export function getFilename(url, filename) {

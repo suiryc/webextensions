@@ -76,6 +76,8 @@ class VideoSource {
     if ((url == this.url) || (url == this.actualUrl)) return;
     this.actualUrl = url;
     this.addUrl(url);
+    // Ensure we re-build downloadSite unless forceUrl is used.
+    if (!this.forceUrl) delete(this.downloadSite);
     this.needRefresh = true;
   }
 
@@ -183,6 +185,9 @@ class VideoSource {
     this.needRefresh = false;
     var changes = false;
 
+    if (!this.tabSite) this.tabSite = util.parseSiteUrl(this.tabUrl);
+    if (!this.downloadSite) this.downloadSite = util.parseSiteUrl(this.getUrl());
+
     // Determine download filename.
     var filename = util.getFilename(this.getUrl(), this.filename);
     var name;
@@ -195,38 +200,36 @@ class VideoSource {
     updateName();
     // Most sources don't have a filename, nor a proper name in the url.
     // So use the tab title as base to name the downloaded file.
-    var params = {};
-    if (!this.filenameFromUrl) {
-      var scriptParams = {
-        params: {
-          videoSource: this,
-          title: this.tabTitle,
-          tabUrl: this.tabUrl,
-          frameUrl: this.frameUrl,
-          url: this.getUrl(),
-          name,
-          extension,
-          filename
-        }
-      };
-      params = await this.getFilenameRefining().execute(scriptParams);
-      util.cleanupFields(params);
-      if (params.filename) {
-        changes = true;
-        filename = params.filename;
-        updateName();
-      } else if (params.name || params.extension) {
-        changes = true;
-        if (params.name) name = params.name;
-        if (params.extension) extension = params.extension;
-        filename = util.buildFilename(name, extension);
+    var scriptParams = {
+      params: {
+        videoSource: this,
+        title: this.tabTitle,
+        tabUrl: this.tabUrl,
+        frameUrl: this.frameUrl,
+        url: this.getUrl(),
+        name,
+        extension,
+        filename
       }
-      if (changes) {
-        params.name = name;
-        params.extension = extension;
-        params.filename = filename;
-      }
-    } else {
+    };
+    var params = await this.getFilenameRefining().execute(scriptParams);
+    util.cleanupFields(params);
+    if (params.filename) {
+      changes = true;
+      filename = params.filename;
+      updateName();
+    } else if (params.name || params.extension) {
+      changes = true;
+      if (params.name) name = params.name;
+      if (params.extension) extension = params.extension;
+      filename = util.buildFilename(name, extension);
+    }
+    if (changes) {
+      params.name = name;
+      params.extension = extension;
+      params.filename = filename;
+    } else if (this.filenameFromUrl) {
+      // If script did not return changes, work with URL when asked.
       params = {
         name,
         extension,
