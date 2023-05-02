@@ -83,7 +83,12 @@ class DlMngrClient {
       if (params.mimeFilename) comment.push(`MIME filename: ${params.mimeFilename}`);
       comment.push(`URL filename: ${util.getFilename(details.url)}`);
       if (params.tabTitle) comment.push(`Page title: ${params.tabTitle}`);
+      if (params.tabUrl && (params.tabUrl != details.url)) comment.push(`Page URL: ${params.tabUrl}`);
       if (params.linkText && (params.linkText != details.url)) comment.push(`Link text: ${params.linkText}`);
+      if (params.extraComments) {
+        if (Array.isArray(params.extraComments)) comment = comment.concat(params.extraComments);
+        else comment.push(params.extraComments);
+      }
       details.comment = comment.join('\n');
     }
 

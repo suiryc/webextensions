@@ -261,6 +261,7 @@ class VideoSource {
         addUserAgent: !this.seenRequest,
         addComment: true,
         mimeFilename: this.filename,
+        tabUrl: this.tabUrl,
         tabTitle: this.tabTitle,
         notify: true
       }
