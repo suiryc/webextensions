@@ -51,7 +51,7 @@
   },
 
   // Our id, to communicate with a native application
-  "applications": {
+  "browser_specific_settings": {
     "gecko": {
       "id": "__EXTENSION_ID__"
     }
