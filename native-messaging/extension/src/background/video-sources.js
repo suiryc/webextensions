@@ -392,6 +392,10 @@ class VideoSourceTabHandler {
     this.bufferedRequests = {};
   }
 
+  tabUpdated(details) {
+    if (details.tabChanges.url) this.tabReset({sameUrl: false});
+  }
+
   tabReset(details) {
     // If we remain on the same url, we don't have to forget previous sources
     // or ignored urls.
@@ -492,8 +496,12 @@ class VideoSourceTabHandler {
     // Ignore already known source.
     if (this.findSource(url)) return;
 
+    var tabHandler = this.tabHandler;
     // Note: 'ignoreDownload' takes care of buffered requests if any.
 
+    // Ignore source if tab URL is not the same: we assume the page changed URL
+    // while a source was discovered with the previous URL.
+    if (details.tabUrl != tabHandler.url) return this.ignoreDownload(details, 'Tab URL mismatch');
     // Ignore urls that we can't download.
     if (!http.canDownload(url)) return this.ignoreDownload(details, 'URL not handled');
     // Ignore apparent content types that we don't want to download.
@@ -503,8 +511,6 @@ class VideoSourceTabHandler {
     if (reason) return this.ignoreDownload(details, reason);
 
     if (settings.debug.video) console.log('Adding tab=<%s> frame=<%s> video url=<%s>', tabId, frameId, url);
-    var tabHandler = this.tabHandler;
-    details.tabUrl = tabHandler.url;
     details.tabTitle = tabHandler.title;
     var source = new VideoSource(this.webext, details);
     this.sources.push(source);
@@ -819,6 +825,18 @@ export class VideoSourceHandler {
   }
 
   // Tab/frame observer
+
+  tabUpdated(details) {
+    var self = this;
+    var tabId = details.tabId;
+    var frameId = details.frameId;
+    var { handler } = this.getTabHandler({
+      tabId: details.tabId,
+      frameId: 0
+    }, false);
+    if (!handler) return;
+    handler.tabUpdated(details);
+  }
 
   tabReset(details) {
     // We don't know whether we can receive requests before frame content is

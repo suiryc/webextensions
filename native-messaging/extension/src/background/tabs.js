@@ -114,7 +114,10 @@ class TabHandler {
 
   update(tab) {
     var self = this;
-    // Note: the url is updated through main frame handling.
+    // Note: the url is updated through main frame handling when navigating to
+    // a new URL. But sometimes the page do change its URL, remaining on the
+    // same site and only changing parts of the page content.
+    self.url = tab.url;
     self.title = tab.title;
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
@@ -595,6 +598,19 @@ export class TabsHandler {
     this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tab });
   }
 
+  updateTab(tab, tabChanges) {
+    var tabHandler = this.tabs[tab.id];
+    if (!tabHandler) {
+      // Tab is not known yet, add it instead.
+      tabHandler = this.addTab(tab);
+    } else {
+      var windowId = tab.windowId;
+      var tabId = tab.id;
+      tabHandler.update(tab);
+      this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
+    }
+  }
+
   detachTab(details) {
     var windowId = details.oldWindowId;
     var tabId = details.tabId;
@@ -680,6 +696,15 @@ export class TabsHandler {
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onCreated', ...arguments]);
       self.createTab(details);
     });
+    // tabs.onUpdated parameters:
+    //  - tabId
+    //  - changeInfo
+    //  - tab (fields already updated)
+    browser.tabs.onUpdated.addListener(function(tabId, tabChanges, tab) {
+      if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
+      self.updateTab(tab, tabChanges);
+    }, {properties: ['url']});
+
     // tabs.onAttached parameters:
     //  - tabId
     //  - attachInfo: {newWindowId, newPosition}
