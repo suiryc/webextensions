@@ -21,12 +21,129 @@ function checkVideoContentType(contentType) {
 //    'www.sitename.tld', 'sitename.tld' and 'sitename')
 //  - regexp (see below)
 const TITLE_SEPARATORS = [' - ', ' | '];
-const TITLE_END_PART_REGEXPS = [
-  /^(?:Watch|Free)[^|-]*Online(?: Free)?$/i
-];
-const TITLE_REGEXPS = [
-  /(?: Subbed| Watch)? Online Free$/i
-];
+
+class VideoSourceNamer {
+
+  constructor(videoSource) {
+    this.videoSource = videoSource;
+    this.filenameFromUrl = videoSource.filenameFromUrl;
+    this.title = videoSource.tabTitle;
+    // Determine download filename.
+    this.setFilename(util.getFilename(videoSource.getUrl(), videoSource.filename));
+  }
+
+  setFilename(filename) {
+    this.filename = filename;
+    this.refreshName();
+  }
+
+  setName(name) {
+    this.name = name;
+    this.refreshFilename();
+  }
+
+  setExtension(extension) {
+    if (!extension) extension = 'mp4';
+    this.extension = extension;
+    this.refreshFilename();
+  }
+
+  refreshFilename() {
+    this.filename = util.buildFilename(this.name, this.extension);
+  }
+
+  refreshName() {
+    // Use 'mp4' as default extension if none could be determined.
+    var { name, extension } = util.getFilenameExtension(this.filename, 'mp4');
+    this.name = name;
+    this.extension = extension;
+    this.refreshFilename();
+  }
+
+  async refine() {
+    var source = this.videoSource;
+    var scriptParams = {
+      params: {
+        videoSource: source,
+        namer: this
+      }
+    };
+    await source.getFilenameRefining().execute(scriptParams);
+    if (!this.filenameFromUrl) this.setName(this.title);
+  }
+
+  getTitleSeparators(params) {
+    params = params || {};
+    return params.separators || TITLE_SEPARATORS.concat(params.extraSeparators || []);
+  }
+
+  titleStripEndPart(str, params) {
+    params = params || {};
+    if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
+    this.getTitleSeparators(params).forEach(sep => {
+      var idx = this.title.lastIndexOf(sep);
+      if (idx < 0) return;
+      var end = this.title.slice(idx + sep.length).trim();
+      if (params.withoutSpaces) end = end.replaceAll(/\s+/g, '');
+      if (end.localeCompare(str, undefined, {sensitivity: 'base'})) return;
+      this.title = this.title.slice(0, idx);
+    });
+  }
+
+  titleStripEndPartRegexp(regexp, params) {
+    params = params || {};
+    this.getTitleSeparators(params).forEach(sep => {
+      var idx = this.title.lastIndexOf(sep);
+      if (idx < 0) return;
+      if (!regexp.test(this.title.slice(idx + sep.length).trim())) return;
+      this.title = this.title.slice(0, idx);
+    });
+  }
+
+  titleStripRegexp(regexp, params) {
+    params = params || {};
+    var matches = this.title.match(regexp);
+    if (matches) {
+      var idx = this.title.indexOf(matches[0]);
+      var title = this.title.substring(0, idx).trim();
+      for (var captured of matches.slice(1)) {
+        title += ` ${captured.trim()}`;
+      }
+      title += ` ${this.title.substring(idx + matches[0].length).trim()}`;
+      this.title = title.trim();
+    }
+  }
+
+  titleStripDomain(params) {
+    params = params || {};
+    // By default, strip all spaces when comparing values.
+    if (!('withoutSpaces' in params)) params.withoutSpaces = true;
+    // Strip the site domain name at the end of the title.
+    // Handle:
+    //  - the last 3 levels (e.g.: www.sitename.tld)
+    //  - the last 2 levels (e.g.: sitename.tld)
+    //  - the main domain (e.g.: sitename)
+    var host = this.videoSource.tabSite.nameParts.slice(-3);
+    if (host.length > 2) {
+      this.titleStripEndPart(host.join('.'), params);
+      host = host.slice(1);
+    }
+    if (host.length > 1) {
+      this.titleStripEndPart(host.join('.'), params);
+      this.titleStripEndPart(host.slice(0, 1).join('.'), params);
+    }
+    for (var name of (params.names || [])) {
+      this.titleStripEndPart(name, params);
+    }
+  }
+
+  titleAppend(str, sep) {
+    if (sep === undefined) sep = ' ';
+    if (this.title.length > 0) this.title += sep;
+    this.title += str;
+  }
+
+}
 
 class VideoSource {
 
@@ -123,55 +240,6 @@ class VideoSource {
     this.addUrls(from.getUrls());
   }
 
-  sanitizeTitle(params) {
-    var title = params.title || this.tabTitle;
-
-    function stripEnd(str) {
-      TITLE_SEPARATORS.forEach(sep => {
-        var idx = title.lastIndexOf(sep);
-        if (idx < 0) return;
-        if (title.slice(idx + sep.length).trim().localeCompare(str, undefined, {sensitivity: 'base'})) return;
-        title = title.slice(0, idx);
-      });
-    }
-
-    function stripEndPartRegexp(regexp) {
-      TITLE_SEPARATORS.forEach(sep => {
-        var idx = title.lastIndexOf(sep);
-        if (idx < 0) return;
-        if (!regexp.test(title.slice(idx + sep.length).trim())) return;
-        title = title.slice(0, idx);
-      });
-    }
-
-    function stripRegexp(regexp) {
-      title = title.replace(regexp, '');
-    }
-
-    // Strip the site domain name at the end of the title.
-    // Handle:
-    //  - the last 3 levels (e.g.: www.sitename.tld)
-    //  - the last 2 levels (e.g.: sitename.tld)
-    //  - the main domain (e.g.: sitename)
-    var host = (new URL(this.tabUrl).hostname).split('.').slice(-3);
-    if (host.length > 2) {
-      stripEnd(host.join('.'));
-      host = host.slice(1);
-    }
-    if (host.length > 1) {
-      stripEnd(host.join('.'));
-      stripEnd(host.slice(0, 1).join('.'));
-    }
-
-    // Strip end of title matching regexps.
-    TITLE_END_PART_REGEXPS.forEach(stripEndPartRegexp);
-
-    // Strip title matching regexps.
-    TITLE_REGEXPS.forEach(stripRegexp);
-
-    return title;
-  }
-
   getFilenameRefining() {
     var setting = settings.video.filenameRefining;
     return this.webext.getExtensionProperty({
@@ -188,65 +256,18 @@ class VideoSource {
     if (!this.tabSite) this.tabSite = util.parseSiteUrl(this.tabUrl);
     if (!this.downloadSite) this.downloadSite = util.parseSiteUrl(this.getUrl());
 
-    // Determine download filename.
-    var filename = util.getFilename(this.getUrl(), this.filename);
-    var name;
-    var extension;
-    function updateName() {
-      // Use 'mp4' as default extension if none could be determined.
-      ({ name, extension } = util.getFilenameExtension(filename, 'mp4'));
-      filename = util.buildFilename(name, extension);
-    }
-    updateName();
-    // Most sources don't have a filename, nor a proper name in the url.
-    // So use the tab title as base to name the downloaded file.
-    var scriptParams = {
-      params: {
-        videoSource: this,
-        title: this.tabTitle,
-        tabUrl: this.tabUrl,
-        frameUrl: this.frameUrl,
-        url: this.getUrl(),
-        name,
-        extension,
-        filename
-      }
-    };
-    var params = await this.getFilenameRefining().execute(scriptParams);
-    util.cleanupFields(params);
-    if (params.filename) {
-      changes = true;
-      filename = params.filename;
-      updateName();
-    } else if (params.name || params.extension) {
-      changes = true;
-      if (params.name) name = params.name;
-      if (params.extension) extension = params.extension;
-      filename = util.buildFilename(name, extension);
-    }
-    if (changes) {
-      params.name = name;
-      params.extension = extension;
-      params.filename = filename;
-    } else if (this.filenameFromUrl) {
-      // If script did not return changes, work with URL when asked.
-      params = {
-        name,
-        extension,
-        filename
-      };
-    }
-    if (!params.name) {
-      name = this.sanitizeTitle(params);
-      filename = util.buildFilename(name, extension);
-    }
+    var namer = new VideoSourceNamer(this);
+    await namer.refine();
+    var {name, extension, filename} = namer;
     var downloadFile = {
       name,
       extension,
       filename
     };
     // Detect changes in filename.
-    changes = !util.deepEqual(this.downloadFile, downloadFile);
+    // Note: upon first call, refined name is saved; on next calls (e.g. URL
+    // redirection detected) we do check whether refined name did change.
+    var changes = !util.deepEqual(this.downloadFile, downloadFile);
     this.downloadFile = downloadFile;
 
     // Update determined download info.
