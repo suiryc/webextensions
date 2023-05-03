@@ -167,36 +167,12 @@ class Settings extends SettingsBranch {
       var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
       new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', '', requestTypes, true);
-      // 'webRequest.onBeforeSendHeaders' script input params:
-      //  - request: the request about to be sent
-      // Output is the request to actually perform, or undefined to keep the
-      // request as-is.
       new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
     }
     new ExtensionBooleanSetting('notifyDownload', true);
     new ExtensionIntSetting('notifyTtl', 4000);
-    // 'download refining' script input 'params':
-    //  - src: the video source url
-    // Output object, merged with source information:
-    //  - forceUrl: url to force for download
-    //  - filenameFromUrl: whether to retrieve filename from url (instead of title)
-    // Code is executed inside the frame containing the video source, and can
-    // be synchronous or asynchronous (Promise).
     new ExtensionBooleanSetting('video.downloadRefining.enabled', true);
     new ExtensionScriptSetting('video.downloadRefining.script');
-    // 'filename refining' script input params:
-    //  - videoSource: the video source object
-    //  - title: the tab title
-    //  - tabUrl: the tab url
-    //  - frameUrl: the frame url
-    //  - url: the current (may have been redirected/forced) video source url
-    //  - name: the current file name, deduced from url or tab title
-    //  - extension: the current fil eextension
-    //  - filename: the current filename
-    // Output object can indicate parameters to take into account: name,
-    // extension and filename.
-    // Code is executed inside the background script and can be synchronous or
-    // asynchronous (Promise).
     new ExtensionBooleanSetting('video.filenameRefining.enabled', true);
     new ExtensionScriptSetting('video.filenameRefining.script');
     new ExtensionBooleanSetting('video.intercept', true);
