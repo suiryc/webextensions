@@ -14,12 +14,12 @@ function checkVideoContentType(contentType) {
 }
 
 
-// When looking to strip ending of title, we actually first split the last part
-// based on known separators: if splitted ending part matches, it is removed.
-// We look for two kind of ending parts to strip:
-//  - when the title contains the site name (extracted from url, testing all of
-//    'www.sitename.tld', 'sitename.tld' and 'sitename')
-//  - regexp (see below)
+// When refining video source title, some methods can be used to strip title
+// ending part when matching a value or regular expression. To determine this
+// ending part, the title is split based on known separators.
+// Here we list nominal separators to consider, while caller is able to replace
+// or complement this list in each call.
+// See documentation or VideoSourceNamer below for more details.
 const TITLE_SEPARATORS = [' - ', ' | '];
 
 class VideoSourceNamer {
