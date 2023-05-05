@@ -110,6 +110,11 @@ async function webpackBundle(mode) {
       'options-ui': path.resolve(extensionPath, 'src', 'options-ui', 'options-ui.js')
     },
     output: {
+      // Use a more recent (and non-legacy) hash function.
+      // Needed with recent versions of Node to prevent an openssl error due to
+      // the fact webpack (v4 and v5) default hash is not supported anymore.
+      // See: https://github.com/webpack/webpack/issues/14532
+      hashFunction: 'xxhash64',
       // an absolute path is required for output.path
       path: path.join(__dirname, pathDist),
       filename: '[name].bundle.js'
