@@ -14,9 +14,13 @@ function findShadows(node) {
   }
 
   // Find and process all shadow elements.
-  for (var child of node.getElementsByTagName('*')) {
-    if (child.shadowRoot instanceof Node) processShadow(child);
-  };
+  // Note: depending on node type (e.g. text node), there may be no children
+  // available and thus no 'getElementsByTagName' method.
+  if (node.getElementsByTagName) {
+    for (var child of node.getElementsByTagName('*')) {
+      if (child.shadowRoot instanceof Node) processShadow(child);
+    }
+  }
 }
 
 function processShadow(node) {
@@ -35,8 +39,12 @@ function findVideo(node) {
   }
 
   // Otherwise, search for 'video' children.
-  for (var v of node.getElementsByTagName('video')) {
-    processVideo(v);
+  // Note: depending on node type (e.g. text node), there may be no children
+  // available and thus no 'getElementsByTagName' method.
+  if (node.getElementsByTagName) {
+    for (var v of node.getElementsByTagName('video')) {
+      processVideo(v);
+    }
   }
 
   // There may be shadow elements. Find and process them.
