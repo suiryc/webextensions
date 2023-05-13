@@ -204,6 +204,52 @@ describe('util', function() {
 
   });
 
+  describe('parseSiteUrl', function() {
+
+    it('should handle full URL', function() {
+      var url = 'https://www.sitename.tld/path/subpath/file.ext?param=value#fragment';
+      assert.deepStrictEqual(
+        util.parseSiteUrl(url),
+        {
+          url: new URL(url),
+          hostname: 'www.sitename.tld',
+          pathParts: ['path', 'subpath', 'file.ext'],
+          name: 'sitename',
+          nameParts: ['www', 'sitename', 'tld']
+        }
+      );
+    });
+
+    it('should handle minimal URL', function() {
+      var url = 'https://sitename';
+      assert.deepStrictEqual(
+        util.parseSiteUrl(url),
+        {
+          url: new URL(url),
+          hostname: 'sitename',
+          pathParts: [],
+          name: 'sitename',
+          nameParts: ['sitename']
+        }
+      );
+    });
+
+    it('should handle an URL object', function() {
+      var url = new URL('https://www.sitename.tld/path/subpath/file.ext?param=value#fragment');
+      assert.deepStrictEqual(
+        util.parseSiteUrl(url),
+        {
+          url: url,
+          hostname: 'www.sitename.tld',
+          pathParts: ['path', 'subpath', 'file.ext'],
+          name: 'sitename',
+          nameParts: ['www', 'sitename', 'tld']
+        }
+      );
+    });
+
+  });
+
   describe('getFilename', function() {
 
     it('should handle falsy value', function() {
