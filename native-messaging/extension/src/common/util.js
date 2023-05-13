@@ -192,7 +192,10 @@ export function parseSiteUrl(url) {
   var nameParts = hostname.split('.');
   var name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
   // pathname starts with '/', so splitting creates an empty entry in first position.
-  var pathParts = url.pathname.split('/').slice(1).map(decodeURIComponent);
+  var pathParts = (url.pathname != '/')
+    ? url.pathname.split('/').slice(1).map(decodeURIComponent)
+    : []
+    ;
 
   return {
     url: url,
