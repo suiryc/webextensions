@@ -49,7 +49,7 @@ export class RequestsInterceptor {
       var wstage = browser.webRequest[stage];
       var intercepting = wstage.hasListener(listener);
       if (wstage.hasListener(listener)) wstage.removeListener(listener);
-      if (settings.inner.perKey[`intercept.webRequest.${stage}.enabled`].value) {
+      if (settings.inner.perKey[`intercept.webRequest.${stage}.enabled`].getValue()) {
         var webRequestFilter = { urls: ['<all_urls>'] };
         var requestTypes = settings.inner.perKey[`intercept.webRequest.${stage}.requestTypes`].getValues();
         if (requestTypes.length) webRequestFilter.types = requestTypes;

@@ -25,12 +25,15 @@ export class CodeExecutor {
     // only once (caller should do it right after the instance is built).
     var setting = params.setting;
     if (setting.addListener) {
+      // This is a setting: setup script and listen to changes.
       if (!params.once) setting.addListener(() => {
-        self.setup(setting.value);
+        self.setup(setting.getValue());
       });
-      self.setup(setting.value);
+      self.setup(setting.getValue());
       return;
     }
+    // This is a setting branch: we expect to find 'script' and 'enabled'
+    // sub-settings.
     if (!setting.inner.script) {
       this.getNotif().warn({
         title: 'Script code setup failed',
@@ -42,15 +45,15 @@ export class CodeExecutor {
     if (enabled) {
       // Setting that can switch on/off script.
       if (!params.once) enabled.addListener(() => {
-        self.disabled = !enabled.value;
+        self.disabled = !enabled.getValue();
       });
-      self.disabled = !enabled.value;
+      self.disabled = !enabled.getValue();
     }
     setting = setting.inner.script;
     if (!params.once) setting.addListener(() => {
-      self.setup(setting.value);
+      self.setup(setting.getValue());
     });
-    self.setup(setting.value);
+    self.setup(setting.getValue());
   }
 
   setup(code) {

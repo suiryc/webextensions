@@ -117,7 +117,7 @@ class SettingsBranch {
     // virtual primitive fields.
     if (property === 'inner') return target;
     var field = target[property];
-    if (field instanceof ExtensionSetting) return field.value;
+    if (field instanceof ExtensionSetting) return field.getValue();
     // For functions, bind 'this' to the target.
     if (typeof(field) === 'function') return field.bind(target);
     return field;
@@ -336,6 +336,7 @@ class Settings extends SettingsBranch {
 class ExtensionSetting {
 
   constructor(key, value, fallback) {
+    //this.initialized = false;
     this.key = key;
     if ((value === undefined) || (value === null)) value = fallback;
     this.value = this.defaultValue = value;
@@ -389,6 +390,18 @@ class ExtensionSetting {
         // We don't care if a listener fails
       }
     });
+  }
+
+  getValue() {
+    // Due to how extensions are managed, background script needs to start right
+    // away, and will create a few resources that rely on settings. Some of them
+    // also need to start ASAP, and cannot wait for settings to be ready.
+    // These resources do take into account this, and properly listen to setting
+    // changes to apply actual setting once known.
+    // Due to that, it is not easy to properly track callers that do use settings
+    // before ready.
+    //if (!this.initialized) console.error('Accessing not-yet initialized setting=<%s>', this.key);
+    return this.value;
   }
 
   // Changes the setting value.
@@ -483,6 +496,7 @@ class ExtensionSetting {
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
     await this.setValue(await getStorageValue(this.key, this.value), true);
+    //this.initialized = true;
     return this.value;
   }
 
@@ -503,7 +517,7 @@ class ExtensionBooleanSetting extends ExtensionSetting {
   }
 
   updateField() {
-    this.field.checked = this.value;
+    this.field.checked = this.getValue();
   }
 
 }
@@ -516,7 +530,7 @@ class ExtensionIntSetting extends ExtensionSetting {
   }
 
   updateField() {
-    this.field.value = this.value;
+    this.field.value = this.getValue();
   }
 
   validateValue(v) {
@@ -539,7 +553,7 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
 
   updateField() {
     if (!this.value) this.field.value = '';
-    else this.field.value = this.value;
+    else this.field.value = this.getValue();
   }
 
   validateValue(v) {
@@ -549,7 +563,7 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
   }
 
   getValues(v) {
-    v = (v || this.value || '').trim();
+    v = (v || this.getValue() || '').trim();
     // De-duplicate values.
     // Reminder: 'Set' keeps insertion order.
     return v ? [...new Set(this.multi ? v.split(/[ ,\t]+/) : [v])] : [];
@@ -567,8 +581,9 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   updateField() {
-    if (!this.value) this.field.value = '';
-    else this.field.value = this.value;
+    var value = this.getValue();
+    if (!value) this.field.value = '';
+    else this.field.value = value;
   }
 
   validateValue(v) {
