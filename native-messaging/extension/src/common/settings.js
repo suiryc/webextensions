@@ -171,7 +171,7 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('handleTabSuccessor', true);
     new ExtensionBooleanSetting('interceptDownloads', true);
     new ExtensionBooleanSetting('interceptRequests', true);
-    new ExtensionIntSetting('interceptSize', 10 * 1024 * 1024);
+    new ExtensionIntSetting('interceptSize', 20 * 1024 * 1024);
     if (globalThis.browser && browser.webRequest) {
       var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
