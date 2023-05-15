@@ -64,8 +64,50 @@ exportButton.addEventListener('click', () => {
   // Remove focus from button once clicked.
   exportButton.blur();
   browser.storage.local.get(null).then(options => {
+    // Quick trick to sort object keys.
+    options = Object.fromEntries(Object.entries(options).sort());
     var json = JSON.stringify(options, undefined, 2);
-    var blob = new Blob([json], { type: 'application/json' });
+    // Add comment lines with all settings, which makes it easier to track
+    // changes in multi-line string values.
+    // Notes:
+    // We don't expect sub-objects.
+    // Handle arrays a simple way, even if not used yet.
+    // We don't need to be able to parse back, so don't bother with separators.
+    function stringify(v, prefix) {
+      if ((v === undefined) || (v === null)) {
+        v = 'null';
+      } else if (Array.isArray(v)) {
+        var arr = [];
+        for (var v2 of v) {
+          arr.push(stringify(v2, '').split('\n').join('\n  '));
+        }
+        if (!arr.length) {
+          v = '[]';
+        } else {
+          v = `[\n  ${arr.join(`,\n  `)}\n]`;
+        }
+      } else {
+        v = `${v}`.trim();
+      }
+      v = v.split('\n');
+      // Only prepend prefix if value is multi-line.
+      if (v.length == 1) return v[0];
+      return `${prefix}${v.join(`\n${prefix}`)}`;
+    }
+    function toComment(obj) {
+      var s = [];
+      for (var key of Object.keys(obj)) {
+        var v = stringify(obj[key], '  ').split('\n');
+        if (v.length == 1) {
+          s.push(`${key}: ${v[0]}`);
+        } else {
+          s.push(`${key}:`);
+          s = s.concat(stringify(obj[key], '  ').split('\n'));
+        }
+      }
+      return `// ${s.join('\n// ')}\n`;
+    }
+    var blob = new Blob([toComment(options) + json], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     browser.downloads.download({
       url,
@@ -111,7 +153,9 @@ importFile.addEventListener('change', function() {
   reader.onloadend = function(event) {
     if (event.target.readyState == FileReader.DONE) {
       try {
-        var options = JSON.parse(event.target.result);
+        // Remove comment lines we add upon exporting.
+        var json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');
+        var options = JSON.parse(json);
         // First get current options, then replace them.
         // Upon issue, revert original settings.
         // Notes:
