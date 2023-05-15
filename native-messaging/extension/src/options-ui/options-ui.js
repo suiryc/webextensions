@@ -112,6 +112,16 @@ importFile.addEventListener('change', function() {
     if (event.target.readyState == FileReader.DONE) {
       try {
         var options = JSON.parse(event.target.result);
+        // First get current options, then replace them.
+        // Upon issue, revert original settings.
+        browser.storage.local.get(null).then(current => {
+          browser.storage.local.clear().then(() => {
+            return browser.storage.local.set(options);
+          }).catch(error => {
+            failed(error);
+            return browser.storage.local.set(current);
+          });
+        }).catch(failed);
         browser.storage.local.set(options).catch(failed);
       } catch (error) {
         failed(error);
