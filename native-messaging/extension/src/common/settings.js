@@ -210,7 +210,7 @@ class Settings extends SettingsBranch {
       if (isBackgroundScript) await this.migrate();
 
       var promises = [];
-      this.forEach(setting => promises.push(setting.initValue()));
+      this.forEach(setting => promises.push(setting.initValue(isBackgroundScript)));
       // Knowing the browser is sometimes useful/necessary.
       // browser.runtime.getBrowserInfo exists in Firefox >= 51
       // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
@@ -499,12 +499,22 @@ class ExtensionSetting {
 
   // Initializes the setting value.
   // To be called first before doing anything with the setting.
-  async initValue() {
+  async initValue(isBackgroundScript) {
     // Most callers are expected to wait for settings to be ready before doing
     // anything (and initializing the value is part of this).
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
-    await this.setValue(await getStorageValue(this.key, this.value), true);
+    var value = await getStorageValue(this.key);
+    if (value === undefined) {
+      // Use current value (which should still be the default value).
+      value = this.value;
+    } else if (isBackgroundScript && (value === this.defaultValue)) {
+      // The storage contains this setting with default value: remove it.
+      // (only do it once, from background script)
+      console.log('Removing setting=<%s> from local storage: contains default value', this.key, value);
+      await removeStorageValue(this.key);
+    }
+    await this.setValue(value, true);
     //this.initialized = true;
     return this.value;
   }

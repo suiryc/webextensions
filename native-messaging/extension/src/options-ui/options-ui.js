@@ -114,6 +114,10 @@ importFile.addEventListener('change', function() {
         var options = JSON.parse(event.target.result);
         // First get current options, then replace them.
         // Upon issue, revert original settings.
+        // Notes:
+        // We don't need to check whether an imported value is the default one.
+        // If this happens, it will be stored in the local storage, and removed
+        // the next time the extension is (re)loaded (as part of 'initValue').
         browser.storage.local.get(null).then(current => {
           browser.storage.local.clear().then(() => {
             return browser.storage.local.set(options);
