@@ -140,6 +140,15 @@ class Settings extends SettingsBranch {
   constructor() {
     super();
     // The latest settings version.
+    // When to bump version (and handle migration):
+    //  - renaming existing setting
+    //  - splitting existing setting into new mutiple ones
+    //  - dropping a setting: to remove it from storage
+    // When not to bump version:
+    //  - adding a new setting: default value is automatically applied
+    //  - changing an existing setting default value: only applies where we did
+    //    not change the value; and if changed value matches the new default, it
+    //    will be automatically cleared from storage
     this.latestSettingsVersion = 3;
   }
 
