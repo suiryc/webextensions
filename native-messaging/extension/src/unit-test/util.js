@@ -13,38 +13,38 @@ describe('util', function() {
   describe('formatObject', function() {
 
     it('should handle primitive values', function() {
-      assert.equal(util.formatObject(true), 'true');
-      assert.equal(util.formatObject(false), 'false');
-      assert.equal(util.formatObject(0), '0');
-      assert.equal(util.formatObject(1), '1');
-      assert.equal(util.formatObject(-1), '-1');
-      assert.equal(util.formatObject(1.234), '1.234');
+      assert.strictEqual(util.formatObject(true), 'true');
+      assert.strictEqual(util.formatObject(false), 'false');
+      assert.strictEqual(util.formatObject(0), '0');
+      assert.strictEqual(util.formatObject(1), '1');
+      assert.strictEqual(util.formatObject(-1), '-1');
+      assert.strictEqual(util.formatObject(1.234), '1.234');
     });
 
     it('should quote strings', function() {
-      assert.equal(util.formatObject('ab cd'), '"ab cd"');
-      assert.equal(util.formatObject(''), '""');
+      assert.strictEqual(util.formatObject('ab cd'), '"ab cd"');
+      assert.strictEqual(util.formatObject(''), '""');
     });
 
     it('should handle undefined value', function() {
-      assert.equal(util.formatObject(undefined), 'undefined');
+      assert.strictEqual(util.formatObject(undefined), 'undefined');
     });
 
     it('should handle null value', function() {
-      assert.equal(util.formatObject(null), 'null');
+      assert.strictEqual(util.formatObject(null), 'null');
     });
 
     it('should handle functions', function() {
-      assert.equal(util.formatObject(function fname() {}), 'function fname');
-      assert.equal(util.formatObject(() => {}), 'function (anonymous)');
+      assert.strictEqual(util.formatObject(function fname() {}), 'function fname');
+      assert.strictEqual(util.formatObject(() => {}), 'function (anonymous)');
     });
 
     it('should handle arrays', function() {
-      assert.equal(util.formatObject([true, 0, '']), '[ true, 0, "" ]');
+      assert.strictEqual(util.formatObject([true, 0, '']), '[ true, 0, "" ]');
     });
 
     it('should handle plain object', function() {
-      assert.equal(util.formatObject({a: false, b: 0, c: ''}), 'Object a=<false> b=<0> c=<"">');
+      assert.strictEqual(util.formatObject({a: false, b: 0, c: ''}), 'Object a=<false> b=<0> c=<"">');
     });
 
     it('should handle class instance', function() {
@@ -55,15 +55,15 @@ describe('util', function() {
           this.c = '';
         }
       };
-      assert.equal(util.formatObject(new A()), 'A a=<false> b=<0> c=<"">');
+      assert.strictEqual(util.formatObject(new A()), 'A a=<false> b=<0> c=<"">');
     });
 
     it('should handle object with toString', function() {
-      assert.equal(util.formatObject({toString: () => 'object string'}), 'object string');
+      assert.strictEqual(util.formatObject({toString: () => 'object string'}), 'object string');
     });
 
     it('should handle Error', function() {
-      assert.equal(util.formatObject(new Error('error message')), 'Error message=<error message>');
+      assert.strictEqual(util.formatObject(new Error('error message')), 'Error message=<error message>');
     });
 
     it('should handle complex object', function() {
@@ -72,7 +72,7 @@ describe('util', function() {
           this.a = [false, 0, '', {a: false, b: [1]}];
         }
       };
-      assert.equal(util.formatObject(new A()), 'A a=<[ false, 0, "", Object a=<false> b=<[ 1 ]> ]>');
+      assert.strictEqual(util.formatObject(new A()), 'A a=<[ false, 0, "", Object a=<false> b=<[ 1 ]> ]>');
     });
 
     it('should detect resursive object', function() {
@@ -81,7 +81,7 @@ describe('util', function() {
       a.b.c = {};
       a.b.c.d = a;
       a.b.c.e = a.b;
-      assert.equal(util.formatObject(a), 'Object b=<Object c=<Object d=<(recursive) Object> e=<(recursive) Object>>>');
+      assert.strictEqual(util.formatObject(a), 'Object b=<Object c=<Object d=<(recursive) Object> e=<(recursive) Object>>>');
     });
 
   });
@@ -253,15 +253,15 @@ describe('util', function() {
   describe('getFilename', function() {
 
     it('should handle falsy value', function() {
-      assert.equal(util.getFilename(undefined), '');
-      assert.equal(util.getFilename(null), '');
-      assert.equal(util.getFilename(''), '');
+      assert.strictEqual(util.getFilename(undefined), '');
+      assert.strictEqual(util.getFilename(null), '');
+      assert.strictEqual(util.getFilename(''), '');
     });
 
     it('should handle proper url', function() {
-      assert.equal(util.getFilename('http://server'), '');
-      assert.equal(util.getFilename('http://server:port'), '');
-      assert.equal(util.getFilename('http://server/'), '');
+      assert.strictEqual(util.getFilename('http://server'), '');
+      assert.strictEqual(util.getFilename('http://server:port'), '');
+      assert.strictEqual(util.getFilename('http://server/'), '');
       assert.equal(util.getFilename('http://server/path'), 'path');
       assert.equal(util.getFilename('http://server/path/sub'), 'sub');
       assert.equal(util.getFilename('http://server/path/sub/file.ext'), 'file.ext');
@@ -275,7 +275,7 @@ describe('util', function() {
     it('should handle filename fallback', function() {
       [undefined, null, '', 'http://server', 'http://server:port', 'http://server/', 'http://server/file%E2%AC.ext'].forEach(url => {
         [undefined, null, ''].forEach(filename => {
-          assert.equal(util.getFilename(undefined, filename), '');
+          assert.strictEqual(util.getFilename(undefined, filename), '');
         });
         assert.equal(util.getFilename(undefined, '0'), '0');
       });
@@ -318,8 +318,8 @@ describe('util', function() {
   describe('buildFilename', function() {
 
     it('should build proper filename', function() {
-      assert.equal(util.buildFilename(undefined), '');
-      assert.equal(util.buildFilename(null), '');
+      assert.strictEqual(util.buildFilename(undefined), '');
+      assert.strictEqual(util.buildFilename(null), '');
       assert.equal(util.buildFilename('file'), 'file');
       assert.equal(util.buildFilename('file', undefined), 'file');
       assert.equal(util.buildFilename('file', null), 'file');
@@ -410,9 +410,9 @@ describe('util', function() {
   describe('limitText', function() {
 
     it('should truncate the middle of text depending on size', function() {
-      assert.equal(util.limitText(undefined, 128), undefined);
-      assert.equal(util.limitText(null, 128), null);
-      assert.equal(util.limitText('', 128), '');
+      assert.strictEqual(util.limitText(undefined, 128), undefined);
+      assert.strictEqual(util.limitText(null, 128), null);
+      assert.strictEqual(util.limitText('', 128), '');
       assert.equal(util.limitText('abcdef', 6), 'abcdef');
       assert.equal(util.limitText('abcdef', 5), 'ab…ef');
       assert.equal(util.limitText('abcdef', 4), 'ab…f');
