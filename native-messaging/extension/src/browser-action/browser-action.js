@@ -203,6 +203,7 @@ function addMessage(details) {
   }
   replaceNode(node.querySelector('.icon'), icon);
   if (details.title) util.setHtml(node.querySelector('.list-item-title'), details.title);
+  else if (details.source) util.setHtml(node.querySelector('.list-item-title'), details.source);
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
   var tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;

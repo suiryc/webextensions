@@ -433,6 +433,8 @@ export function log(details) {
   details.logged = true;
 }
 
+// Show notification when applicable.
+// Updates given details to silence notification if called again.
 export function notification(details) {
   log(details);
   // Note: content script does not have access to browser.notifications, in
