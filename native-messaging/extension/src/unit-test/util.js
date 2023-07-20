@@ -204,6 +204,23 @@ describe('util', function() {
 
   });
 
+  describe('urlString', function() {
+
+    it('should leave value as-is when applicable', function() {
+      assert.strictEqual(util.urlString(undefined), undefined);
+      assert.strictEqual(util.urlString(null), null);
+      assert.strictEqual(util.urlString(''), '');
+      // The function is not meant to validate URLs, only stringify them.
+      assert.strictEqual(util.urlString('whatever'), 'whatever');
+    });
+
+    it('should convert to string when needed', function() {
+      assert.strictEqual(util.urlString(new URL('http://site/path/file')), 'http://site/path/file');
+      assert.strictEqual(util.urlString(new Object()), '[object Object]');
+    });
+
+  });
+
   describe('parseSiteUrl', function() {
 
     it('should handle full URL', function() {
@@ -211,7 +228,7 @@ describe('util', function() {
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
-          url: new URL(url),
+          url: (new URL(url)).href,
           hostname: 'www.sitename.tld',
           pathParts: ['path', 'subpath', 'file.ext'],
           name: 'sitename',
@@ -225,7 +242,7 @@ describe('util', function() {
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
-          url: new URL(url),
+          url: (new URL(url)).href,
           hostname: 'sitename',
           pathParts: [],
           name: 'sitename',
@@ -239,7 +256,7 @@ describe('util', function() {
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
-          url: url,
+          url: url.href,
           hostname: 'www.sitename.tld',
           pathParts: ['path', 'subpath', 'file.ext'],
           name: 'sitename',

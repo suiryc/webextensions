@@ -171,6 +171,15 @@ export function callMethod(obj, m, args) {
   if (hasMethod(obj, m)) obj[m].apply(obj, args);
 }
 
+// Ensure URL is in string format.
+// Useful when value is saved in field meant to be sent as message, as using the
+// original URL object will trigger a 'URL object could not be cloned' error.
+export function urlString(url) {
+  if (!url || (typeof(url) == 'string')) return url;
+  if (url instanceof URL) return url.href;
+  return `${url}`;
+}
+
 // Normalizes url (for download).
 // Drops fragment if any.
 export function normalizeUrl(url, log, label) {
@@ -197,8 +206,10 @@ export function parseSiteUrl(url) {
     : []
     ;
 
+  // Note: only keep string variant of URL, because object may be used as message
+  // to post, and 'URL object could not be cloned' would be triggered.
   return {
-    url: url,
+    url: urlString(url),
     hostname: hostname,
     pathParts: pathParts,
     name: name,
