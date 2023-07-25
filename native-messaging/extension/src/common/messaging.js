@@ -432,7 +432,7 @@ class PortHandler {
     self.requests = {};
     // Re-connect if needed.
     if (self.autoReconnect) {
-      if (settings.debug.misc) console.warning('Extension port %o disconnected: wait and re-connect', port);
+      if (settings.debug.misc) console.warn('Extension port %o disconnected: wait and re-connect', port);
       setTimeout(() => {
         self.connect();
       }, 1000);
@@ -446,7 +446,7 @@ class PortHandler {
     // Set csUuid in messages when applicable.
     if (this.csUuid) msg.csUuid = this.csUuid;
     if (this.port) this.port.postMessage(msg);
-    else console.warning('Cannot post message on closed port:', msg);
+    else console.warn('Cannot post message on closed port:', msg);
   }
 
   // Posts request and return reply through Promise.
