@@ -540,9 +540,10 @@ class VideoSourceTabHandler {
     var tabHandler = this.tabHandler;
     // Note: 'ignoreDownload' takes care of buffered requests if any.
 
-    // Ignore source if tab URL is not the same: we assume the page changed URL
-    // while a source was discovered with the previous URL.
-    if (details.tabUrl != tabHandler.url) return this.ignoreDownload(details, 'Tab URL mismatch');
+    // Ensure we received a message from the current tab: either sender as been
+    // determined 'live', or its tab URL matches ours.
+    // If not, ignore the source.
+    if ((details.tabUrl != tabHandler.url) && (!details.sender || !details.sender.live)) return this.ignoreDownload(details, 'Tab URL mismatch');
     // Ignore urls that we can't download.
     if (!http.canDownload(url)) return this.ignoreDownload(details, 'URL not handled');
     // Ignore apparent content types that we don't want to download.
