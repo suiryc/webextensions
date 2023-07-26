@@ -94,7 +94,7 @@ class TabHandler {
   constructor(tabsHandler, tab) {
     this.id = tab.id;
     this.windowId = tab.windowId;
-    this.url = tab.url;
+    // Note: tab url will be set in 'update'.
     this.tabsHandler = tabsHandler;
     this.frames = {};
     // Properties managed by the extension.
@@ -114,9 +114,14 @@ class TabHandler {
 
   update(tab) {
     var self = this;
-    // Note: the url is updated through main frame handling when navigating to
-    // a new URL. But sometimes the page do change its URL, remaining on the
-    // same site and only changing parts of the page content.
+    // Notes:
+    // The url is updated through main frame handling when navigating to a new
+    // URL. But sometimes the page do change its URL, remaining on the same site
+    // and only changing parts of the page content.
+    // Sometimes we get notified of an URL change, but the value remains the
+    // same. If there is no change, ignore it (and especially don't notify
+    // listeners).
+    if (tab.url == self.url) return false;
     self.url = tab.url;
     self.title = tab.title;
     // Freshly created tab title is often the url without scheme. In this case,
@@ -129,6 +134,7 @@ class TabHandler {
       };
       browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
     }
+    return true;
   }
 
   getTabsHandler() {
@@ -606,8 +612,7 @@ export class TabsHandler {
     } else {
       var windowId = tab.windowId;
       var tabId = tab.id;
-      tabHandler.update(tab);
-      this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
+      if (tabHandler.update(tab)) this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
     }
   }
 
