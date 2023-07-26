@@ -130,6 +130,12 @@ class TabHandler {
       var listener = function(tabId, changeInfo, tab) {
         if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
         self.title = tab.title;
+        if (changeInfo.title) self.tabsHandler.notifyObservers(constants.EVENT_TAB_UPDATED, {
+          windowId: self.windowId,
+          tabId: self.id,
+          tabHandler: self,
+          tabChanges: changeInfo
+        });
         // When page has been loaded, let some more time for title change.
         if (tab.status == 'complete') {
           setTimeout(() => {
