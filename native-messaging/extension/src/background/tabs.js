@@ -130,7 +130,12 @@ class TabHandler {
       var listener = function(tabId, changeInfo, tab) {
         if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
         self.title = tab.title;
-        if (tab.status == 'complete') browser.tabs.onUpdated.removeListener(listener);
+        // When page has been loaded, let some more time for title change.
+        if (tab.status == 'complete') {
+          setTimeout(() => {
+            browser.tabs.onUpdated.removeListener(listener);
+          }, 2000);
+        }
       };
       browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
     }
@@ -705,6 +710,7 @@ export class TabsHandler {
     //  - tabId
     //  - changeInfo
     //  - tab (fields already updated)
+    // Note: once created, we listen to title changes.
     browser.tabs.onUpdated.addListener(function(tabId, tabChanges, tab) {
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
       self.updateTab(tab, tabChanges);
