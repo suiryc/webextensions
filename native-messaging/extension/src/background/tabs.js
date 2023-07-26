@@ -123,6 +123,8 @@ class TabHandler {
     // listeners).
     if (tab.url == self.url) return false;
     self.url = tab.url;
+    // Ensure main frame URL is up to date too.
+    if (self.frameHandler) self.frameHandler.setUrl(tab.url);
     self.title = tab.title;
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
