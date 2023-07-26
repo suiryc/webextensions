@@ -163,6 +163,12 @@ class VideoSource {
     this.needRefresh = true;
   }
 
+  setTabTitle(title) {
+    if (!title || (this.tabTitle == title)) return;
+    this.tabTitle = title;
+    this.needRefresh = true;
+  }
+
   matches(other) {
     if (other.hasUrl(this.getUrl())) return 'url';
     if (this.etag && (this.etag === other.etag)) return 'ETag';
@@ -420,8 +426,15 @@ class VideoSourceTabHandler {
     this.bufferedRequests = {};
   }
 
-  tabUpdated(details) {
+  async tabUpdated(details) {
     if (details.tabChanges.url) this.tabReset({sameUrl: false});
+    if (details.tabChanges.title) {
+      for (var source of this.sources) {
+        source.setTabTitle(details.tabChanges.title);
+        await source.refresh(this.menuHandler);
+        this.updateVideos();
+      }
+    }
   }
 
   tabReset(details) {
