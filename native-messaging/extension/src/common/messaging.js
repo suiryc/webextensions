@@ -100,6 +100,20 @@ export class WebExtension {
       if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, this.params.target, msg.target);
       return;
     }
+    // In background script, we may need to know whether received message is
+    // still 'fresh' when coming from a content script: if we set the sender
+    // frame information and the sender is a tab, we can see whether the frame
+    // matches a current one.
+    if (this.isBackground && actualSender.tab && this.params.tabsHandler && msg.sender) {
+      var tab = actualSender.tab;
+      var frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
+      msg.sender.live = frameHandler && (frameHandler.url == msg.sender.frame.url);
+      // Note:
+      // Sometimes the sender tab url reported by the browser is not up-to-date.
+      // Since we could determine the frame that sent the message is the one we
+      // know (this is not an old message), use the tab URL we know right now.
+      if (msg.sender.live) tab.url = frameHandler.tabHandler.url;
+    }
     switch (msg.kind || '') {
       case constants.KIND_ECHO:
         // Handle 'echo' message internally.
@@ -312,6 +326,13 @@ export class WebExtension {
   }
 
   sendMessage(msg) {
+    // Include the sender information we have right now.
+    msg.sender = {
+      frame: {
+        url: location.href,
+        id: browser.runtime.getFrameId(window)
+      }
+    };
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
     if (this.targets && msg.target) {
