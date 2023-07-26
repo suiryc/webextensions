@@ -69,7 +69,11 @@ class VideoSourceNamer {
       }
     };
     await source.getFilenameRefining().execute(scriptParams);
-    if (!this.filenameFromUrl) this.setName(this.title);
+    // If we don't rely on title, either because filename was set from URL or
+    // a proper filename was already set on the video source, do nothing else:
+    // caller will use the resulting name, extension and filename.
+    // Otherwise, update filename from resulting (cleaned) title.
+    if (!this.filenameFromUrl && !this.videoSource.filename) this.setName(this.title);
   }
 
   getTitleSeparators(params) {
