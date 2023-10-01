@@ -15,14 +15,14 @@ function checkVideoContentType(contentType) {
 
 
 // When refining video source title, some methods can be used to strip title
-// ending part when matching a value or regular expression. To determine this
-// ending part, the title is split based on known separators.
+// starting/ending part when matching a value or regular expression. To
+// determine this part, the title is split based on known separators.
 // Here we list nominal separators to consider, while caller is able to replace
 // or complement this list in each call.
 // See documentation or VideoSourceNamer below for more details.
-const TITLE_SEPARATORS = [' - ', ' | '];
+const TITLE_SEPARATORS = ['-', '|'];
 
-class VideoSourceNamer {
+export class VideoSourceNamer {
 
   constructor(videoSource) {
     this.videoSource = videoSource;
@@ -81,6 +81,29 @@ class VideoSourceNamer {
     return params.separators || TITLE_SEPARATORS.concat(params.extraSeparators || []);
   }
 
+  titleStripStartPart(str, params) {
+    params = params || {};
+    if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
+    this.getTitleSeparators(params).forEach(sep => {
+      var idx = this.title.indexOf(sep);
+      if (idx < 0) return;
+      var start = this.title.slice(0, idx).trim();
+      if (params.withoutSpaces) start = start.replaceAll(/\s+/g, '');
+      if (start.localeCompare(str, undefined, {sensitivity: 'base'})) return;
+      this.title = this.title.slice(idx + sep.length).trim();
+    });
+  }
+
+  titleStripStartPartRegexp(regexp, params) {
+    params = params || {};
+    this.getTitleSeparators(params).forEach(sep => {
+      var idx = this.title.indexOf(sep);
+      if (idx < 0) return;
+      if (!regexp.test(this.title.slice(0, idx).trim())) return;
+      this.title = this.title.slice(idx + sep.length).trim();
+    });
+  }
+
   titleStripEndPart(str, params) {
     params = params || {};
     if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
@@ -90,7 +113,7 @@ class VideoSourceNamer {
       var end = this.title.slice(idx + sep.length).trim();
       if (params.withoutSpaces) end = end.replaceAll(/\s+/g, '');
       if (end.localeCompare(str, undefined, {sensitivity: 'base'})) return;
-      this.title = this.title.slice(0, idx);
+      this.title = this.title.slice(0, idx).trim();
     });
   }
 
@@ -100,7 +123,7 @@ class VideoSourceNamer {
       var idx = this.title.lastIndexOf(sep);
       if (idx < 0) return;
       if (!regexp.test(this.title.slice(idx + sep.length).trim())) return;
-      this.title = this.title.slice(0, idx);
+      this.title = this.title.slice(0, idx).trim();
     });
   }
 
@@ -129,14 +152,19 @@ class VideoSourceNamer {
     //  - the main domain (e.g.: sitename)
     var host = this.videoSource.tabSite.nameParts.slice(-3);
     if (host.length > 2) {
+      this.titleStripStartPart(host.join('.'), params);
       this.titleStripEndPart(host.join('.'), params);
       host = host.slice(1);
     }
     if (host.length > 1) {
+      this.titleStripStartPart(host.join('.'), params);
       this.titleStripEndPart(host.join('.'), params);
-      this.titleStripEndPart(host.slice(0, 1).join('.'), params);
+      host = host.slice(0, 1);
+      this.titleStripStartPart(host.join('.'), params);
+      this.titleStripEndPart(host.join('.'), params);
     }
     for (var name of (params.names || [])) {
+      this.titleStripStartPart(name, params);
       this.titleStripEndPart(name, params);
     }
   }
@@ -149,7 +177,7 @@ class VideoSourceNamer {
 
 }
 
-class VideoSource {
+export class VideoSource {
 
   constructor(webext, details) {
     Object.assign(this, details);

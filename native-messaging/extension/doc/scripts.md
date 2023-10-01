@@ -143,34 +143,58 @@ Changes `name`.
 
 ### `title` refining
 
-#### _title ending part_
-A few methods are dealing with _title ending part_.
+#### _title starting/ending part_
+A few methods are dealing with _title starting/ending part_.
 
-For these methods, a list of separators is used to extract the _ending part_ of the title: for each separator, if found in the title, the title is split and its last part is processed (action depends on the method purpose).  
-The nominal list of separators is `[' - ', ' | ']`.  
+For these methods, a list of separators is used to extract the _starting/ending part_ of the title: for each separator, if found in the title, the title is split and its first/last part is processed (action depends on the method purpose).  
+The nominal list of separators is `['-', '|']`.  
 All related methods accept optional parameters through a `params` object:
 - `separators`: (*string array*) separators to use instead of nominal ones
 - `extraSeparators`: (*string array*) more separators to use after nominal ones
 
 
-#### `titleStripEndPart(str, params)`
-If the [last part](#title-ending-part) of the title matches the given string, it is removed.  
+#### `titleStripStartPart(str, params)`
+If the [first part](#title-startingending-part) of the title matches the given string, it is removed.  
+When matching, returned value is trimmed.  
 The comparison is case-insensitive.
 
 **Parameters**
 - `str` (*string*): string to match
 - `params` (*object*): optional parameters
-  - parameters related to [title ending part](#title-ending-part) processing
-  - `withoutSpaces`: (*boolean*) whether to ignore all whitespaces when comparing given string and title ending part
+  - parameters related to [title part](#title-startingending-part) processing
+  - `withoutSpaces`: (*boolean*) whether to ignore all whitespaces when comparing given string and title part
 
 
-#### `titleStripEndPartRegexp(regexp, params)`
-If the [last part](#title-ending-part) of the title matches the given regular expression, it is removed.  
+#### `titleStripStartPartRegexp(regexp, params)`
+If the [first part](#title-startingending-part) of the title matches the given regular expression, it is removed.  
+When matching, returned value is trimmed.  
 
 **Parameters**
 - `regexp` (*regular expression*): regular expression to match
 - `params` (*object*): optional parameters
-  - parameters related to [title ending part](#title-ending-part) processing
+  - parameters related to [title part](#title-startingending-part) processing
+
+
+#### `titleStripEndPart(str, params)`
+If the [last part](#title-startingending-part) of the title matches the given string, it is removed.  
+When matching, returned value is trimmed.  
+The comparison is case-insensitive.
+
+**Parameters**
+- `str` (*string*): string to match
+- `params` (*object*): optional parameters
+  - parameters related to [title part](#title-startingending-part) processing
+  - `withoutSpaces`: (*boolean*) whether to ignore all whitespaces when comparing given string and title part
+
+
+#### `titleStripEndPartRegexp(regexp, params)`
+If the [last part](#title-startingending-part) of the title matches the given regular expression, it is removed.  
+When matching, returned value is trimmed.  
+
+**Parameters**
+- `regexp` (*regular expression*): regular expression to match
+- `params` (*object*): optional parameters
+  - parameters related to [title part](#title-startingending-part) processing
 
 
 #### `titleStripRegexp(regexp, params)`
@@ -187,16 +211,16 @@ If the regular expression matches, the remaining title is built by concatenating
 
 
 #### `titleStripDomain(params)`
-If the [last part](#title-ending-part) of the title matches the site domain name, it is removed.  
-For a given `sub2.sub1.sitename.tld` hostname, if the title last part matches either `sub1.sitename.tld`, `sitename.tld` or `sitename`, it is removed.  
-This method relies on `titleStripEndPart`.
+If the [first or last last part](#title-startingending-part) of the title matches the site domain name, it is removed.  
+For a given `sub2.sub1.sitename.tld` hostname, if the title part matches either `sub1.sitename.tld`, `sitename.tld` or `sitename`, it is removed.  
+This method relies on `titleStripStartPart` and `titleStripEndPart`.
 
 **Parameters**
 - `str` (*string*): string to match
 - `params` (*object*): optional parameters
-  - parameters related to [title ending part](#title-ending-part) processing
+  - parameters related to [title part](#title-startingending-part) processing
   - `names`: (*string array*) more names to test after site name
-  - `withoutSpaces`: (*boolean*) whether to ignore all whitespaces when comparing site name and title ending part
+  - `withoutSpaces`: (*boolean*) whether to ignore all whitespaces when comparing site name and title part
     - `true` by default if not given: e.g. if the title last part is `Site Name`, it will match `sitename` and be removed
 
 
