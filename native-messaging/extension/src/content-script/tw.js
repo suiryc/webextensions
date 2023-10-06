@@ -137,6 +137,49 @@ function checkConcurrent() {
   });
 }
 
+function getSavePath(message) {
+  // Notes:
+  // Historically, TW generates a 'tiddlyfox-save-file' message, which field
+  // 'data-tiddlyfox-path' points to the save path.
+  //return message.getAttribute('data-tiddlyfox-path');
+  // See: https://github.com/Jermolene/TiddlyWiki5/blob/master/core/modules/savers/tiddlyfox.js
+  // It cleanups/decodes the documentation location.
+  // When there are unicode characters, it mostly works on Windows, but should
+  // not on Linux because for the latter the code does call 'unescape' when
+  // cleaning: this is expected to simply decode url-encoded characters (either
+  // ascii %XX or unicode %uXXXX).
+  // This function is not called for Windows local paths (non-WSL at least).
+  // It does later call 'decodeURIComponent', which is the good one: decodes
+  // url-encoded characters as an UTF-8 encoding. But it is too late in Linux
+  // case.
+
+  var pathname = document.location.toString().split("#")[0];
+  // Replace file://localhost/ with file:///
+  if (pathname.indexOf("file://localhost/") === 0) {
+    pathname = "file://" + pathname.substr(16);
+  }
+  if (/^file\:\/\/\/[A-Z]\:\//i.test(pathname)) {
+    // Windows path file:///x:/blah/blah --> x:\blah\blah
+    pathname = pathname.substr(8).replace(/\//g,"\\");
+  } else if (pathname.indexOf("file://///") === 0) {
+    // Firefox Windows network path file://///server/share/blah/blah --> //server/share/blah/blah
+    pathname = "\\\\" + pathname.substr(10).replace(/\//g,"\\");
+  } else if (pathname.indexOf("file:///") === 0) {
+    // Mac/Unix local path file:///path/path --> /path/path
+    pathname = pathname.substr(7);
+  } else if (pathname.indexOf("file:/") === 0) {
+    // Mac/Unix local path file:/path/path --> /path/path
+    pathname = pathname.substr(5);
+  } else {
+    // Otherwise Windows networth path file://server/share/path/path --> \\server\share\path\path
+    pathname = "\\\\" + pathname.substr(7).replace(new RegExp("/","g"),"\\");
+  }
+  try {
+    pathname = decodeURI(pathname);
+  } catch {}
+  return pathname;
+}
+
 // Interoperate with TiddlyWiki save mechanism
 function injectMessageBox() {
   // See: https://groups.google.com/forum/#!msg/tiddlywiki/BWkudgla4ms/mvv6mxeg0lAJ
@@ -181,7 +224,7 @@ function injectMessageBox() {
   messageBox.addEventListener('tiddlyfox-save-file', event => {
     // Get the details
     var message = event.target;
-    var path = message.getAttribute('data-tiddlyfox-path');
+    var path = getSavePath(message);
     var content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
