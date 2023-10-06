@@ -187,10 +187,10 @@ class NativeSink extends stream.Writable {
     for (var offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
       fragment.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
       fragment.fragment = (offset == 0
-        ? constants.FRAGMENT_KIND_START
+        ? FRAGMENT_KIND_START
         : (offset + MSG_SPLIT_SIZE >= length
-            ? constants.FRAGMENT_KIND_END
-            : constants.FRAGMENT_KIND_CONT
+            ? FRAGMENT_KIND_END
+            : FRAGMENT_KIND_CONT
           )
       );
       this.writeMessage(fragment, true);
