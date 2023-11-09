@@ -154,7 +154,28 @@ function dl_save(app, msg) {
     if (error.length) {
       error.unshift('Application failed');
       response.error = error.join('\n');
-    } else if (stdout.data.length) response.wsPort = Number(stdout.data.toString());
+    } else if (stdout.data.length) {
+      try {
+        var s = stdout.data.toString().trim();
+        var ok = /^\d+$/.test(s);
+        if (ok) {
+          response.wsPort = Number(s);
+          ok = !isNaN(response.wsPort);
+        }
+        if (ok) {
+          console.log(`Determined WebSocket port=<${response.wsPort}>`)
+        } else {
+          error.push(`Could not determine WebSocket port: stdout is not a number`);
+          error.push(`stdout=<${s}>`);
+          response.error = error.join('\n');
+        }
+      } catch (error) {
+        error.push(`Could not determine WebSocket port`);
+        error.push(`Error: ${util.formatObject(error)}`)
+        error.push(`stdout=<${s}>`);
+        response.error = error.join('\n');
+      }
+    }
     deferred.resolve(response);
     // While not strictly necessary, cleanup by destroying streams ...
     child.stdout.destroy();
