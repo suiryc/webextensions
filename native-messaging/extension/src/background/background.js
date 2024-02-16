@@ -91,7 +91,7 @@ async function onMessage(extension, msg, sender) {
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.details || {}, sender);
+      return await notification(msg.details || {}, sender);
       break;
 
     default:
@@ -101,14 +101,14 @@ async function onMessage(extension, msg, sender) {
 }
 
 // Handles messages received from native application.
-function onNativeMessage(app, msg) {
+async function onNativeMessage(app, msg) {
   switch (msg.kind || '') {
     case constants.KIND_CONSOLE:
       return app_console(app, msg);
       break;
 
     case constants.KIND_NOTIFICATION:
-      return notification(msg.details || {}, app);
+      return await notification(msg.details || {}, app);
       break;
 
     default:
@@ -241,7 +241,7 @@ function app_console(app, msg) {
   console[level].apply(console, args);
 }
 
-function notification(details, sender) {
+async function notification(details, sender) {
   if (sender) {
     if (!details.source && sender.appId) {
       details.source = sender.appId;
@@ -253,11 +253,30 @@ function notification(details, sender) {
     }
   }
 
-  if (!details.silent) util.notification(details);
-  addExtensionMessage(details);
+  // Don't show notification if message is a duplicate or we are in silent mode.
+  if (await addExtensionMessage(details) && !details.silent) util.notification(details);
 }
 
-function addExtensionMessage(details) {
+async function addExtensionMessage(details) {
+  // First check whether we already know this message (not discarded/cleaned yet).
+  // Gather important fields first, and build a hash from obtained data.
+  var uid = [];
+  for (var key of ['windowId', 'tabId', 'level', 'source', 'title']) {
+    uid.push(`${details[key]}`);
+  }
+  uid.push(util.formatApplicationMessage(details));
+  uid = uid.join('|');
+  // See: https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest
+  uid = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(uid));
+  uid = Array.from(new Uint8Array(uid)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  details.uid = uid;
+  for (var msg of applicationMessages) {
+    if (msg.uid === details.uid) {
+      console.log('Discarding duplicate message:', details);
+      return false;
+    }
+  }
+
   webext.sendMessage({
     target: constants.TARGET_BROWSER_ACTION,
     kind: constants.KIND_EXT_MESSAGE,
@@ -266,6 +285,7 @@ function addExtensionMessage(details) {
   applicationMessages.push(details);
 
   updateStatus(details.windowId);
+  return true;
 }
 
 function updateStatus(windowId) {
