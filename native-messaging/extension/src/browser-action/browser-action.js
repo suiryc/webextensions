@@ -139,8 +139,7 @@ class TabsObserver {
   }
 
   tabFocused(details) {
-    activeTabId = details.tabId;
-    refreshMessages();
+    refreshMessages(false);
   }
 
   tabRemoved(details) {
@@ -155,7 +154,7 @@ var tabsObserver = new TabsObserver(webext);
 
 var windowId = -1;
 var activeTabId = -1;
-var messages = [];
+var refreshing = undefined;
 
 var ignoreNextButton = document.querySelector('#ignoreNext');
 var ignoreNextText = ignoreNextButton.textContent;
@@ -185,7 +184,6 @@ function replaceNode(node1, node2) {
 
 function addMessage(details) {
   if (details.windowId && (details.windowId != windowId)) return;
-  messages.push(details);
   var tabId = details.tabId;
   var level = details.level;
   var node = cloneNode(listItemNode);
@@ -219,16 +217,39 @@ function addMessage(details) {
   updateMessagesBadges();
 }
 
-function refreshMessages() {
-  var todo = messages;
-  messages = [];
-  [activeMessagesNode, otherMessagesNode].forEach(n => {
-    n.querySelectorAll(':scope > .list-item').forEach(node => {
-      node.remove();
-    });
+async function refreshMessages(showTab) {
+  // Ask (async) for messages to display.
+  var details = webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    kind: constants.KIND_GET_EXT_MESSAGES
   });
-  for (var details of todo) {
-    addMessage(details);
+
+  // Before continuing, wait for any ongoing refresh.
+  // Note: with current code, when showing the action page, we get called twice;
+  // from main code, and tab (observer) focusing.
+  if (refreshing) await refreshing;
+  refreshing = new util.Deferred();
+  try {
+    // Remove any displayed message right now.
+    [activeMessagesNode, otherMessagesNode].forEach(n => {
+      n.querySelectorAll(':scope > .list-item').forEach(node => {
+        node.remove();
+      });
+    });
+
+    // Wait for response, then display retrieved messages.
+    details = await(details);
+    windowId = details.focusedWindowId;
+    activeTabId = details.focusedTabId;
+    var messages = details.messages;
+    if (messages && Array.isArray(messages) && messages.length) {
+      for (var details of messages) {
+        addMessage(details);
+      }
+      if (showTab) document.querySelector('#tab-item-messages').click();
+    }
+  } finally {
+    refreshing.resolve();
   }
 }
 
@@ -307,18 +328,6 @@ clearOtherMessagesButton.addEventListener('click', () => {
 // focused window; and thus we can take into account the focused tab to
 // filter messages.
 (async () => {
-  var details = await webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_GET_EXT_MESSAGES
-  });
-  windowId = details.focusedWindowId;
-  activeTabId = details.focusedTabId;
-  var msgs = details.messages;
-  if (msgs && Array.isArray(msgs) && msgs.length) {
-    messages = msgs;
-    refreshMessages();
-    document.querySelector('#tab-item-messages').click();
-  }
-
+  await refreshMessages(true);
   dl_updateVideos(undefined, true);
 })();
