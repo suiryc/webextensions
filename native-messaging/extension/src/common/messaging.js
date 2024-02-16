@@ -62,7 +62,7 @@ export class WebExtension {
     return entry;
   }
 
-  getNotif(source) {
+  getNotif(source, defaults) {
     // Create a re-usable dedicated notifier.
     return this.getExtensionProperty({
       key: `notif.${source}`,
@@ -71,8 +71,8 @@ export class WebExtension {
         ['info', 'warn', 'error'].forEach(level => {
           notif[level] = function(details, error) {
             // Prepare details.
-            if (typeof(details) === 'object') details = Object.assign({source}, details, {level});
-            else details = {source, level, message: details, error};
+            if (typeof(details) !== 'object') details = {message: details, error};
+            details = Object.assign({source}, defaults, details, {level});
             webext.notify(details);
           };
         });
