@@ -13,6 +13,7 @@ export class CodeExecutor {
   constructor(params) {
     var self = this;
     self.webext = params.webext;
+    self.notifDefaults = params.notifDefaults;
     self.scriptName = params.name;
     // We will pass useful helpers automatically.
     self.argNames = params.args.concat(['http', 'notif', 'unsafe', 'util', 'webext']);
@@ -35,7 +36,7 @@ export class CodeExecutor {
     // This is a setting branch: we expect to find 'script' and 'enabled'
     // sub-settings.
     if (!setting.inner.script) {
-      this.getNotif().warn({
+      self.getNotif().warn({
         title: 'Script code setup failed',
         msg: `Unhandled setting=<${setting.getKey()}>`
       });
@@ -99,7 +100,7 @@ export class CodeExecutor {
   }
 
   getNotif() {
-    return this.webext.getNotif(this.scriptName);
+    return this.webext.getNotif(this.scriptName, this.notifDefaults);
   }
 
 }
