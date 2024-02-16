@@ -43,6 +43,7 @@ export const constants = {
   KIND_ADD_VIDEO_SOURCE: 'addVideoSource',
   KIND_CHECK_NATIVE_APP: 'checkNativeApp',
   KIND_CLEAR_MESSAGES: 'clearMessages',
+  KIND_CLEAR_MESSAGE: 'clearMessage',
   KIND_CONSOLE: 'console',
   KIND_DL_IGNORE_NEXT: 'dlIgnoreNext',
   KIND_DL_UPDATE_VIDEOS: 'dlUpdateVideos',

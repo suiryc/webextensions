@@ -283,9 +283,25 @@ async function addExtensionMessage(details) {
     details
   });
   applicationMessages.push(details);
+  // Clear message after TTL if applicable.
+  if (details.ttl > 0) {
+    setTimeout(() => {
+      removeExtensionMessage(uid);
+    }, details.ttl);
+  }
 
   updateStatus(details.windowId);
   return true;
+}
+
+function removeExtensionMessage(uid) {
+  webext.sendMessage({
+    target: constants.TARGET_BROWSER_ACTION,
+    kind: constants.KIND_CLEAR_MESSAGE,
+    details: {uid}
+  });
+  applicationMessages = applicationMessages.filter(details => details.uid !== uid);
+  updateStatus();
 }
 
 function updateStatus(windowId) {

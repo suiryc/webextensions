@@ -25,6 +25,10 @@ async function onMessage(extension, msg, sender) {
       return ext_addMessage(msg);
       break;
 
+    case constants.KIND_CLEAR_MESSAGE:
+      return ext_clearMessage(msg);
+      break;
+
     default:
       return unhandledMessage(msg, sender);
       break;
@@ -127,6 +131,11 @@ function ext_addMessage(msg) {
   addMessage(msg.details);
 }
 
+// Removes message from display.
+function ext_clearMessage(msg) {
+  removeMessage(msg.details);
+}
+
 class TabsObserver {
 
   constructor(webext) {
@@ -187,6 +196,7 @@ function addMessage(details) {
   var tabId = details.tabId;
   var level = details.level;
   var node = cloneNode(listItemNode);
+  node.details = details;
   var icon;
   var message = util.formatApplicationMessage(details);
 
@@ -215,6 +225,20 @@ function addMessage(details) {
 
   ((tabId == activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
   updateMessagesBadges();
+}
+
+function removeMessage(details) {
+  if (!details.uid) return;
+
+  function processNode(node) {
+    if (node.details && (node.details.uid === details.uid)) {
+      node.remove();
+      updateMessagesBadges();
+    }
+  }
+  [activeMessagesNode, otherMessagesNode].forEach(n => {
+    n.querySelectorAll(':scope > .list-item').forEach(processNode);
+  });
 }
 
 async function refreshMessages(showTab) {
