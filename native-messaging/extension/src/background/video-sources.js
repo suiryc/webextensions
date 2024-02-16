@@ -189,6 +189,13 @@ export class VideoSource {
     this.addUrl(this.url);
     this.addUrl(this.forceUrl);
     this.needRefresh = true;
+
+    // Get defaults values to pass to notif, if any.
+    this.notifDefaults = {};
+    for (var key of ['windowId', 'tabId', 'frameId']) {
+      this.notifDefaults[key] = details[key];
+    }
+    util.cleanupFields(this.notifDefaults);
   }
 
   setTabTitle(title) {
@@ -279,10 +286,17 @@ export class VideoSource {
   }
 
   getFilenameRefining() {
+    var self = this;
     var setting = settings.video.filenameRefining;
-    return this.webext.getExtensionProperty({
+    return self.webext.getExtensionProperty({
       key: setting.getKey(),
-      create: webext => new unsafe.CodeExecutor({webext, name: 'filename refining', args: ['params'], setting})
+      create: webext => new unsafe.CodeExecutor({
+        webext,
+        name: 'filename refining',
+        args: ['params'],
+        setting,
+        notifDefaults: self.notifDefaults
+      })
     });
   }
 

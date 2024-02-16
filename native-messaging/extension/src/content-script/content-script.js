@@ -41,11 +41,27 @@ function unhandledMessage(msg, sender) {
 // (also save it in globalThis so that scripts can use it directly)
 var webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
 (async function() {
+  var echo = webext.sendMessage({
+    target: constants.TARGET_BACKGROUND_PAGE,
+    kind: constants.KIND_ECHO
+  });
   // All scripts actually want to wait, at one point or another, for settings
   // to be ready.
   await settings.ready;
+  // Now wait for our echo message response, and remember window/tab/frame ids.
+  echo = await echo;
+  globalThis.windowId = echo.sender.tab.windowId;
+  globalThis.tabId = echo.sender.tab.id;
+  globalThis.frameId = echo.sender.frameId;
+  globalThis.notifDefaults = {windowId, tabId, frameId};
   try {
-    unsafe.executeCode({webext, name: 'custom content script', args: {}, setting: settings.content_scripts.custom});
+    unsafe.executeCode({
+      webext,
+      name: 'custom content script',
+      args: {},
+      setting: settings.content_scripts.custom,
+      notifDefaults
+    });
   } catch (err) {
     console.log('Failure executing custom content script:', err);
   }

@@ -207,6 +207,7 @@ function dl_addVideoSource(msg, sender) {
   delete(msg.kind);
   delete(msg.src);
   return videoSourceHandler.addSource(Object.assign({
+    windowId: sender.tab.windowId,
     tabId: sender.tab.id,
     tabUrl: sender.tab.url,
     frameId: sender.frameId

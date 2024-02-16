@@ -143,7 +143,13 @@ function processVideo(node) {
         src
       }
     };
-    var scriptResult = await unsafe.executeCode({webext, name: 'download refining', args, setting: settings.video.downloadRefining});
+    var scriptResult = await unsafe.executeCode({
+      webext,
+      name: 'download refining',
+      args,
+      setting: settings.video.downloadRefining,
+      notifDefaults
+    });
     util.cleanupFields(scriptResult);
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
