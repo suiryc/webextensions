@@ -17,6 +17,36 @@ import { settings } from './settings.js';
 // warnings.
 
 
+// Properties managed by the extension.
+export class PropertiesHandler {
+
+  constructor(creator) {
+    this.creator = creator;
+    this.properties = {};
+  }
+
+  reset() {
+    for (var [key, entry] of Object.entries(this.properties)) {
+      if (entry.keepOnReset) continue;
+      delete(this.properties[key]);
+    }
+  }
+
+  get(details) {
+    var key = details.key;
+    var create = details.create;
+    var entry = this.properties[key];
+    if (!entry && create) {
+      entry = this.properties[key] = {
+        prop: create(this.creator),
+        keepOnReset: details.keepOnReset
+      }
+    }
+    if (entry) return entry.prop;
+  }
+
+}
+
 // Gets current timestamp (epoch in milliseconds).
 export function getTimestamp() {
   return (new Date()).getTime();

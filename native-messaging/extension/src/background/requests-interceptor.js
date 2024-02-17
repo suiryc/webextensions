@@ -23,7 +23,7 @@ export class RequestsInterceptor {
     // unlisten.
     ['onBeforeSendHeaders'].forEach(stage => {
       var setting = settings.intercept.webRequest[stage];
-      var scriptExecutor = webext.getExtensionProperty({
+      var scriptExecutor = webext.extensionProperties.get({
         key: setting.getKey(),
         create: webext => new unsafe.CodeExecutor({webext, name: `webRequest.${stage}`, args: ['params'], setting})
       });

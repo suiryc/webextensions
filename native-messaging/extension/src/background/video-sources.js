@@ -299,7 +299,7 @@ export class VideoSource {
   getFilenameRefining() {
     var self = this;
     var setting = settings.video.filenameRefining;
-    return self.webext.getExtensionProperty({
+    return self.webext.extensionProperties.get({
       key: setting.getKey(),
       create: webext => new unsafe.CodeExecutor({
         webext,
@@ -796,7 +796,7 @@ export class VideoSourceHandler {
     var self = this;
     var frameHandler = self.tabsHandler.getFrame(details);
     if (!frameHandler) return {};
-    var handler = frameHandler.tabHandler.getExtensionProperty({
+    var handler = frameHandler.tabHandler.extensionProperties.get({
       key: TAB_EXTENSION_PROPERTY,
       create: create ? (tabHandler => new VideoSourceTabHandler(self, tabHandler)) : undefined,
       keepOnReset: true
@@ -811,7 +811,7 @@ export class VideoSourceHandler {
     if (!sources) {
       tabHandler = tabHandler || this.tabsHandler.focusedTab.handler;
       if (!tabHandler) return [];
-      var handler = tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+      var handler = tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (!handler) return [];
       sources = handler.sources;
     }
@@ -964,7 +964,7 @@ export class VideoSourceHandler {
     // To ensure we do remove menu entries even when closing the active tab,
     // to it in both situations if possible (tab handler known).
     if (details.tabHandler) {
-      var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+      var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) handler.removeMenuEntries();
     }
 
@@ -989,13 +989,13 @@ export class VideoSourceHandler {
     // We still need to (re)apply the newly focused tab, because at the previous
     // change the handler may have been not known yet.
     if ((details.previousTabId !== details.tabId) && details.previousTabHandler) {
-      var handler = details.previousTabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+      var handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) handler.removeMenuEntries();
     }
 
     // Add entries of new focused tab.
     if (!details.tabHandler) return;
-    var handler = details.tabHandler.getExtensionProperty({key: TAB_EXTENSION_PROPERTY});
+    var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
     if (handler) handler.addMenuEntries();
   }
 

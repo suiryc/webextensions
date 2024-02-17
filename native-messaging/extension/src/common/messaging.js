@@ -43,7 +43,7 @@ export class WebExtension {
     if (!params.target) throw new Error('The target parameter is mandatory');
     this.params = params;
     // Properties managed by the extension.
-    this.extensionProperties = {};
+    this.extensionProperties = new util.PropertiesHandler(this, params.tabsHandler);
     this.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
     // Notes:
     // More than one listener can be added.
@@ -54,17 +54,9 @@ export class WebExtension {
     else this.connect();
   }
 
-  getExtensionProperty(details) {
-    var key = details.key;
-    var create = details.create;
-    var entry = this.extensionProperties[key];
-    if (!entry && create) entry = this.extensionProperties[key] = create(this);
-    return entry;
-  }
-
   getNotif(source, defaults) {
     // Create a re-usable dedicated notifier.
-    return this.getExtensionProperty({
+    return this.extensionProperties.get({
       key: `notif.${source}`,
       create: webext => {
         var notif = {};

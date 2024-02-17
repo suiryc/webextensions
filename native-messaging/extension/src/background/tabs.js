@@ -98,7 +98,7 @@ class TabHandler {
     this.tabsHandler = tabsHandler;
     this.frames = {};
     // Properties managed by the extension.
-    this.extensionProperties = {};
+    this.extensionProperties = new util.PropertiesHandler(this);
     this.update(tab);
   }
 
@@ -185,7 +185,7 @@ class TabHandler {
       delete(this.frames[frameHandler.id]);
     }
     // Reset properties last, as observers may need it.
-    this.resetExtensionProperties();
+    this.extensionProperties.reset();
   }
 
   // Clears tab, which is about to be removed.
@@ -199,27 +199,7 @@ class TabHandler {
       frameHandler.clear(false);
     }
     this.frames = {};
-    this.resetExtensionProperties();
-  }
-
-  resetExtensionProperties() {
-    for (var [key, entry] of Object.entries(this.extensionProperties)) {
-      if (entry.keepOnReset) continue;
-      delete(this.extensionProperties[key]);
-    }
-  }
-
-  getExtensionProperty(details) {
-    var key = details.key;
-    var create = details.create;
-    var entry = this.extensionProperties[key];
-    if (!entry && create) {
-      entry = this.extensionProperties[key] = {
-        prop: create(this),
-        keepOnReset: details.keepOnReset
-      }
-    }
-    if (entry) return entry.prop;
+    this.extensionProperties.reset();
   }
 
   async addFrame(details) {
