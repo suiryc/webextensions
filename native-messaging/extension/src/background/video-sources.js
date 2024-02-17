@@ -181,6 +181,9 @@ export class VideoSource {
 
   constructor(webext, details) {
     Object.assign(this, details);
+    // Notes:
+    // Remember important objects, but don't forget to remove in 'forMessage'
+    // those that cannot be cloned.
     this.webext = webext;
     // Even though for a single source we should only need to remember the
     // original url and any final redirection location, we manage merging
@@ -196,6 +199,14 @@ export class VideoSource {
       this.notifDefaults[key] = details[key];
     }
     util.cleanupFields(this.notifDefaults);
+  }
+
+  // Clone this video source, without fields that cannot be cloned when passing
+  // the result as a message between the extension components.
+  forMessage() {
+    return Object.assign({}, this, {
+      webext: undefined
+    });
   }
 
   setTabTitle(title) {
@@ -808,11 +819,7 @@ export class VideoSourceHandler {
     // Trying to send VideoSource as message fails (cannot be cloned).
     // So create a dummy object with original fields except those that cannot be
     // cloned.
-    return sources.map(source => {
-      return Object.assign({}, source, {
-        webext: undefined
-      });
-    });
+    return sources.map(source => source.forMessage());
   }
 
   async addSource(details) {
