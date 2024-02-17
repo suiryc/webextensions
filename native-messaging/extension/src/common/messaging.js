@@ -58,6 +58,7 @@ export class WebExtension {
     // Create a re-usable dedicated notifier.
     return this.extensionProperties.get({
       key: `notif.${source}`,
+      tabId: (defaults || {}).tabId,
       create: webext => {
         var notif = {};
         ['info', 'warn', 'error'].forEach(level => {

@@ -141,6 +141,8 @@ class TabsObserver {
   constructor(webext) {
     this.tabs = {};
     webext.observeTabsEvents(this);
+    // Hook us for per-tab extension properties handling.
+    webext.extensionProperties.tabsHandler = this;
   }
 
   tabAdded(details) {

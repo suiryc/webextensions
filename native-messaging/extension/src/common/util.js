@@ -20,8 +20,22 @@ import { settings } from './settings.js';
 // Properties managed by the extension.
 export class PropertiesHandler {
 
-  constructor(creator) {
+  // We expect caller to properly setup us:
+  //  - when inside a tab (no need to know other tabs) no handler is passed,
+  //    even if we may sometimes 'get' for our 'tabId'
+  //  - when multiple tabs can be seen and caller may need a per-tab property,
+  //    it passes an appropriate handler
+  //
+  // There are two kinds of handlers:
+  //  - the full one: see tabs.js
+  //  - simple ones: usually mere observers, possibly only containing keys
+  // In both cases, we require/expect two things:
+  //  - there is a 'tabs' map we can access by id
+  //  - the associated object, if any, already has an 'extensionProperties'
+  //    field when managed (full tab handler); otherwise we can create it
+  constructor(creator, tabsHandler) {
     this.creator = creator;
+    this.tabsHandler = tabsHandler;
     this.properties = {};
   }
 
@@ -32,13 +46,31 @@ export class PropertiesHandler {
     }
   }
 
-  get(details) {
+  // Note: creator can be passed by caller, e.g. when getting per-tab property
+  // through a global handler.
+  get(details, creator) {
     var key = details.key;
     var create = details.create;
+    creator ||= this.creator;
+
+    // Specifically manage per-tab properties when there is an handler.
+    if (this.tabsHandler && (details.tabId !== undefined)) {
+      var tab = this.tabsHandler.tabs[details.tabId];
+      if (!tab) {
+        // Tab is not yet known: build the object right now, but do not cache it
+        // (we wait for the tab to be known in order to use its cache).
+        // We don't expect this to happen often, if at all (race conditions ?),
+        // so log a warning when it happens.
+        console.warn('One-shot building property key=<%s> for not-yet-known tab=<%s> in handler=<%o> and creator=<%o>', key, details.tabId, this.tabsHandler, creator);
+        return create(creator);
+      }
+      if (!tab.extensionProperties) tab.extensionProperties = new PropertiesHandler(creator);
+      return tab.extensionProperties.get(details, creator);
+    }
     var entry = this.properties[key];
     if (!entry && create) {
       entry = this.properties[key] = {
-        prop: create(this.creator),
+        prop: create(creator),
         keepOnReset: details.keepOnReset
       }
     }

@@ -179,12 +179,15 @@ export class VideoSourceNamer {
 
 export class VideoSource {
 
-  constructor(webext, details) {
+  constructor(parent, details) {
     Object.assign(this, details);
     // Notes:
     // Remember important objects, but don't forget to remove in 'forMessage'
     // those that cannot be cloned.
-    this.webext = webext;
+    // Unit tests will pass an undefined 'parent'.
+    this.parent = parent;
+    this.webext = (parent || {}).webext;
+    this.tabHandler = (parent || {}).tabHandler;
     // Even though for a single source we should only need to remember the
     // original url and any final redirection location, we manage merging
     // multiple sources when applicable.
@@ -205,7 +208,9 @@ export class VideoSource {
   // the result as a message between the extension components.
   forMessage() {
     return Object.assign({}, this, {
-      webext: undefined
+      parent: undefined,
+      webext: undefined,
+      tabHandler: undefined
     });
   }
 
@@ -299,10 +304,10 @@ export class VideoSource {
   getFilenameRefining() {
     var self = this;
     var setting = settings.video.filenameRefining;
-    return self.webext.extensionProperties.get({
+    return self.tabHandler.extensionProperties.get({
       key: setting.getKey(),
-      create: webext => new unsafe.CodeExecutor({
-        webext,
+      create: tabHandler => new unsafe.CodeExecutor({
+        webext: self.webext,
         name: 'filename refining',
         args: ['params'],
         setting,
@@ -607,7 +612,7 @@ class VideoSourceTabHandler {
 
     if (settings.debug.video) console.log('Adding tab=<%s> frame=<%s> video url=<%s>', tabId, frameId, url);
     details.tabTitle = tabHandler.title;
-    var source = new VideoSource(this.webext, details);
+    var source = new VideoSource(this, details);
     this.sources.push(source);
 
     // Process buffered requests.
