@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "WebExtension native messaging",
-  "version": "1.1.9",
+  "version": "1.1.10",
 
   "description": "Personal multi-purpose WebExtension interacting with native application.",
   // We delegate many actions to a native application:
