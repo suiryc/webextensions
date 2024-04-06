@@ -48,6 +48,10 @@ class FrameHandler {
     this.csUuid = details.csUuid;
     var sameUrl = this.url == details.url;
     this.setUrl(details.url);
+    // Belt and suspenders: trigger parent tab refreshing if we are the main frame.
+    // It should receive an onUpdated due to e.g. url change, but we prefer ensure
+    // it will refresh.
+    if (this.id == 0) this.tabHandler.refresh();
     // For each script (id), remember the associated promise, resolved with its
     // injection success and result/error.
     this.scripts = {};
@@ -83,8 +87,6 @@ class FrameHandler {
 
   setUrl(url) {
     this.url = url;
-    // Update parent tab url if we are the main frame.
-    if (this.id == 0) this.tabHandler.url = url;
   }
 
 }
@@ -110,6 +112,13 @@ class TabHandler {
       url: this.url,
       title: this.title
     };
+  }
+
+  async refresh() {
+    try {
+      this.update(await browser.tabs.get(this.id));
+    } catch (error) {
+    }
   }
 
   update(tab) {
@@ -214,12 +223,7 @@ class TabHandler {
       // or navigation to new url): update handler with fresh tab information.
       // Note: since we reset (and remove) non-main frames in this case, we
       // actually don't expect to be here for non-main frames.
-      if (!frameId) {
-        try {
-          this.update(await browser.tabs.get(this.id));
-        } catch (error) {
-        }
-      }
+      if (!frameId) await this.refresh();
       // Frame is being reused: reset it.
       frameHandler.reset(details, { beforeNavigate: false, domLoaded: true });
     } else {
