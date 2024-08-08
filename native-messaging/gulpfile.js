@@ -193,6 +193,7 @@ async function signExt() {
   console.log('Ignoring:', ignoredFiles);
   await util.spawn('web-ext',
     ['sign', '--api-key', process.env.WEBEXT_API_KEY, '--api-secret', process.env.WEBEXT_API_SECRET,
+      '--channel', 'unlisted',
       '--ignore-files'].concat(ignoredFiles),
     { cwd: extensionPath });
 }
