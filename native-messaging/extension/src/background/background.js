@@ -444,10 +444,10 @@ try {
   new RequestsInterceptor(webext);
   dlMngr.setup(webext, nativeApp);
   var requestsHandler = new RequestsHandler(webext);
-  // Handle menus.
-  var menuHandler = new MenuHandler(requestsHandler);
   // Handle tab successor (tab closing).
-  new TabSuccessor(tabsHandler);
+  var tabSuccessor = new TabSuccessor(tabsHandler);
+  // Handle menus.
+  var menuHandler = new MenuHandler(tabSuccessor, requestsHandler);
   // Handle video sources.
   var videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
   new TabsObserver(tabsHandler, videoSourceHandler);

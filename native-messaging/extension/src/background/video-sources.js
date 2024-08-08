@@ -405,11 +405,11 @@ export class VideoSource {
   // 'onclick' being a function, it will access up-to-date fields when menu
   // entry is clicked. Only values like 'title' needs to be refreshed when
   // the source is updated.
-  addMenuEntry(menuHandler) {
+  async addMenuEntry(menuHandler) {
     var self = this;
     // Nothing to do if already done.
     if (self.menuEntryId) return;
-    self.menuEntryId = menuHandler.addEntry({
+    self.menuEntryId = await menuHandler.addEntry({
       title: self.menuEntryTitle,
       onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
@@ -423,9 +423,9 @@ export class VideoSource {
     });
   }
 
-  removeMenuEntry(menuHandler) {
+  async removeMenuEntry(menuHandler) {
     if (!this.menuEntryId) return;
-    menuHandler.removeEntries(this.menuEntryId);
+    await menuHandler.removeEntries(this.menuEntryId);
     delete(this.menuEntryId);
   }
 
@@ -495,11 +495,11 @@ class VideoSourceTabHandler {
     }
   }
 
-  tabReset(details) {
+  async tabReset(details) {
     // If we remain on the same url, we don't have to forget previous sources
     // or ignored urls.
     if (!details.sameUrl) {
-      this.removeMenuEntries();
+      await this.removeMenuEntries();
       this.sources = [];
       this.ignoredUrls.clear();
       this.updateVideos();
@@ -551,15 +551,15 @@ class VideoSourceTabHandler {
     }
   }
 
-  addMenuEntries() {
+  async addMenuEntries() {
     for (var source of this.sources) {
-      source.addMenuEntry(this.menuHandler);
+      await source.addMenuEntry(this.menuHandler);
     }
   }
 
-  removeMenuEntries() {
+  async removeMenuEntries() {
     for (var source of this.sources) {
-      source.removeMenuEntry(this.menuHandler);
+      await source.removeMenuEntry(this.menuHandler);
     }
   }
 
@@ -622,7 +622,7 @@ class VideoSourceTabHandler {
     // Refresh source, then when applicable add menu entry and trigger videos
     // update.
     await source.refresh(this.menuHandler);
-    if (tabHandler.isFocused()) source.addMenuEntry(this.menuHandler);
+    if (tabHandler.isFocused()) await source.addMenuEntry(this.menuHandler);
     this.updateVideos();
   }
 
@@ -963,14 +963,14 @@ export class VideoSourceHandler {
     await buffered.replay(this);
   }
 
-  tabRemoved(details) {
+  async tabRemoved(details) {
     var self = this;
 
     // To ensure we do remove menu entries even when closing the active tab,
     // to it in both situations if possible (tab handler known).
     if (details.tabHandler) {
       var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
-      if (handler) handler.removeMenuEntries();
+      if (handler) await handler.removeMenuEntries();
     }
 
     // As a precaution, wait a bit before clearing buffered requests, in case
@@ -989,19 +989,19 @@ export class VideoSourceHandler {
     }, 1000);
   }
 
-  tabFocused(details) {
+  async tabFocused(details) {
     // Remove entries from previous focused tab, if there really was a change.
     // We still need to (re)apply the newly focused tab, because at the previous
     // change the handler may have been not known yet.
     if ((details.previousTabId !== details.tabId) && details.previousTabHandler) {
       var handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
-      if (handler) handler.removeMenuEntries();
+      if (handler) await handler.removeMenuEntries();
     }
 
     // Add entries of new focused tab.
     if (!details.tabHandler) return;
     var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
-    if (handler) handler.addMenuEntries();
+    if (handler) await handler.addMenuEntries();
   }
 
 }
