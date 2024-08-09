@@ -146,6 +146,7 @@ async function buildExt(webpackMode) {
     return gulp.src(template)
       .pipe(rename(basename))
       .pipe(replace('__EXTENSION_ID__', settings.extensionId))
+      .pipe(replace('__EXTENSION_SLUG__', settings.extensionSlug))
       .pipe(replace('__APPLICATION_ID__', settings.applicationId))
       .pipe(gulp.dest(dirname));
   };

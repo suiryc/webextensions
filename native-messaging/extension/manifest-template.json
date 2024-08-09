@@ -50,10 +50,12 @@
     "96": "/resources/icon.svg"
   },
 
-  // Our id, to communicate with a native application
   "browser_specific_settings": {
     "gecko": {
-      "id": "__EXTENSION_ID__"
+      // Our id, to communicate with a native application
+      "id": "__EXTENSION_ID__",
+      // Personal site with versions and update manifest
+      "update_url": "https://files.suiryc-139.freeddns.org/webext/__EXTENSION_SLUG__-update.json"
     }
   },
 
