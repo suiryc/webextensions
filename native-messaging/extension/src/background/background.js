@@ -14,6 +14,25 @@ import { TabsHandler } from './tabs.js';
 
 console.log('Starting %s version %s', constants.EXTENSION_ID, browser.runtime.getManifest().version);
 
+// Detect addon installation/updating.
+browser.runtime.onInstalled.addListener(function(details) {
+  var temporary = details.temporary ? ' (temporarily)' : '';
+  var msg = `Installed${temporary} extension`;
+  switch (details.reason) {
+    case 'install':
+      msg += ` ${constants.EXTENSION_ID}`;
+      break;
+    case 'update':
+      msg = `Updated${temporary} extension from version ${details.previousVersion}`
+      break;
+    case 'shared_module_update':
+      msg += ` ${details.id}`;
+      break;
+    default:
+  }
+  console.log(`${msg}: %o`, details);
+});
+
 // Notes on content script injection/execution:
 // There are 3 ways to inject/execute content script:
 // 1. Declaring it in the manifest
