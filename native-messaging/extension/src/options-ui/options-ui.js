@@ -163,14 +163,13 @@ importFile.addEventListener('change', function() {
         // If this happens, it will be stored in the local storage, and removed
         // the next time the extension is (re)loaded (as part of 'initValue').
         browser.storage.local.get(null).then(current => {
-          browser.storage.local.clear().then(() => {
+          return browser.storage.local.clear().then(() => {
             return browser.storage.local.set(options);
           }).catch(error => {
             failed(error);
             return browser.storage.local.set(current);
           });
         }).catch(failed);
-        browser.storage.local.set(options).catch(failed);
       } catch (error) {
         failed(error);
       }
