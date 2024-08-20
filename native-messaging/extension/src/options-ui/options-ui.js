@@ -177,7 +177,7 @@ importFile.addEventListener('change', function() {
       failed(reader.error);
     }
   };
-  reader.readAsText(myFile)
+  reader.readAsText(myFile);
 });
 
 // Handle reseting settings.
