@@ -369,7 +369,7 @@ class ExtensionSetting {
         // Belt and suspenders: ensure we did not accidentally assigned a
         // setting to the subfield itself.
         if (target[leaf] instanceof ExtensionSetting) {
-          throw new Error(`Setting key=<${key}> cannot bet set: one intermediate element is a setting itself`);
+          throw new Error(`Setting key=<${key}> cannot be set: one intermediate element is a setting itself`);
         }
         // Recursively create a Settings Proxy for subfield if needed.
         if (!target[leaf]) target[leaf] = new SettingsBranch(leaf, target).proxy;
@@ -409,7 +409,7 @@ class ExtensionSetting {
     // changes to apply actual setting once known.
     // Due to that, it is not easy to properly track callers that do use settings
     // before ready.
-    //if (!this.initialized) console.error('Accessing not-yet initialized setting=<%s>', this.key);
+    //if (!this.initialized) console.error(`Accessing not-yet initialized setting=<${this.key}>`);
     return this.value;
   }
 
@@ -511,7 +511,7 @@ class ExtensionSetting {
     } else if (isBackgroundScript && (value === this.defaultValue)) {
       // The storage contains this setting with default value: remove it.
       // (only do it once, from background script)
-      console.log('Removing setting=<%s> from local storage: contains default value', this.key, value);
+      console.log(`Removing setting=<${this.key}> from local storage: contains default value`, value);
       await removeStorageValue(this.key);
     }
     await this.setValue(value, true);
