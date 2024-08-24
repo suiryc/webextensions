@@ -692,7 +692,9 @@ class LinksCatcher {
         delete(this.linksRefresh.timer);
       }
     }
-    for (let handler of this.linkHandlers) {
+    // Note: if user is scrolling and let the mouse button up, 'reset' does
+    // delete 'linkHandlers'.
+    for (let handler of (this.linkHandlers || [])) {
       if (fast && !handler.isCaught()) continue;
       handler.refresh = true;
       let diff = handler.catch(this.catchZone);
