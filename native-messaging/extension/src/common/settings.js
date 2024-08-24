@@ -1,5 +1,7 @@
 'use strict';
 
+import * as util from './util.js';
+
 
 // Settings
 // ========
@@ -84,7 +86,7 @@ async function getStorageValue(key, value) {
 
 async function setStorageValue(key, value) {
   // Note: even though setting undefined value removes it, explicitely do it.
-  if (value === undefined) return await removeStorageValue(key);
+  if ((value === undefined) || (value === null)) return await removeStorageValue(key);
   var keys = {};
   keys[key] = value;
   return await browser.storage.local.set(keys);
@@ -155,6 +157,7 @@ class Settings extends SettingsBranch {
   // Note: registering uses the 'settings' variable, hence the need to do it
   // separately from the constructor.
   registerSettings() {
+    let self = this;
     // Create settings (auto-registered).
     new ExtensionIntSetting('settingsVersion', 0);
     new ExtensionBooleanSetting('catchLinks', true);
@@ -203,14 +206,14 @@ class Settings extends SettingsBranch {
 
     // Start settings loading right away as we expect caller to need them.
     // Caller can wait for settings to be ready (initialized).
-    this.ready = (async () => {
+    self.ready = (async () => {
       // First migrate settings if necessary.
       // Only one caller (the background script) needs to do it.
       // Other listeners will get notified of storage changes if any.
-      if (isBackgroundScript) await this.migrate();
+      if (isBackgroundScript) await self.migrate();
 
       var promises = [];
-      this.forEach(setting => promises.push(setting.initValue(isBackgroundScript)));
+      self.forEach(setting => promises.push(setting.initValue(isBackgroundScript)));
       // Knowing the browser is sometimes useful/necessary.
       // browser.runtime.getBrowserInfo exists in Firefox >= 51
       // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/getBrowserInfo
@@ -297,6 +300,7 @@ class Settings extends SettingsBranch {
     }
   }
 
+  // Code to migrate settings.
   async migrate() {
     // Note: we don't refresh all settings now, because only latest version
     // settings are registered, and migration mainly deals with legacy settings
@@ -335,6 +339,10 @@ class Settings extends SettingsBranch {
       }
       await setting.setValue(version);
     }
+
+    // Note: we migrate before initializing the settings, so we don't need to
+    // refresh them; the value we may have stored will be read right after.
+    // And then we listen to any changes in storage.
   }
 
 }
@@ -401,6 +409,7 @@ class ExtensionSetting {
     });
   }
 
+  // Gets current value.
   getValue() {
     // Due to how extensions are managed, background script needs to start right
     // away, and will create a few resources that rely on settings. Some of them
@@ -415,11 +424,13 @@ class ExtensionSetting {
 
   // Changes the setting value.
   // Also refreshes any associated field and persists value.
+  // Note: 'updated' parameter means caller knows the storage value is already
+  // up-to-date (e.g. it reads it) and we only need to take it into account.
   async setValue(v, updated) {
     if (v === undefined) v = this.defaultValue;
     var oldValue = this.value;
     // Nothing to do if value is not changed.
-    if (v === oldValue) return;
+    if (util.deepEqual(v, oldValue)) return;
     // Update value.
     this.value = v;
     // Update field when applicable.
@@ -500,29 +511,28 @@ class ExtensionSetting {
   // Initializes the setting value.
   // To be called first before doing anything with the setting.
   async initValue(isBackgroundScript) {
+    // Return if already done.
+    //if (this.initialized) return this.value;
     // Most callers are expected to wait for settings to be ready before doing
     // anything (and initializing the value is part of this).
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
     var value = await getStorageValue(this.key);
-    if (value === undefined) {
-      // Use current value (which should still be the default value).
-      value = this.value;
-    } else if (isBackgroundScript && (value === this.defaultValue)) {
+    if (isBackgroundScript && (value !== undefined) && (util.deepEqual(value, this.defaultValue))) {
       // The storage contains this setting with default value: remove it.
       // (only do it once, from background script)
       console.log(`Removing setting=<${this.key}> from local storage: contains default value`, value);
       await removeStorageValue(this.key);
     }
-    await this.setValue(value, true);
     //this.initialized = true;
+    await this.setValue(value, true);
     return this.value;
   }
 
   // Persists the setting value.
   persistValue() {
     var value = this.value;
-    if (value === this.defaultValue) value = undefined;
+    if (util.deepEqual(value, this.defaultValue)) value = undefined;
     return setStorageValue(this.key, value);
   }
 
