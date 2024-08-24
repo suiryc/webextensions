@@ -604,10 +604,6 @@ class LinksCatcher {
       delete(this.mouseTracking);
     }
     this.unlistenEvent('mousemove');
-    // Some browsers don't have/need 'setCapture'/'releaseCapture'.
-    if (document.releaseCapture) {
-      document.releaseCapture();
-    }
 
     // Reset catch zone
     delete(this.lastMouseEvent);
@@ -823,15 +819,6 @@ class LinksCatcher {
     this.catchZone.pos.start = { x: ev.pageX, y: ev.pageY };
     debug('[LinksCatcher.handleMouseDown] startPos=<%o>', this.catchZone.pos.start);
     this.updateCatchZone();
-
-    // Note: setting capture on 'document.documentElement' is necessary to
-    // receive 'mousemove' events from outside the page (and follow the mouse to
-    // trigger scrolling). *BUT* it does not work if enabled from inside a
-    // 'setTimeout' (at least under Firefox v56).
-    // Some browsers don't have/need 'setCapture'/'releaseCapture'.
-    if (document.documentElement.setCapture) {
-      document.documentElement.setCapture(true);
-    }
 
     // Start mouse tracking
     this.listenEvent('mousemove');
