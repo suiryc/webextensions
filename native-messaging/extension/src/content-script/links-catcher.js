@@ -381,6 +381,132 @@ class LinkHandler {
 
 }
 
+// Manages links while we catch them.
+class LinksHandler {
+
+  constructor(catcher) {
+    let self = this;
+    self.catcher = catcher;
+    // Handled links.
+    self.handlers = [];
+    // Number of links actually caught.
+    self.caught = 0;
+    // Distincts caught links (per-url).
+    self.distincts = {};
+    // Whether we are currently catching links.
+    self.enabled = false;
+
+    // Mutation observer
+    self.mutationObserver = new MutationObserver(function(mutations, observer) {
+      for (let mutation of mutations) {
+        self.handleMutation(mutation);
+      }
+    });
+  }
+
+  // Resets caught links
+  reset() {
+    for (let handler of this.handlers) {
+      handler.reset();
+    }
+    this.distincts = {};
+    this.caught = 0;
+  }
+
+  enable() {
+    if (this.enabled) return;
+    // Detect current links and observe mutations.
+    // Handle mutations first, to ensure we will not miss any link.
+    this.enabled = true;
+    this.mutationObserver.observe(document.body, { childList: true, subtree: true });
+    this.detect();
+  }
+
+  disable() {
+    this.mutationObserver.disconnect();
+    this.reset();
+    this.handlers = [];
+    this.enabled = false;
+  }
+
+  // Handles link
+  handle(link) {
+    let handler = new LinkHandler(link);
+    if (!handler.canCatch()) return 0;
+    handler.install();
+    this.handlers.push(handler);
+    this.check(handler);
+  }
+
+  // Detects all links in current document
+  detect() {
+    for (let node of searchLinks(document.body)) {
+      this.handle(node);
+    }
+  }
+
+  // Catches links in catch zone
+  catch() {
+    for (let handler of this.handlers) {
+      this.check(handler);
+    }
+  }
+
+  refresh(fast) {
+    let updated = false;
+    for (let handler of this.handlers) {
+      // Upon fast refresh, skip if link was not previously caught.
+      if (fast && !handler.isCaught()) continue;
+      handler.refresh = true;
+      if (this.check(handler)) updated = true;
+    }
+    if (updated) this.catcher.updateLinksCount();
+  }
+
+  check(handler) {
+    this.updatedLink(handler, handler.catch(this.catcher.catchZone));
+  }
+
+  updatedLink(handler, diff) {
+    this.caught += diff;
+    let href = handler.link.href;
+    if (diff > 0) {
+      if (!(href in this.distincts)) this.distincts[href] = new Set();
+      this.distincts[href].add(handler);
+    } else if (diff < 0) {
+      let set = this.distincts[href] || new Set();
+      set.delete(handler);
+      if (!set.size) delete(this.distincts[href]);
+    }
+  }
+
+  // Handles (document) mutation: update known links in document
+  handleMutation(mutation) {
+    // Handle new links
+    if (mutation.addedNodes.length) {
+      for (let node of mutation.addedNodes) {
+        for (let link of searchLinks(node)) {
+          this.handle(link);
+        }
+      }
+    }
+    // Handle old links
+    if (mutation.removedNodes.length) {
+      for (let node of mutation.removedNodes) {
+        for (let link of searchLinks(node)) {
+          let handler = link.linksCatcher_handler;
+          if (this.handlers.includes(handler)) {
+            this.handlers.splice(this.handlers.indexOf(handler), 1);
+            if (handler.isCaught()) this.updatedLink(handler, -1);
+            handler.reset();
+          }
+        }
+      }
+    }
+  }
+
+}
+
 // Actual links catcher
 class LinksCatcher {
 
@@ -418,12 +544,7 @@ class LinksCatcher {
     // Updating the catching zone can be done either for each received event, or
     // at the same time we handle scrolling, the latter being less consuming.
 
-    // Mutation observer
-    self.mutationObserver = new MutationObserver(function(mutations, observer) {
-      for (let mutation of mutations) {
-        self.handleMutation(mutation);
-      }
-    });
+    self.linksHandler = new LinksHandler(self);
 
     self.linksRefresh = {
       last: 0
@@ -438,13 +559,10 @@ class LinksCatcher {
     document.body.appendChild(self.catchZone.node);
 
     // Node to display number of caught links
-    self.linksCount = {
-      node: document.createElement('div'),
-      value: 0
-    }
-    self.linksCount.node.classList.add('linksCatcher_linksCount');
-    self.linksCount.node.style.display = 'none';
-    document.body.appendChild(self.linksCount.node);
+    self.linksCountNode = document.createElement('div');
+    self.linksCountNode.classList.add('linksCatcher_linksCount');
+    self.linksCountNode.style.display = 'none';
+    document.body.appendChild(self.linksCountNode);
 
     // Functions to dispatch events to
     self.eventHandlers = {
@@ -473,22 +591,12 @@ class LinksCatcher {
     ['mousedown', 'mouseup'].forEach(self.listenEvent.bind(self));
   }
 
-  // Resets caught links
-  resetLinks() {
-    for (let handler of (this.linkHandlers || [])) {
-      handler.reset();
-    }
-    this.linksCount.value = 0;
-  }
-
   // Resets everything
   reset() {
     debug('[LinksCatcher.reset]');
 
     // Stop observing mutations and reset links
-    this.mutationObserver.disconnect();
-    this.resetLinks();
-    if (this.linkHandlers) delete(this.linkHandlers);
+    this.linksHandler.disable();
 
     // Stop mouse tracking
     if (this.mouseTracking) {
@@ -562,23 +670,18 @@ class LinksCatcher {
     }
 
     if (this.catchZone.enabled) {
-      if (!this.linkHandlers) {
-        this.linkHandlers = [];
-        // Detect current links and observe mutations.
-        // Handle mutations first, to ensure we will not miss any link.
-        this.mutationObserver.observe(document.body, { childList: true, subtree: true });
-        this.detectLinks();
-      }
+      // Enable links handling when applicable.
+      this.linksHandler.enable();
       this.catchZone.node.style.left = `${this.catchZone.left}px`;
       this.catchZone.node.style.top = `${this.catchZone.top}px`;
       this.catchZone.node.style.width = `${this.catchZone.width}px`;
       this.catchZone.node.style.height = `${this.catchZone.height}px`;
       this.catchZone.node.style.display = 'block';
 
-      this.catchLinks();
+      this.linksHandler.catch();
     } else {
       this.catchZone.node.style.display = 'none';
-      this.resetLinks();
+      this.linksHandler.reset();
     }
     this.updateLinksCount();
 
@@ -622,8 +725,12 @@ class LinksCatcher {
     if (this.catchZone.enabled) {
       let endPos = this.catchZone.pos.end;
       let { viewWidth } = getViewportSize();
-      this.linksCount.node.textContent = this.linksCount.value;
-      let rect = getNodeRect(this.linksCount.node);
+      let distincts = Object.keys(this.linksHandler.distincts).length;
+      let caught = this.linksHandler.caught;
+      let text = `${caught}`;
+      if (distincts != caught) text = `${distincts}/${caught}`;
+      this.linksCountNode.textContent = text;
+      let rect = getNodeRect(this.linksCountNode);
       let left = endPos.x + LINKS_COUNT_MARGIN;
       let top = endPos.y - LINKS_COUNT_MARGIN - rect.height;
       if (left + rect.width + LINKS_COUNT_MARGIN > window.scrollX + viewWidth) {
@@ -632,34 +739,11 @@ class LinksCatcher {
       if (top - LINKS_COUNT_MARGIN < window.scrollY) {
         top = window.scrollY + LINKS_COUNT_MARGIN;
       }
-      this.linksCount.node.style.left = `${left}px`;
-      this.linksCount.node.style.top = `${top}px`;
-      this.linksCount.node.style.display = 'block';
+      this.linksCountNode.style.left = `${left}px`;
+      this.linksCountNode.style.top = `${top}px`;
+      this.linksCountNode.style.display = 'block';
     } else {
-      this.linksCount.node.style.display = 'none';
-    }
-  }
-
-  // Handles link
-  handleLink(link) {
-    let handler = new LinkHandler(link);
-    if (!handler.canCatch()) return 0;
-    handler.install();
-    this.linkHandlers.push(handler);
-    return handler.catch(this.catchZone);
-  }
-
-  // Detects all links in current document
-  detectLinks() {
-    for (let node of searchLinks(document.body)) {
-      this.linksCount.value += this.handleLink(node);
-    }
-  }
-
-  // Catches links in catch zone
-  catchLinks() {
-    for (let handler of this.linkHandlers) {
-      this.linksCount.value += handler.catch(this.catchZone);
+      this.linksCountNode.style.display = 'none';
     }
   }
 
@@ -684,7 +768,6 @@ class LinksCatcher {
   }
 
   _refreshLinksPosition(fast) {
-    let updated = false;
     if (!fast) {
       this.linksRefresh.last = util.getTimestamp();
       if (this.linksRefresh.timer) {
@@ -692,16 +775,7 @@ class LinksCatcher {
         delete(this.linksRefresh.timer);
       }
     }
-    // Note: if user is scrolling and let the mouse button up, 'reset' does
-    // delete 'linkHandlers'.
-    for (let handler of (this.linkHandlers || [])) {
-      if (fast && !handler.isCaught()) continue;
-      handler.refresh = true;
-      let diff = handler.catch(this.catchZone);
-      this.linksCount.value += diff;
-      if (diff) updated = true;
-    }
-    if (updated) this.updateLinksCount();
+    this.linksHandler.refresh(fast);
   }
 
   // Processes caught links
@@ -709,7 +783,7 @@ class LinksCatcher {
     let handlers = [];
     let caught = [];
     // Keep caught links.
-    for (let handler of (this.linkHandlers || [])) {
+    for (let handler of this.linksHandler.handlers) {
       if (handler.isCaught()) handlers.push(handler);
     }
     // Sort links depending on catch zone direction (from top or bottom, and
@@ -729,33 +803,6 @@ class LinksCatcher {
     // Determine system-dependent newline.
     let newline = (navigator.appVersion.indexOf('Win') >= 0) ? '\r\n' : '\n';
     if (caught.length) navigator.clipboard.writeText(`${caught.join(newline)}${newline}`);
-  }
-
-  // Handles (document) mutation: update known links in document
-  handleMutation(mutation) {
-    // Handle new links
-    if (mutation.addedNodes.length) {
-      for (let node of mutation.addedNodes) {
-        for (let link of searchLinks(node)) {
-          this.linksCount.value += this.handleLink(link);
-        }
-      }
-    }
-    // Handle old links
-    if (mutation.removedNodes.length) {
-      for (let node of mutation.removedNodes) {
-        for (let link of searchLinks(node)) {
-          let handler = link.linksCatcher_handler;
-          if (this.linkHandlers.includes(handler)) {
-            this.linkHandlers.splice(this.linkHandlers.indexOf(handler), 1);
-            if (handler.isCaught()) {
-              this.linksCount.value--;
-            }
-            handler.reset();
-          }
-        }
-      }
-    }
   }
 
   // Handles 'mousedown': starts catch zone and follows mouse
