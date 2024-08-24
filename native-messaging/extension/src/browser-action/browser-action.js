@@ -46,7 +46,7 @@ function unhandledMessage(msg, sender) {
 
 // Next interception is being ignored.
 function dl_ignoreNext(msg) {
-  var ttl = msg.ttl / 1000;
+  let ttl = msg.ttl / 1000;
   ignoringNext = !!ttl;
   // Update displayed button text: append remaining TTL if any.
   if (ignoringNext) ignoreNextButton.textContent = `${ignoreNextText} (${ttl}s)`;
@@ -73,28 +73,28 @@ async function dl_updateVideos(sources, showTab) {
     return;
   }
   sources.forEach(source => {
-    var node = cloneNode(listItemNode);
+    let node = cloneNode(listItemNode);
     node.classList.add('clickable');
     // Note: a default extension was chosen when applicable.
-    var { name, extension } = util.getFilenameExtension(source.download.details.file);
+    let { name, extension } = util.getFilenameExtension(source.download.details.file);
     util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
-    var subtitle = [];
-    var tooltip = [];
+    let subtitle = [];
+    let tooltip = [];
     if ('size' in source) subtitle.push(util.getSizeText(source.size));
     if (extension) subtitle.push(extension);
-    var hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
+    let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
     subtitle.push(hostname);
     tooltip.push(util.limitText(source.url, 120));
     subtitle = subtitle.join(' - ');
     if (source.actualUrl) {
-      var actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
+      let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
       if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
         subtitle = `${subtitle}\nActual host: ${actualHostname}`;
       }
       tooltip.push(util.limitText(source.actualUrl, 120));
     }
     if (source.forceUrl) {
-      var actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
+      let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
       if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
         subtitle = `${subtitle}\nForced host: ${actualHostname}`;
       }
@@ -106,7 +106,7 @@ async function dl_updateVideos(sources, showTab) {
     // 'title' to let the browser display it.
     node.setAttribute('title', tooltip.join('\n'));
     node.addEventListener('click', data => {
-      var details = source.download.details;
+      let details = source.download.details;
       // Auto-download enabled by default, unless using non-main button
       // or 'Ctrl' key.
       details.auto = (data.button == 0) && !data.ctrlKey;
@@ -160,31 +160,31 @@ class TabsObserver {
 }
 
 // Extension handler
-var webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
-var tabsObserver = new TabsObserver(webext);
+let webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
+let tabsObserver = new TabsObserver(webext);
 
-var windowId = -1;
-var activeTabId = -1;
-var refreshing = undefined;
+let windowId = -1;
+let activeTabId = -1;
+let refreshing = undefined;
 
-var ignoreNextButton = document.querySelector('#ignoreNext');
-var ignoreNextText = ignoreNextButton.textContent;
-var ignoringNext = false;
-var videosItemNode = document.querySelector('#videos-item');
-var videosNode = document.querySelector('#videos');
-var clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
-var clearOtherMessagesButton = document.querySelector('#clearOtherMessages');
-var messagesItemNode = document.querySelector('#messages-item');
-var activeMessagesItemNode = document.querySelector('#messages-active-item');
-var activeMessagesNode = document.querySelector('#messages-active');
-var otherMessagesItemNode = document.querySelector('#messages-other-item');
-var otherMessagesNode = document.querySelector('#messages-other');
-var iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
-var iconInfoCircle = document.querySelector('#icon-info-circle');
-var listItemNode = document.querySelector('#list-item');
+let ignoreNextButton = document.querySelector('#ignoreNext');
+let ignoreNextText = ignoreNextButton.textContent;
+let ignoringNext = false;
+let videosItemNode = document.querySelector('#videos-item');
+let videosNode = document.querySelector('#videos');
+let clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
+let clearOtherMessagesButton = document.querySelector('#clearOtherMessages');
+let messagesItemNode = document.querySelector('#messages-item');
+let activeMessagesItemNode = document.querySelector('#messages-active-item');
+let activeMessagesNode = document.querySelector('#messages-active');
+let otherMessagesItemNode = document.querySelector('#messages-other-item');
+let otherMessagesNode = document.querySelector('#messages-other');
+let iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
+let iconInfoCircle = document.querySelector('#icon-info-circle');
+let listItemNode = document.querySelector('#list-item');
 
 function cloneNode(node) {
-  var cloned = node.cloneNode(true);
+  let cloned = node.cloneNode(true);
   cloned.removeAttribute('id');
   return cloned;
 }
@@ -195,12 +195,12 @@ function replaceNode(node1, node2) {
 
 function addMessage(details) {
   if (details.windowId && (details.windowId != windowId)) return;
-  var tabId = details.tabId;
-  var level = details.level;
-  var node = cloneNode(listItemNode);
+  let tabId = details.tabId;
+  let level = details.level;
+  let node = cloneNode(listItemNode);
   node.details = details;
-  var icon;
-  var message = util.formatApplicationMessage(details);
+  let icon;
+  let message = util.formatApplicationMessage(details);
 
   if (level == 'error') {
     icon = cloneNode(iconExclamationTriangle);
@@ -216,8 +216,8 @@ function addMessage(details) {
   else if (details.source) util.setHtml(node.querySelector('.list-item-title'), details.source);
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
-  var tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
-  var tooltip = [];
+  let tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
+  let tooltip = [];
   if (details.source) tooltip.push(`Source: ${details.source}`);
   if (tabHandler) {
     if (tabHandler.title) tooltip.push(tabHandler.title);
@@ -245,7 +245,7 @@ function removeMessage(details) {
 
 async function refreshMessages(showTab) {
   // Ask (async) for messages to display.
-  var details = webext.sendMessage({
+  let details = webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_GET_EXT_MESSAGES
   });
@@ -267,9 +267,9 @@ async function refreshMessages(showTab) {
     details = await(details);
     windowId = details.focusedWindowId;
     activeTabId = details.focusedTabId;
-    var messages = details.messages;
+    let messages = details.messages;
     if (messages && Array.isArray(messages) && messages.length) {
-      for (var details of messages) {
+      for (let details of messages) {
         addMessage(details);
       }
       if (showTab) document.querySelector('#tab-item-messages').click();
@@ -280,7 +280,7 @@ async function refreshMessages(showTab) {
 }
 
 function updateMessagesBadges() {
-  var activeMessagesCount = activeMessagesNode.children.length - 1;
+  let activeMessagesCount = activeMessagesNode.children.length - 1;
   if (activeMessagesCount > 0) {
     activeMessagesItemNode.setAttribute('data-badge', activeMessagesCount);
   } else {
@@ -289,7 +289,7 @@ function updateMessagesBadges() {
   activeMessagesItemNode.classList.toggle('badge', activeMessagesCount > 0);
   activeMessagesNode.classList.toggle('hidden', activeMessagesCount == 0);
 
-  var otherMessagesCount = otherMessagesNode.children.length - 1;
+  let otherMessagesCount = otherMessagesNode.children.length - 1;
   if (otherMessagesCount > 0) {
     otherMessagesItemNode.setAttribute('data-badge', otherMessagesCount);
   } else {
@@ -298,9 +298,9 @@ function updateMessagesBadges() {
   otherMessagesItemNode.classList.toggle('badge', otherMessagesCount > 0);
   otherMessagesNode.classList.toggle('hidden', otherMessagesCount == 0);
 
-  var messagesCount = activeMessagesCount + otherMessagesCount;
+  let messagesCount = activeMessagesCount + otherMessagesCount;
   if (messagesCount > 0) {
-    var sumupBadge = `${activeMessagesCount}`;
+    let sumupBadge = `${activeMessagesCount}`;
     if (otherMessagesCount) sumupBadge = `${sumupBadge}+${otherMessagesCount}`
     messagesItemNode.setAttribute('data-badge', sumupBadge);
   } else {

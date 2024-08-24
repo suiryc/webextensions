@@ -8,14 +8,14 @@ import * as vs from '../background/video-sources.js';
 describe('VideoSourceNamer', function() {
 
   function forTitle(s) {
-    var videoSource = new VideoSource(undefined, {url: 'http://dummy/'});
+    let videoSource = new VideoSource(undefined, {url: 'http://dummy/'});
     videoSource.setTabTitle(s);
     return new VideoSourceNamer(videoSource);
   }
 
   function forSite(domain, title) {
-    var url = `http://${domain}`;
-    var videoSource = new VideoSource(undefined, {url});
+    let url = `http://${domain}`;
+    let videoSource = new VideoSource(undefined, {url});
     videoSource.setTabTitle(title);
     videoSource.tabSite = util.parseSiteUrl(url);
     return new VideoSourceNamer(videoSource);
@@ -25,7 +25,7 @@ describe('VideoSourceNamer', function() {
 
     it('should strip given string at start of title', function() {
       // Standard stripping
-      var namer = forTitle(' some value - anything else - some value');
+      let namer = forTitle(' some value - anything else - some value');
       namer.titleStripStartPart('some value');
       assert.equal(namer.title, 'anything else - some value');
 
@@ -50,7 +50,7 @@ describe('VideoSourceNamer', function() {
 
     it('should strip given regexp at start of title', function() {
       // Standard stripping
-      var namer = forTitle(' some value - anything else - some value');
+      let namer = forTitle(' some value - anything else - some value');
       namer.titleStripStartPartRegexp(/value/);
       assert.equal(namer.title, 'anything else - some value');
 
@@ -75,7 +75,7 @@ describe('VideoSourceNamer', function() {
 
     it('should strip given string at end of title', function() {
       // Standard stripping
-      var namer = forTitle(' some value - anything else - some value');
+      let namer = forTitle(' some value - anything else - some value');
       namer.titleStripEndPart('some value');
       assert.equal(namer.title, 'some value - anything else');
 
@@ -100,7 +100,7 @@ describe('VideoSourceNamer', function() {
 
     it('should strip given regexp at end of title', function() {
       // Standard stripping
-      var namer = forTitle(' some value - anything else - some value');
+      let namer = forTitle(' some value - anything else - some value');
       namer.titleStripEndPartRegexp(/value/);
       assert.equal(namer.title, 'some value - anything else');
 
@@ -124,7 +124,7 @@ describe('VideoSourceNamer', function() {
   describe('#titleStripDomain', function() {
 
     it('should strip domain at start or end of title', function() {
-      var namer = forSite('some.mydomain.tld', ' mydomain - mydomain.tld | some.mydomain.tld # test # some.mydomain.tld | mydomain.tld - mydomain ');
+      let namer = forSite('some.mydomain.tld', ' mydomain - mydomain.tld | some.mydomain.tld # test # some.mydomain.tld | mydomain.tld - mydomain ');
       namer.titleStripDomain({extraSeparators: '#'});
       assert.equal(namer.title, 'mydomain.tld | some.mydomain.tld # test # some.mydomain.tld | mydomain.tld');
       namer.titleStripDomain({extraSeparators: '#'});
@@ -138,7 +138,7 @@ describe('VideoSourceNamer', function() {
   describe('#titleStripRegexp', function() {
 
     it('should strip regexp matching title', function() {
-      var namer = forTitle(' value1 optional1 value2 value3 value4 value5 value6 ');
+      let namer = forTitle(' value1 optional1 value2 value3 value4 value5 value6 ');
       namer.titleStripRegexp(/^\s*value1\s*(?:optional1)\s*(?:optional2)?(.*?)value4(.*?)value6\s*$/);
       assert.equal(namer.title, 'value2 value3 value5');
     });

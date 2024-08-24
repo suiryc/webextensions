@@ -70,11 +70,11 @@ class NativeSource extends stream.Transform {
       // Process message when applicable
       if ((this.messageLength >= 0) && (this.buffer.length >= this.messageLength)) {
         // Message received, decode it
-        var message = this.buffer.slice(0, this.messageLength);
+        let message = this.buffer.slice(0, this.messageLength);
         this.buffer = this.buffer.slice(this.messageLength);
         // Reset message size to prepare for next message
         this.messageLength = -1;
-        var obj = JSON.parse(message.toString());
+        let obj = JSON.parse(message.toString());
         this.push(obj);
         // Loop to process next message is possible
         continue;
@@ -114,7 +114,7 @@ class NativeSink extends stream.Writable {
   }
 
   writeMessage(msg, noSplit) {
-    var json;
+    let json;
     // Some objects (and thus the message itself) may not be turned into a JSON
     // string (or even a bare string).
     // In this case, do our best and check each field:
@@ -126,9 +126,9 @@ class NativeSink extends stream.Writable {
     try {
       json = JSON.stringify(msg);
     } catch (unused) {
-      var error = 'Could not JSON.stringify message';
+      let error = 'Could not JSON.stringify message';
       Object.keys(msg).forEach(key => {
-        var value = msg[key];
+        let value = msg[key];
         try {
           JSON.stringify(value);
         } catch (unused) {
@@ -166,8 +166,8 @@ class NativeSink extends stream.Writable {
     }
 
     // Prepare to send the message (uint32 size and JSON content).
-    var buf = Buffer.from(json);
-    var len = Buffer.alloc(UINT32_SIZE);
+    let buf = Buffer.from(json);
+    let len = Buffer.alloc(UINT32_SIZE);
     this.writeUInt32.call(len, buf.length, 0);
     // Send the native message (size then content).
     this.stdout_write(len);
@@ -175,16 +175,16 @@ class NativeSink extends stream.Writable {
   }
 
   writeFragments(msg, json) {
-    var length = json.length;
+    let length = json.length;
     // We will send 'fragments' linked by a correlation id.
-    var fragment = {
+    let fragment = {
       feature: msg.feature,
       kind: msg.kind,
       correlationId: uuidv4()
     };
 
     // Prepare and send each fragment.
-    for (var offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
+    for (let offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
       fragment.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
       fragment.fragment = (offset == 0
         ? FRAGMENT_KIND_START
@@ -219,8 +219,8 @@ class NativeHandler extends stream.Writable {
   }
 
   _write(msg, encoding, done) {
-    var self = this;
-    var r;
+    let self = this;
+    let r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
     try {
       r = Promise.resolve(self.handler(self.app, msg));
@@ -246,14 +246,14 @@ class NativeHandler extends stream.Writable {
 class NativeApplication {
 
   constructor(handler) {
-    var self = this;
+    let self = this;
     // Wrap stdout/stderr to transform it into (log) native messages
     self.stdout_write = process.stdout.write.bind(process.stdout);
     self.wrapOutput(process.stdout, 'info');
     self.wrapOutput(process.stderr, 'error');
 
     // Wrap console logging to transform it into (log) native messages
-    for (var level of ['log', 'debug', 'info', 'warn', 'error']) {
+    for (let level of ['log', 'debug', 'info', 'warn', 'error']) {
       self.wrapConsole(level);
     }
 
@@ -295,7 +295,7 @@ class NativeApplication {
   }
 
   shutdown(code) {
-    var self = this;
+    let self = this;
     if (self.sink) {
       // Belt and suspenders: force exit after timeout.
       if (code) process.exitCode = code;
@@ -319,7 +319,7 @@ class NativeApplication {
   }
 
   wrapOutput(output, level) {
-    var self = this;
+    let self = this;
     output.write = function (chunk, encoding, done) {
       self.postMessage({
         kind: constants.KIND_CONSOLE,
@@ -331,7 +331,7 @@ class NativeApplication {
   }
 
   wrapConsole(level) {
-    var self = this;
+    let self = this;
     console[level] = function (...args) {
       self.postMessage({
         kind: constants.KIND_CONSOLE,

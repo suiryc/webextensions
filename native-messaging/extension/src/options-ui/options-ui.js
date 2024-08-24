@@ -29,17 +29,17 @@ function unhandledMessage(msg, sender) {
 }
 
 // Extension handler
-var webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage });
+let webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage });
 
-var exportButton = document.querySelector('#export');
-var importButton = document.querySelector('#import');
-var importFile = document.querySelector('#import-file');
-var resetButton = document.querySelector('#reset');
+let exportButton = document.querySelector('#export');
+let importButton = document.querySelector('#import');
+let importFile = document.querySelector('#import-file');
+let resetButton = document.querySelector('#reset');
 
 function downloadDone(url, id) {
   // Remove download entry when applicable.
   // (id starts at 1, at least in Firefox)
-  var p = id ? browser.downloads.erase({id}) : util.defer;
+  let p = id ? browser.downloads.erase({id}) : util.defer;
   p.catch(() => {}).then(() => {
     URL.revokeObjectURL(url);
   });
@@ -47,9 +47,9 @@ function downloadDone(url, id) {
 
 function revokeDownloadURL(url, id) {
   browser.downloads.search({id}).then(r => {
-    var ok = !r;
+    let ok = !r;
     if (!ok) {
-      var state = r[0].state;
+      let state = r[0].state;
       ok = (state !== browser.downloads.State.IN_PROGRESS);
     }
     if (ok) downloadDone(url, id);
@@ -66,7 +66,7 @@ exportButton.addEventListener('click', () => {
   browser.storage.local.get(null).then(options => {
     // Quick trick to sort object keys.
     options = Object.fromEntries(Object.entries(options).sort());
-    var json = JSON.stringify(options, undefined, 2);
+    let json = JSON.stringify(options, undefined, 2);
     // Add comment lines with all settings, which makes it easier to track
     // changes in multi-line string values.
     // Notes:
@@ -77,8 +77,8 @@ exportButton.addEventListener('click', () => {
       if ((v === undefined) || (v === null)) {
         v = 'null';
       } else if (Array.isArray(v)) {
-        var arr = [];
-        for (var v2 of v) {
+        let arr = [];
+        for (let v2 of v) {
           arr.push(stringify(v2, '').split('\n').join('\n  '));
         }
         if (!arr.length) {
@@ -95,9 +95,9 @@ exportButton.addEventListener('click', () => {
       return `${prefix}${v.join(`\n${prefix}`)}`;
     }
     function toComment(obj) {
-      var s = [];
-      for (var key of Object.keys(obj)) {
-        var v = stringify(obj[key], '  ').split('\n');
+      let s = [];
+      for (let key of Object.keys(obj)) {
+        let v = stringify(obj[key], '  ').split('\n');
         if (v.length == 1) {
           s.push(`${key}: ${v[0]}`);
         } else {
@@ -107,8 +107,8 @@ exportButton.addEventListener('click', () => {
       }
       return `// ${s.join('\n// ')}\n`;
     }
-    var blob = new Blob([toComment(options) + json], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
+    let blob = new Blob([toComment(options) + json], { type: 'application/json' });
+    let url = URL.createObjectURL(blob);
     browser.downloads.download({
       url,
       filename: 'settings.json',
@@ -139,8 +139,8 @@ importButton.addEventListener('click', () => {
 
 // Once file to import has been selected, handle it.
 importFile.addEventListener('change', function() {
-  var myFile = this.files[0];
-  var reader = new FileReader();
+  let myFile = this.files[0];
+  let reader = new FileReader();
 
   function failed(error) {
     webext.notify({
@@ -154,8 +154,8 @@ importFile.addEventListener('change', function() {
     if (event.target.readyState == FileReader.DONE) {
       try {
         // Remove comment lines we add upon exporting.
-        var json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');
-        var options = JSON.parse(json);
+        let json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');
+        let options = JSON.parse(json);
         // First get current options, then replace them.
         // Upon issue, revert original settings.
         // Notes:

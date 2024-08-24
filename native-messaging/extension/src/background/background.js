@@ -16,8 +16,8 @@ console.log('Starting %s version %s', constants.EXTENSION_ID, browser.runtime.ge
 
 // Detect addon installation/updating.
 browser.runtime.onInstalled.addListener(function(details) {
-  var temporary = details.temporary ? ' (temporarily)' : '';
-  var msg = `Installed${temporary} extension`;
+  let temporary = details.temporary ? ' (temporarily)' : '';
+  let msg = `Installed${temporary} extension`;
   switch (details.reason) {
     case 'install':
       msg += ` ${constants.EXTENSION_ID}`;
@@ -158,7 +158,7 @@ function tw_checkConcurrent(msg) {
   // Get tabs with the target URL, and trigger warning if there are more than one.
   browser.tabs.query({url: msg.url}).then(tabs => {
     if (tabs.length > 1) {
-      for (var tab of tabs) {
+      for (let tab of tabs) {
         // We cannot send a message to a discarded tab.
         if (tab.discarded) continue;
         webext.sendTabMessage(tab.id, {
@@ -192,7 +192,7 @@ function dl_getVideos(msg) {
 
 // Clears extension messages.
 function ext_clearMessages(msg) {
-  var windowId = msg.windowId;
+  let windowId = msg.windowId;
   if (!windowId) {
     applicationMessages = [];
   } else {
@@ -201,7 +201,7 @@ function ext_clearMessages(msg) {
       // windowId and are considered as 'Other tabs' (we don't bother setting a
       // dedicated section for such messages): clear them when applicable.
       if ((details.windowId || !msg.otherTabs) && (details.windowId != windowId)) return true;
-      var matchTab = details.tabId == msg.tabId;
+      let matchTab = details.tabId == msg.tabId;
       return msg.otherTabs ? matchTab : !matchTab;
     });
   }
@@ -210,7 +210,7 @@ function ext_clearMessages(msg) {
 
 // Gets extension messages to display.
 function ext_getMessages(msg) {
-  var focusedTab = tabsHandler.focusedTab;
+  let focusedTab = tabsHandler.focusedTab;
   return {
     focusedWindowId: focusedTab.windowId,
     focusedTabId: focusedTab.id,
@@ -249,9 +249,9 @@ function app_console(app, msg) {
     return;
   }
 
-  var level = msg.level || 'info';
+  let level = msg.level || 'info';
   if (!(level in console)) level = 'info';
-  var args = ('args' in msg) ? msg.args : [ msg.content ];
+  let args = ('args' in msg) ? msg.args : [ msg.content ];
   // Prepend the native application id to distinguish its logs from the
   // webextension ones.
   // If first argument is a string, assume it can be a format, and thus prepend
@@ -280,8 +280,8 @@ async function notification(details, sender) {
 async function addExtensionMessage(details) {
   // First check whether we already know this message (not discarded/cleaned yet).
   // Gather important fields first, and build a hash from obtained data.
-  var uid = [];
-  for (var key of ['windowId', 'tabId', 'level', 'source', 'title']) {
+  let uid = [];
+  for (let key of ['windowId', 'tabId', 'level', 'source', 'title']) {
     uid.push(`${details[key]}`);
   }
   uid.push(util.formatApplicationMessage(details));
@@ -290,7 +290,7 @@ async function addExtensionMessage(details) {
   uid = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(uid));
   uid = Array.from(new Uint8Array(uid)).map((b) => b.toString(16).padStart(2, '0')).join('');
   details.uid = uid;
-  for (var msg of applicationMessages) {
+  for (let msg of applicationMessages) {
     if (msg.uid === details.uid) {
       console.log('Discarding duplicate message:', details);
       return false;
@@ -326,25 +326,25 @@ function removeExtensionMessage(uid) {
 
 function updateStatus(windowId) {
   // Update the requested window, or update all known windows.
-  var obj = {};
+  let obj = {};
   if (windowId) {
     obj[windowId] = videosSources[windowId] || [];
   } else {
     obj = videosSources;
   }
-  for (var [windowId, sources] of Object.entries(obj)) {
+  for (let [windowId, sources] of Object.entries(obj)) {
     // Reminder: object keys are strings, we need windowId as an integer.
     windowId = Number(windowId);
-    var hasVideos = sources.length;
+    let hasVideos = sources.length;
     if (!hasVideos) hasVideos = '';
 
     // Messages are kept until dismissed, and we set a visual hint.
     // Note: 0 and '' are both considered false.
-    var hasMessages = '';
-    var badgeBackgroundColor = 'blue';
-    var tabHandler = tabsHandler.getActiveTab(windowId);
-    var tabId = tabHandler ? tabHandler.id : -1;
-    for (var details of applicationMessages) {
+    let hasMessages = '';
+    let badgeBackgroundColor = 'blue';
+    let tabHandler = tabsHandler.getActiveTab(windowId);
+    let tabId = tabHandler ? tabHandler.id : -1;
+    for (let details of applicationMessages) {
       if (details.windowId && (details.windowId != windowId)) continue;
       // Note: don't filter out messages of other tabs; we wish to see the
       // visual hint to know there messages for this window.
@@ -383,7 +383,7 @@ class TabsObserver {
   }
 
   tabActivated(details) {
-    var sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
+    let sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
     this.updateVideos(details.windowId, sources);
   }
 
@@ -392,9 +392,9 @@ class TabsObserver {
   }
 
   videosUpdated(details) {
-    var tabHandler = details.tabHandler;
+    let tabHandler = details.tabHandler;
     if (!tabHandler.isActive()) return;
-    var sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
+    let sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
     this.updateVideos(tabHandler.windowId, sources);
   }
 
@@ -415,8 +415,8 @@ class TabsObserver {
 }
 
 
-var applicationMessages = [];
-var videosSources = {};
+let applicationMessages = [];
+let videosSources = {};
 
 // In order to properly handle/receive messages from other scripts, we need to
 // listen right now, and thus need to create our WebExtension instance now.
@@ -435,17 +435,20 @@ var videosSources = {};
 // Some features use 'settings.debug' but are better started right now, because
 // they may receive messages from content scripts.
 // e.g. VideoSourceHandler
+
+// Some objects are accessed in functions above, and need to be scoped here.
+let tabsHandler, webext, nativeApp, requestsHandler, videoSourceHandler;
 try {
   // Handle tabs.
-  var tabsHandler = new TabsHandler();
+  tabsHandler = new TabsHandler();
   // Extension handler
-  var webext = new WebExtension({
+  webext = new WebExtension({
     target: constants.TARGET_BACKGROUND_PAGE,
     onMessage,
     tabsHandler
   });
   // Native application handler
-  var nativeApp = new NativeApplication(constants.APPLICATION_ID, webext, { onMessage: onNativeMessage });
+  nativeApp = new NativeApplication(constants.APPLICATION_ID, webext, { onMessage: onNativeMessage });
 
   // Start native application and request its specs
   nativeApp.connect();
@@ -462,13 +465,13 @@ try {
   // Listen to requests and downloads.
   new RequestsInterceptor(webext);
   dlMngr.setup(webext, nativeApp);
-  var requestsHandler = new RequestsHandler(webext);
+  requestsHandler = new RequestsHandler(webext);
   // Handle tab successor (tab closing).
-  var tabSuccessor = new TabSuccessor(tabsHandler);
+  let tabSuccessor = new TabSuccessor(tabsHandler);
   // Handle menus.
-  var menuHandler = new MenuHandler(tabSuccessor, requestsHandler);
+  let menuHandler = new MenuHandler(tabSuccessor, requestsHandler);
   // Handle video sources.
-  var videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
+  videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
   new TabsObserver(tabsHandler, videoSourceHandler);
 } catch (err) {
   if (webext) webext.getNotif().error(`Failure starting ${constants.EXTENSION_ID}`, err);

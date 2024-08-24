@@ -110,12 +110,12 @@ export class MenuHandler {
   }
 
   async setup() {
-    var self = this;
+    let self = this;
 
     await settings.ready;
 
     // Root menu, initially invisible.
-    for (var id of [ID_ROOT, ID_ROOT_LINK]) {
+    for (let id of [ID_ROOT, ID_ROOT_LINK]) {
       await self.createEntry({
         id: id,
         visible: false
@@ -129,10 +129,10 @@ export class MenuHandler {
   }
 
   async onShown(data, tab) {
-    var self = this;
+    let self = this;
 
-    var isLink = false;
-    for (var ctx of data.contexts) {
+    let isLink = false;
+    for (let ctx of data.contexts) {
       if (DL_CONTEXTS.includes(ctx)) {
         isLink = true;
         break;
@@ -148,7 +148,7 @@ export class MenuHandler {
     }
 
     // Entry to download target link (may be video/audio element).
-    var dlLinkDetails = {
+    let dlLinkDetails = {
       title: 'Download link',
       onclick: self.requestsHandler.manageClick.bind(self.requestsHandler)
     };
@@ -180,12 +180,12 @@ export class MenuHandler {
     if (self.entries.length && isLink) {
       await self.createSeparator({});
     }
-    for (var entry of self.entries) {
+    for (let entry of self.entries) {
       await self.createEntry(entry);
     }
 
     // 'Unload tab' entry.
-    var unloadDetails = {
+    let unloadDetails = {
       title: 'Unload tab',
       onclick: function(data, tab) {
         if (settings.debug.tabs.successor) console.log.apply(console, [`tab.unload`, ...arguments]);
@@ -207,12 +207,12 @@ export class MenuHandler {
   async onHidden() {
     this.shown = undefined;
     // Remove created entries.
-    for (var id of this.ids) {
+    for (let id of this.ids) {
       await browser.contextMenus.remove(id);
     }
     this.ids = [];
     // Hide root nodes.
-    for (var id of [ID_ROOT, ID_ROOT_LINK]) {
+    for (let id of [ID_ROOT, ID_ROOT_LINK]) {
       await this.updateRoot({
         id: id,
         visible: false
@@ -221,7 +221,7 @@ export class MenuHandler {
   }
 
   async updateRoot(details) {
-    var id = details.id;
+    let id = details.id;
     if (id === undefined) id = ID_ROOT;
     details = Object.assign({}, ENTRIES_BASE[id], details);
     // API complains if we pass 'id' in update details.
@@ -231,10 +231,10 @@ export class MenuHandler {
 
   async createEntry(details) {
     // Get or generate id.
-    var id = details['id'];
+    let id = details['id'];
     if (id === undefined) id = util.uuidv4();
     // Use base entry if applicable.
-    var base = ENTRIES_BASE[id];
+    let base = ENTRIES_BASE[id];
     if (base !== undefined) details = Object.assign({}, base, details);
     // Complete details.
     details = Object.assign({
@@ -255,13 +255,13 @@ export class MenuHandler {
       type: 'separator',
       contexts: ['all']
     }, details);
-    var id = await browser.contextMenus.create(details);
+    let id = await browser.contextMenus.create(details);
     this.ids.push(id);
     return details;
   }
 
   async rebuild() {
-    var shown = this.shown;
+    let shown = this.shown;
     if (!shown) return;
     // Behaves as if hiding and showing again the menu: this cleanly updates
     // and rebuilds all needed entries.
@@ -283,14 +283,14 @@ export class MenuHandler {
       icons: { '16': '/resources/icon.svg' },
       contexts: ['all'],
     }, details);
-    var id = details.id;
+    let id = details.id;
     this.entries.push(details);
     await this.rebuild();
     return id;
   }
 
   async removeEntries() {
-    for (var id of [...arguments]) {
+    for (let id of [...arguments]) {
       this.entries = this.entries.filter(el => el.id !== id);
     }
     await this.rebuild();

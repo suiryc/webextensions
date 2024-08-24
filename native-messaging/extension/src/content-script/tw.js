@@ -7,7 +7,7 @@ import { settings } from '../common/settings.js';
 
 // Whether the 'concurrent' warning is displayed
 // (to only display it only once until discarded)
-var warningConcurrent = false;
+let warningConcurrent = false;
 
 // Displays modal message warning TiddlyWiki file (URL) is open in more than one tab/window.
 export function warnConcurrent(msg) {
@@ -31,14 +31,14 @@ export async function run() {
   await util.waitForDocument();
 
   // Inject our CSS.
-  var link = document.createElement('link');
+  let link = document.createElement('link');
   link.href = browser.runtime.getURL('/resources/content-script-tw.css');
   link.type = 'text/css';
   link.rel = 'stylesheet';
   document.head.appendChild(link);
 
   // Enable TiddlyWiki handling when applicable.
-  var ready = false;
+  let ready = false;
   if (isTW5()) {
     if (settings.debug.misc) console.log('Is TW5');
     try {
@@ -76,13 +76,13 @@ export async function run() {
 // See: https://www.w3schools.com/howto/howto_css_modals.asp
 function displayModal(title, params) {
   // The modal node
-  var modal = util.htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
-  var modalHeader = modal.getElementsByClassName('modal-header')[0];
-  var modalClose = modal.getElementsByClassName('modal-close')[0];
-  var modalBody = modal.getElementsByClassName('modal-body')[0];
+  let modal = util.htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
+  let modalHeader = modal.getElementsByClassName('modal-header')[0];
+  let modalClose = modal.getElementsByClassName('modal-close')[0];
+  let modalBody = modal.getElementsByClassName('modal-body')[0];
 
   // Fill the title (header) part
-  var titleNode = title;
+  let titleNode = title;
   if (typeof(title) !== 'object') {
     titleNode = document.createElement('h2');
     titleNode.appendChild(document.createTextNode(title));
@@ -91,11 +91,11 @@ function displayModal(title, params) {
   modalHeader.classList.add('modal-' + params.kind);
 
   // Fill the message (body) part
-  var bodyNode = params.body;
+  let bodyNode = params.body;
   if (typeof(params.body) !== 'object') {
     bodyNode = document.createElement('p');
-    var first = true;
-    for (var line of params.body.split('\n')) {
+    let first = true;
+    for (let line of params.body.split('\n')) {
       if (first) first = false;
       else bodyNode.appendChild(document.createElement('br'));
       bodyNode.appendChild(document.createTextNode(line));
@@ -118,7 +118,7 @@ function displayModal(title, params) {
 // Gets whether this is a TW5 document
 function isTW5() {
   // TW5 has a <meta name="application-name" content="TiddlyWiki" /> header
-  for (var meta of document.getElementsByTagName('meta')) {
+  for (let meta of document.getElementsByTagName('meta')) {
     if ((meta.name === 'application-name') && (meta.content === 'TiddlyWiki')) return true;
   }
   return false;
@@ -153,7 +153,7 @@ function getSavePath(message) {
   // url-encoded characters as an UTF-8 encoding. But it is too late in Linux
   // case.
 
-  var pathname = document.location.toString().split("#")[0];
+  let pathname = document.location.toString().split("#")[0];
   // Replace file://localhost/ with file:///
   if (pathname.indexOf("file://localhost/") === 0) {
     pathname = "file://" + pathname.substr(16);
@@ -194,9 +194,9 @@ function injectMessageBox() {
   // another extension is already handling saving.
 
   // Inject the message box
-  var messageBox = document.getElementById('tiddlyfox-message-box');
+  let messageBox = document.getElementById('tiddlyfox-message-box');
   if (messageBox) {
-    var otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
+    let otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
     // Note: when developing and reloading extension, we may see our previous
     // injected element, so filter us.
     if (otherExtension && (otherExtension != constants.EXTENSION_ID)) {
@@ -223,9 +223,9 @@ function injectMessageBox() {
   // Attach the event handler
   messageBox.addEventListener('tiddlyfox-save-file', event => {
     // Get the details
-    var message = event.target;
-    var path = getSavePath(message);
-    var content = message.getAttribute('data-tiddlyfox-content');
+    let message = event.target;
+    let path = getSavePath(message);
+    let content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
     webext.sendMessage({
@@ -237,7 +237,7 @@ function injectMessageBox() {
       // Error are notified though the response 'error' field
       if (r.error) throw r.error;
       // Notify TiddlyWiki saving is done
-      var ev = document.createEvent('Events');
+      let ev = document.createEvent('Events');
       ev.initEvent('tiddlyfox-have-saved-file', true, false);
       message.dispatchEvent(ev);
 

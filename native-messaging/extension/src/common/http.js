@@ -7,9 +7,9 @@ import { browserInfo, settings } from './settings.js';
 // Checks whether an URL is considered downloadable.
 // Tests the scheme for http(s).
 export function canDownload(url) {
-  var els = url.split(':');
+  let els = url.split(':');
   if (els < 2) return false;
-  var scheme = els[0].toLowerCase();
+  let scheme = els[0].toLowerCase();
   return ((scheme == 'http') || (scheme == 'https'));
 }
 
@@ -19,13 +19,13 @@ export function findHeader(headers, name) {
 }
 
 export function findHeaderValue(headers, name) {
-  var header = findHeader(headers, name)
+  let header = findHeader(headers, name)
   if (header) return header.value;
 }
 
 // Gets cookie for given URL.
 export function getCookie(url) {
-  var search = {url};
+  let search = {url};
   // 'firstPartyDomain' is useful/needed, but only exists in Firefox >= 59.
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/getAll
   if (browserInfo.version >= 59) search.firstPartyDomain = null;
@@ -33,7 +33,7 @@ export function getCookie(url) {
     console.error('Failed to get %o cookies: %o', url, error);
     return [];
   }).then(cookies => {
-    var cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    let cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
     return (cookie || undefined);
   });
 }
@@ -56,14 +56,14 @@ export class RequestDetails {
 
   parseResponse(interceptSize) {
     const response = this.received;
-    var statusCode;
-    var responseHeaders;
+    let statusCode;
+    let responseHeaders;
     if (!response.responseHeaders && response.headers) {
       // Assume we got a Fetch API Response.
       // Extract status and headers for proper handling.
       statusCode = response.status;
       responseHeaders = [];
-      for (var h of response.headers) {
+      for (let h of response.headers) {
         responseHeaders.push({
           name: h[0],
           value: h[1]
@@ -75,14 +75,14 @@ export class RequestDetails {
       responseHeaders = response.responseHeaders;
     }
 
-    var contentLength;
+    let contentLength;
     if (statusCode == 200) {
       // Get content length. Use undefined if unknown.
       contentLength = findHeaderValue(responseHeaders, 'Content-Length');
     }
     if (statusCode == 206) {
       // Determine content length through range response.
-      var range = findHeaderValue(responseHeaders, 'Content-Range');
+      let range = findHeaderValue(responseHeaders, 'Content-Range');
       if (range && (range.split(' ').shift().toLowerCase() === 'bytes')) {
         contentLength = range.split('/').pop().trim();
       } else {
@@ -111,7 +111,7 @@ export class RequestDetails {
       //  attachment
       //  inline; param1=value1; param2=value2 ...
       // Note: no 'comment' is expected in the value.
-      var parser = new HeaderParser(this.contentDisposition.raw);
+      let parser = new HeaderParser(this.contentDisposition.raw);
       this.contentDisposition.kind = parser.parseToken();
       this.contentDisposition.params = parser.parseParameters(true);
     }
@@ -151,12 +151,12 @@ export class ContentType {
     //  mainType/subType
     //  mainType/subType; param1=value1; param2=value2 ...
     // Note: no 'comment' is expected in the value.
-    var parser = new HeaderParser(this.raw);
+    let parser = new HeaderParser(this.raw);
     this.mimeType = parser.parseMediaType();
     if (!keepParams) this.params = parser.parseParameters(true);
 
     if (!this.mimeType) return;
-    var els = this.mimeType.split('/');
+    let els = this.mimeType.split('/');
     if (els.length != 2) return;
     this.mainType = els[0];
     this.subType = els[1];
@@ -169,10 +169,10 @@ export class ContentType {
   guess(filename, ifNeeded) {
     if (ifNeeded && !this.needGuess()) return;
     if (!filename) return;
-    var extension = util.getFilenameExtension(filename).extension || '';
+    let extension = util.getFilenameExtension(filename).extension || '';
 
     // We mainly care about text, images and audio.
-    var guessed;
+    let guessed;
     if ('txt' == extension) guessed = 'text/plain';
     else if ('css' == extension) guessed = 'text/css';
     else if ('csv' == extension) guessed = 'text/csv';
@@ -294,7 +294,7 @@ export class HeaderParser {
 
   // Skips (and returns) next char.
   skipChar() {
-    var char = this.value[0];
+    let char = this.value[0];
     this.value = this.value.substring(1);
     return char;
   }
@@ -305,9 +305,9 @@ export class HeaderParser {
   // https://tools.ietf.org/html/rfc5322#section-3.2.2
   // Returns skipped value, reduced to a single space if a newline was found.
   skipFWS() {
-    var fws = '';
+    let fws = '';
     if (!this.value) return fws;
-    var match = this.value.match(REGEX_FWS);
+    let match = this.value.match(REGEX_FWS);
     if (match) {
       fws = (match[1].indexOf('\n') >= 0) ? ' ' : match[1];
       this.value = match[2];
@@ -317,10 +317,10 @@ export class HeaderParser {
 
   // Parses and returns next token.
   parseToken() {
-    var token;
+    let token;
     this.skipFWS();
     if (!this.value) return;
-    var match = this.value.match(REGEX_TOKEN);
+    let match = this.value.match(REGEX_TOKEN);
     if (match && match[1]) {
       this.value = match[2];
       token = match[1];
@@ -333,13 +333,13 @@ export class HeaderParser {
   // Ends at 'endChar', and handle optional recursion on 'recursiveChar'
   // (comments can embed comments).
   parseEscapedString(skipChar, endChar, recursiveChar) {
-    var string = '';
+    let string = '';
     if (skipChar) this.skipChar();
-    var recursiveLevel = 1;
+    let recursiveLevel = 1;
     while (recursiveLevel > 0) {
       string += this.skipFWS();
       if (!this.value) break;
-      var char = this.skipChar();
+      let char = this.skipChar();
       if (char == endChar) {
         recursiveLevel--;
         continue;
@@ -372,13 +372,13 @@ export class HeaderParser {
   // characters like '()' which are comments separators).
   // We don't strictly enforce the expected format, parsing as much as possible.
   parseString(endChar, skipEndChar) {
-    var string;
+    let string;
     this.skipFWS();
     if (!this.value) return;
     if (this.value[0] == '"') {
       string = this.parseEscapedString(true, '"');
       if (endChar && this.value && (this.value[0] != endChar)) {
-        var idx = this.value.indexOf(endChar);
+        let idx = this.value.indexOf(endChar);
         if (idx > 0) {
           string = `${string}${this.value.substring(0, idx).trim()}`;
           this.value = this.value.substring(idx);
@@ -400,7 +400,7 @@ export class HeaderParser {
   // Skips leading/trailing comment unless there is no comment expected: actually
   // only matters for MIME headers.
   parseValue(noComment) {
-    var value;
+    let value;
     if (noComment) value = this.parseString(';');
     else {
        this.skipComment();
@@ -413,9 +413,9 @@ export class HeaderParser {
   // Decodes string according to found character set.
   // Only properly handles UTF-8 and latin1/iso-8859-1.
   decodeString(string) {
-    var els = string.split('\'', 3);
+    let els = string.split('\'', 3);
     if (els.length != 3) return string;
-    var charset = els[0].toLowerCase();
+    let charset = els[0].toLowerCase();
     string = els[2];
     // Value is URL-encoded.
     if (/^utf-?8$/.test(charset)) {
@@ -442,31 +442,31 @@ export class HeaderParser {
   // Also handles continuations, which actually only matters for MIME headers
   // as discussed in RFC 8187.
   parseParameter(parameters, noComment) {
-    var name = this.parseToken();
+    let name = this.parseToken();
     if (!name) return;
     name = name.toLowerCase();
 
     // (MIME) If name contains/ends with '*' followed by an integer, the value
     // is actually split in an array and the integer gives the 0-based index.
     // If name ends with '*', value is encoded.
-    var els = name.split('*');
+    let els = name.split('*');
     if (els.length > 3) return;
     name = els[0];
-    var encoded = ((els.length > 1) && !els[els.length-1]);
-    var section;
+    let encoded = ((els.length > 1) && !els[els.length-1]);
+    let section;
     if ((els.length > 1) && els[1]) {
       if (/^[0-9]*$/.test(els[1])) section = parseInt(els[1]);
       else return;
     }
 
-    var parameter = parameters[name] || {};
+    let parameter = parameters[name] || {};
 
     this.skipFWS();
     if (!this.value) return;
     if (this.value[0] != '=') return;
     this.skipChar();
 
-    var value = this.parseValue(noComment);
+    let value = this.parseValue(noComment);
     if (section !== undefined) {
       parameter.sections = parameter.sections || {};
       parameter.sections[section] = {
@@ -483,8 +483,8 @@ export class HeaderParser {
 
   // Parses parameters.
   parseParameters(noComment) {
-    var self = this;
-    var parameters = {};
+    let self = this;
+    let parameters = {};
     this.skipFWS();
     if (!this.value) return parameters;
     if (this.value[0] != ';') return parameters;
@@ -499,22 +499,22 @@ export class HeaderParser {
     // (MIME) Handle any parameter split through continuations.
     // Also only keep parameters values.
     Object.keys(parameters).forEach(key => {
-      var parameter = parameters[key];
+      let parameter = parameters[key];
       if (!parameter.sections) {
         parameters[key] = parameter.value;
         return;
       }
-      var value = '';
-      var idx = 0;
-      var encoded = false;
-      var valueTmp = '';
+      let value = '';
+      let idx = 0;
+      let encoded = false;
+      let valueTmp = '';
 
-      var _flush = function() {
+      let _flush = function() {
         value += encoded ? self.decodeString(valueTmp) : valueTmp;
       };
 
       while (true) {
-        var section = parameter.sections[idx++];
+        let section = parameter.sections[idx++];
         if (!section) break;
         if (section.encoded != encoded) {
           _flush();
@@ -534,12 +534,12 @@ export class HeaderParser {
 
   // Parses media type (e.g. in Content-Type header)
   parseMediaType() {
-    var mainType = this.parseToken();
+    let mainType = this.parseToken();
     if (!mainType) return;
     if (!this.value) return;
     if (this.value[0] != '/') return;
     this.skipChar();
-    var subType = this.parseToken();
+    let subType = this.parseToken();
     if (!subType) return;
     return `${mainType}/${subType}`;
   }
@@ -579,7 +579,7 @@ export class Cookie {
     if (cookie) {
       this.cookies = cookie.split(';').map(s => {
         s = s.trim();
-        var split = s.split('=', 2).map(v => v.trim());
+        let split = s.split('=', 2).map(v => v.trim());
         return ((split.length < 2) || !split[0]) ? ['', this._decodeValue(s)] : [split[0], this._decodeValue(split[1])];
       });
     }
@@ -597,8 +597,8 @@ export class Cookie {
     // Rebuild cookie string if necessary.
     if (!this.cookie && this.cookies.length) {
       this.cookie = this.cookies.map(a => {
-        var name = a[0];
-        var value = this._encodeValue(a[1]);
+        let name = a[0];
+        let value = this._encodeValue(a[1]);
         return name ? `${name}=${value}` : value;
       }).join('; ');
     }
@@ -606,7 +606,7 @@ export class Cookie {
   }
 
   find(name) {
-    var cookie = this.cookies.find(a => a[0] == name);
+    let cookie = this.cookies.find(a => a[0] == name);
     if (cookie) return cookie[1];
   }
 
@@ -616,10 +616,10 @@ export class Cookie {
 
   remove(name, first) {
     delete(this.cookie);
-    var found = false;
+    let found = false;
     this.cookies = this.cookies.filter(a => {
       if (a[0] != name) return true;
-      var keep = first && found;
+      let keep = first && found;
       found = true;
       return keep;
     });
@@ -634,8 +634,8 @@ export class Cookie {
 
   set(name, value, first) {
     delete(this.cookie);
-    var found = false;
-    var cookies = [];
+    let found = false;
+    let cookies = [];
     this.cookies.forEach(c => {
       if (c[0] != name) {
         cookies.push(c);

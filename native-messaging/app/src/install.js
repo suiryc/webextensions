@@ -11,7 +11,7 @@ const yargs = require('yargs');
 
 // Creates manifest file
 function createManifest(dir, filename, command) {
-  var manifestPath = path.join(dir, filename);
+  let manifestPath = path.join(dir, filename);
   console.log('');
   console.log('>> Creating manifest');
   console.log('>>> File: %s', manifestPath);
@@ -27,13 +27,13 @@ function createManifest(dir, filename, command) {
   });
 }
 
-var appFolder = process.cwd();
-var manifestFolder = appFolder;
-var manifestFile = 'manifest-firefox.json';
-var manifestCommand;
-var nodeCommand = process.argv[0];
-var params = yargs.argv;
-var appCommand;
+let appFolder = process.cwd();
+let manifestFolder = appFolder;
+let manifestFile = 'manifest-firefox.json';
+let manifestCommand;
+let nodeCommand = process.argv[0];
+let params = yargs.argv;
+let appCommand;
 
 // We expect the following CLI parameters:
 //  --application-id: the native application id
@@ -60,13 +60,13 @@ if (!nonEmpty(params.dlMngrPath)) {
   process.exit(1);
 }
 
-var f = Promise.resolve();
+let f = Promise.resolve();
 console.log('');
 console.log('>> Creating application');
 console.log(`>>> Nodejs command: ${nodeCommand}`);
 // See: https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Native_manifests#Manifest_location
 switch (os.platform()) {
-  case 'linux':
+  case 'linux': {
     // Manifest files are stored in ${HOME}/.mozilla/native-messaging-hosts and named ${params.applicationId}.json
     // We point to the actual application script outside this folder by absolute path.
     manifestFolder = path.join(process.env.HOME, '.mozilla/native-messaging-hosts');
@@ -74,26 +74,28 @@ switch (os.platform()) {
     appCommand = 'run.sh';
     manifestCommand = path.join(appFolder, appCommand);
     console.log(`>>> Application: ${appCommand}`);
-    var appCommandContent = `#!/bin/bash\n\n${nodeCommand} app.js\n`;
+    let appCommandContent = `#!/bin/bash\n\n${nodeCommand} app.js\n`;
     f = fse.writeFile(appCommand, appCommandContent).then(() => {
       // Script needs to be executable
       return fse.chmod(appCommand, 0o755);
     });
     break;
+  }
 
-  case 'win32':
+  case 'win32': {
     // HKCU\SOFTWARE\Mozilla\NativeMessagingHosts\${params.applicationId} registry
     // entry points to manifest file (could be anywhere, with any name).
     // We store it alongside the application script.
     manifestCommand = appCommand = 'run.cmd';
     console.log(`>>> Application: ${appCommand}`);
-    var appCommandContent = `@echo off\r\n\r\n"${nodeCommand}" "%~dp0app.js"\r\n`;
+    let appCommandContent = `@echo off\r\n\r\n"${nodeCommand}" "%~dp0app.js"\r\n`;
     f = fse.writeFile(appCommand, appCommandContent).then(() => {
       console.log('');
       console.log('>> Creating Firefox registry entry');
       return util.spawn('REG', ['ADD', `HKCU\\SOFTWARE\\Mozilla\\NativeMessagingHosts\\${params.applicationId}`, '/ve', '/t', 'REG_SZ', '/d', `${appFolder}\\${manifestFile}`, '/f']);
     });
     break;
+  }
 
   default:
     throw Error(`Unhandled platform=<${os.platform()}>`)
@@ -103,7 +105,7 @@ switch (os.platform()) {
 f.then(() => {
   console.log('');
   console.log('>> Creating settings.js');
-  var settingsContent = `'use strict';
+  let settingsContent = `'use strict';
 
 module.exports = Object.freeze({
   dlMngrInterpreter: ${JSON.stringify(params.dlMngrInterpreter)},

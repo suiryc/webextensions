@@ -46,7 +46,7 @@ class FrameHandler {
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
     this.csUuid = details.csUuid;
-    var sameUrl = this.url == details.url;
+    let sameUrl = this.url == details.url;
     this.setUrl(details.url);
     // Belt and suspenders: trigger parent tab refreshing if we are the main frame.
     // It should receive an onUpdated due to e.g. url change, but we prefer ensure
@@ -56,7 +56,7 @@ class FrameHandler {
     // injection success and result/error.
     this.scripts = {};
     if (notify) {
-      var notifyDetails = Object.assign({}, notify, {
+      let notifyDetails = Object.assign({}, notify, {
         windowId: this.tabHandler.windowId,
         tabId: this.tabHandler.id,
         tabHandler: this.tabHandler,
@@ -122,7 +122,7 @@ class TabHandler {
   }
 
   update(tab) {
-    var self = this;
+    let self = this;
     // Notes:
     // The url is updated through main frame handling when navigating to a new
     // URL. But sometimes the page do change its URL, remaining on the same site
@@ -138,7 +138,7 @@ class TabHandler {
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
     if ((tab.status == 'loading') && tab.url.endsWith(tab.title)) {
-      var listener = function(tabId, changeInfo, tab) {
+      let listener = function(tabId, changeInfo, tab) {
         if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
         self.title = tab.title;
         if (changeInfo.title) self.tabsHandler.notifyObservers(constants.EVENT_TAB_UPDATED, {
@@ -177,7 +177,7 @@ class TabHandler {
     // Note: notify observer even if we don't know the main frame.
     if (this.frameHandler) this.frameHandler.reset(details, notify);
     else {
-      var notifyDetails = Object.assign({}, notify, {
+      let notifyDetails = Object.assign({}, notify, {
         windowId: this.windowId,
         tabId: this.id,
         tabHandler: this,
@@ -187,7 +187,7 @@ class TabHandler {
       this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_RESET, notifyDetails);
     }
     // Remove all subframes.
-    for (var frameHandler of Object.values(this.frames)) {
+    for (let frameHandler of Object.values(this.frames)) {
       if (frameHandler.id === 0) continue;
       if (settings.debug.misc) console.log('Removing tab=<%s> frame=<%s>', this.id, frameHandler.id);
       frameHandler.clear(true);
@@ -202,7 +202,7 @@ class TabHandler {
     // Code being executed asynchronously (async functions, or right after an
     // await statement) have to check whether 'cleared' has been set.
     this.cleared = true;
-    for (var frameHandler of Object.values(this.frames)) {
+    for (let frameHandler of Object.values(this.frames)) {
       // Don't notify observers for each frame, as the tab itself is being
       // removed.
       frameHandler.clear(false);
@@ -213,8 +213,8 @@ class TabHandler {
 
   async addFrame(details) {
     if (this.cleared) return;
-    var frameId = details.frameId;
-    var frameHandler = this.frames[frameId];
+    let frameId = details.frameId;
+    let frameHandler = this.frames[frameId];
     if (frameHandler) {
       // If the uuid is the same, we already know this frame (content script
       // maybe reconnected, or there are multiple content scripts running).
@@ -242,8 +242,8 @@ class TabHandler {
   }
 
   resetFrame(details) {
-    var frameId = details.frameId;
-    var frameHandler = this.frames[frameId];
+    let frameId = details.frameId;
+    let frameHandler = this.frames[frameId];
     // We are called ahead of time, before frame content is actually loaded.
     // We can ignore unknown frames, for which 'addFrame' will be called later.
     if (!frameHandler) return;
@@ -383,10 +383,10 @@ export class TabsHandler {
 
   getFrame(details) {
     // Get request tab handler if known.
-    var tabHandler = this.tabs[details.tabId];
+    let tabHandler = this.tabs[details.tabId];
     if (!tabHandler) return;
     // Ensure requested frame belongs to the tab.
-    var frameHandler = tabHandler.frames[details.frameId];
+    let frameHandler = tabHandler.frames[details.frameId];
     if (!frameHandler) return;
     if (details.csUuid && (frameHandler.csUuid !== details.csUuid)) return;
     return frameHandler;
@@ -396,14 +396,14 @@ export class TabsHandler {
     this.observers.push(observer);
     if (silent) return;
     // Trigger 'fake' events depending on observed ones.
-    var hasTabAdded = util.hasMethod(observer, constants.EVENT_TAB_ADDED);
-    var hasFrameAdded = util.hasMethod(observer, constants.EVENT_FRAME_ADDED);
+    let hasTabAdded = util.hasMethod(observer, constants.EVENT_TAB_ADDED);
+    let hasFrameAdded = util.hasMethod(observer, constants.EVENT_FRAME_ADDED);
     // Reminder: object keys are strings.
     if (hasTabAdded || hasFrameAdded) {
-      for (var tabHandler of Object.values(this.tabs)) {
+      for (let tabHandler of Object.values(this.tabs)) {
         if (hasTabAdded) this.notifyObserver(observer, constants.EVENT_TAB_ADDED, { windowId: tabHandler.windowId, tabId: tabHandler.id, tabHandler });
         if (hasFrameAdded) {
-          for (var frameHandler of Object.values(tabHandler.frames)) {
+          for (let frameHandler of Object.values(tabHandler.frames)) {
             this.notifyObserver(observer, constants.EVENT_FRAME_ADDED, {
               tabId: tabHandler.id,
               tabHandler,
@@ -415,9 +415,9 @@ export class TabsHandler {
       }
     }
     if (util.hasMethod(observer, constants.EVENT_TAB_ACTIVATED)) {
-      for (var tabActive of Object.values(this.activeTabs)) {
-        var tabId = tabActive.id;
-        var tabHandler = tabActive.handler;
+      for (let tabActive of Object.values(this.activeTabs)) {
+        let tabId = tabActive.id;
+        let tabHandler = tabActive.handler;
         this.notifyObserver(observer, constants.EVENT_TAB_ACTIVATED, {
           windowId: tabActive.windowId,
           previousTabId: tabId,
@@ -431,9 +431,9 @@ export class TabsHandler {
       this.notifyObserver(observer, constants.EVENT_WINDOW_FOCUSED, { previousWindowId: this.focusedWindowId, windowId: this.focusedWindowId });
     }
     if (util.hasMethod(observer, constants.EVENT_TAB_FOCUSED) && this.focusedTab.id) {
-      var windowId = this.focusedTab.windowId;
-      var tabId = this.focusedTab.id;
-      var tabHandler = this.focusedTab.handler;
+      let windowId = this.focusedTab.windowId;
+      let tabId = this.focusedTab.id;
+      let tabHandler = this.focusedTab.handler;
       this.notifyObserver(observer, constants.EVENT_TAB_FOCUSED, {
         previousWindowId: windowId,
         previousTabId: tabId,
@@ -446,33 +446,33 @@ export class TabsHandler {
   }
 
   removeObserver(observer) {
-    var idx;
+    let idx;
     while ((idx = this.observers.indexOf(observer)) !== -1) {
       this.observers.splice(idx, 1);
     }
   }
 
   notifyObservers() {
-    var args = [...arguments];
-    var callback = args.shift();
-    for (var observer of this.observers) {
+    let args = [...arguments];
+    let callback = args.shift();
+    for (let observer of this.observers) {
       util.callMethod(observer, callback, args);
     }
   }
 
   notifyObserver() {
-    var args = [...arguments];
-    var observer = args.shift();
-    var callback = args.shift();
+    let args = [...arguments];
+    let observer = args.shift();
+    let callback = args.shift();
     util.callMethod(observer, callback, args);
   }
 
   // Adds tab and return tab handler.
   // If tab is known, existing handler is returned.
   async addTab(tab) {
-    var windowId = tab.windowId;
-    var tabId = tab.id;
-    var tabHandler = this.tabs[tabId];
+    let windowId = tab.windowId;
+    let tabId = tab.id;
+    let tabHandler = this.tabs[tabId];
     // Reminder: we may be called with outdated (since the query was done) tab
     // information.
     // So if the tab is already known, do nothing.
@@ -486,7 +486,7 @@ export class TabsHandler {
     //  - if we know the active tab id, it must be this tab: in this case we
     //    will trigger a second 'tabActivated' notification, passing the known
     //    handler (which was undefined in the previous notification)
-    var activeTab = this.getActiveTab(windowId);
+    let activeTab = this.getActiveTab(windowId);
     if (tab.active && !activeTab.handler) {
       // Either we did not know yet which tab was active, or we did not manage
       // yet this tab.
@@ -501,15 +501,15 @@ export class TabsHandler {
   }
 
   activateTab(details) {
-    var windowId = details.windowId;
-    var tabId = details.tabId;
-    var tabHandler = this.tabs[tabId];
+    let windowId = details.windowId;
+    let tabId = details.tabId;
+    let tabHandler = this.tabs[tabId];
     // Get previous handler to pass to observers.
     // Note: previousTabId is undefined if the tab does not exist anymore.
     // We let this as-is even though we may pass the previous handler if still
     // not removed here.
-    var previousTabId = details.previousTabId;
-    var previousTabHandler = this.getActiveTab(windowId).handler;
+    let previousTabId = details.previousTabId;
+    let previousTabHandler = this.getActiveTab(windowId).handler;
     if (!previousTabHandler && previousTabId) previousTabHandler = this.tabs[previousTabId];
     // Note: we still notify observers when handler is not (yet) known. In this
     // case the passed handler is undefined.
@@ -532,17 +532,17 @@ export class TabsHandler {
   }
 
   focusTab(windowId) {
-    var focusedTab = this.focusedTab;
-    var previousWindowId = focusedTab.windowId;
-    var previousTabId = focusedTab.id;
-    var previousTabHandler = focusedTab.handler;
+    let focusedTab = this.focusedTab;
+    let previousWindowId = focusedTab.windowId;
+    let previousTabId = focusedTab.id;
+    let previousTabHandler = focusedTab.handler;
     focusedTab = this.focusedTab = this.getActiveTab(windowId);
-    var tabId = focusedTab.id;
+    let tabId = focusedTab.id;
     // Don't bother if we don't know previous nor new tab id.
     if (!tabId && !previousTabId) return;
     // Note: beware that tab handlers may be undefined (tab not handled yet or
     // at all).
-    var tabHandler = focusedTab.handler;
+    let tabHandler = focusedTab.handler;
     // Belt and suspenders: if window and tab ids are the same, but tab handler
     // was not known yet, send the notification with the handler.
     if ((windowId == previousWindowId) && (tabId == previousTabId) && (tabHandler === previousTabHandler)) return;
@@ -559,7 +559,7 @@ export class TabsHandler {
   focusWindow(windowId) {
     // Note: windows.WINDOW_ID_NONE is used when no window has the focus.
     if (windowId === browser.windows.WINDOW_ID_NONE) windowId = undefined;
-    var previousWindowId = this.focusedWindowId;
+    let previousWindowId = this.focusedWindowId;
     this.focusedWindowId = windowId;
     if (settings.debug.misc) {
       if (windowId) console.log('Focused window=<%s>', windowId);
@@ -574,9 +574,9 @@ export class TabsHandler {
   // If tab is not yet known and this is its main frame, tab is added first.
   // If tab is not known and this is a subframe, frame is not added.
   async addFrame(details) {
-    var self = this;
-    var tabId = details.tabId;
-    var tabHandler = self.tabs[tabId];
+    let self = this;
+    let tabId = details.tabId;
+    let tabHandler = self.tabs[tabId];
     if (!tabHandler) {
       // Tab is not known yet, add it first.
       tabHandler = await browser.tabs.get(tabId).then(tab => {
@@ -590,40 +590,40 @@ export class TabsHandler {
   }
 
   resetFrame(details) {
-    var tabHandler = this.tabs[details.tabId];
+    let tabHandler = this.tabs[details.tabId];
     if (!tabHandler) return;
     tabHandler.resetFrame(details);
   }
 
   createTab(tab) {
-    var windowId = tab.windowId;
-    var tabId = tab.id;
+    let windowId = tab.windowId;
+    let tabId = tab.id;
     this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tab });
   }
 
   updateTab(tab, tabChanges) {
-    var tabHandler = this.tabs[tab.id];
+    let tabHandler = this.tabs[tab.id];
     if (!tabHandler) {
       // Tab is not known yet, add it instead.
       tabHandler = this.addTab(tab);
     } else {
-      var windowId = tab.windowId;
-      var tabId = tab.id;
+      let windowId = tab.windowId;
+      let tabId = tab.id;
       if (tabHandler.update(tab)) this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
     }
   }
 
   detachTab(details) {
-    var windowId = details.oldWindowId;
-    var tabId = details.tabId;
-    var tabHandler = this.tabs[tabId];
+    let windowId = details.oldWindowId;
+    let tabId = details.tabId;
+    let tabHandler = this.tabs[tabId];
     this.notifyObservers(constants.EVENT_TAB_DETACHED, { windowId, tabId, tabHandler });
   }
 
   attachTab(details) {
-    var windowId = details.newWindowId;
-    var tabId = details.tabId;
-    var tabHandler = this.tabs[tabId];
+    let windowId = details.newWindowId;
+    let tabId = details.tabId;
+    let tabHandler = this.tabs[tabId];
     if (tabHandler) tabHandler.windowId = windowId;
     this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId, tabId, tabHandler });
   }
@@ -631,7 +631,7 @@ export class TabsHandler {
   removeTab(tabId, windowId) {
     // Note: observers may have received messages related to a tab before the
     // handler, so notify them even if we don't know the tab.
-    var tabHandler = this.tabs[tabId];
+    let tabHandler = this.tabs[tabId];
     this.notifyObservers(constants.EVENT_TAB_REMOVED, {
       windowId,
       tabId,
@@ -650,12 +650,12 @@ export class TabsHandler {
   }
 
   async setup() {
-    var self = this;
+    let self = this;
     // First ensure settings have been loaded.
     await settings.ready;
 
     // Register a dummy observer for debugging purposes.
-    var dummyObserver = {};
+    let dummyObserver = {};
     constants.EVENTS_TABS.forEach(key => {
       dummyObserver[key] = function() {
         if (settings.debug.tabs.events) console.log.apply(console, [`observer.${key}`, ...arguments]);
@@ -741,7 +741,7 @@ export class TabsHandler {
     // This is especially visible when debugging and reloading the extension.
     // So ensure we determine focused window and active tabs.
     self.focusWindow((await browser.windows.getLastFocused()).id);
-    for (var tab of await browser.tabs.query({active: true})) {
+    for (let tab of await browser.tabs.query({active: true})) {
       self.addTab(tab);
     }
   }

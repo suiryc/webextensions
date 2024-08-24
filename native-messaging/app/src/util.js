@@ -10,7 +10,7 @@ function formatObject(obj, processed, recursiveLoop) {
   // which directly - field - or indirectly - child field - points back to
   // itself).
   // Re-use formatting code to at least get the object kind.
-  var recurse = function(child) {
+  let recurse = function(child) {
     processed = processed || new Set();
     processed.add(obj);
     return processed.has(child)
@@ -24,7 +24,7 @@ function formatObject(obj, processed, recursiveLoop) {
     // Recursively handle arrays.
     if (recursiveLoop) return `Array(${obj.length})`;
     s = '[';
-    var idx = 0;
+    let idx = 0;
     obj.forEach(v => {
       s += (idx++ ? ', ' : ' ') + recurse(v);
     })
@@ -44,7 +44,7 @@ function formatObject(obj, processed, recursiveLoop) {
   // Handle objects which fail to be stringified, and keep the error. We assume
   // at least the error can be turned into a string.
   // (e.g. 'TypeError: Cannot convert object to primitive value')
-  var s = '';
+  let s = '';
   try {
     s += obj;
   } catch (error) {
@@ -54,9 +54,9 @@ function formatObject(obj, processed, recursiveLoop) {
     s = obj.constructor.name;
     if (!s) s = 'Object';
     if (recursiveLoop) return s;
-    var idx = 0;
+    let idx = 0;
     Object.keys(obj).forEach(f => {
-      var v = obj[f];
+      let v = obj[f];
       // Don't include functions
       if (typeof(v) == 'function') return;
       s += ` ${f}=<${recurse(v)}>`;
@@ -82,7 +82,7 @@ class Deferred {
     this.promise.reject = this.reject;
     // Plug useful functions, in case they are called on Deferred instead of
     // our embedded promise.
-    for (var f of ['catch', 'finally', 'then']) {
+    for (let f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
       if (!this.promise[f]) continue;
       this[f] = this.promise[f].bind(this.promise);
@@ -93,8 +93,8 @@ class Deferred {
 
 // Spawns process, piping stdin/stdout/stderr, and returns Promise.
 function spawn(command, args, options) {
-  var d = new Deferred();
-  var p = child_process.spawn(command, args, Object.assign({ shell : true, stdio: 'inherit' }, options));
+  let d = new Deferred();
+  let p = child_process.spawn(command, args, Object.assign({ shell : true, stdio: 'inherit' }, options));
   p.on('exit', (code, signal) => {
     if (code || signal) d.reject(`${command} execution failed`);
     else d.resolve();

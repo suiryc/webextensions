@@ -17,7 +17,7 @@ function findShadows(node) {
   // Note: depending on node type (e.g. text node), there may be no children
   // available and thus no 'getElementsByTagName' method.
   if (node.getElementsByTagName) {
-    for (var child of node.getElementsByTagName('*')) {
+    for (let child of node.getElementsByTagName('*')) {
       if (child.shadowRoot instanceof Node) processShadow(child);
     }
   }
@@ -25,7 +25,7 @@ function findShadows(node) {
 
 function processShadow(node) {
   // Observe and find video in each child.
-  for (var child of node.shadowRoot.children) {
+  for (let child of node.shadowRoot.children) {
     if (child.tagName !== 'VIDEO') nodesObserver.observe(child, { childList: true, subtree: true });
     findVideo(child);
   }
@@ -42,7 +42,7 @@ function findVideo(node) {
   // Note: depending on node type (e.g. text node), there may be no children
   // available and thus no 'getElementsByTagName' method.
   if (node.getElementsByTagName) {
-    for (var v of node.getElementsByTagName('video')) {
+    for (let v of node.getElementsByTagName('video')) {
       processVideo(v);
     }
   }
@@ -134,16 +134,16 @@ function processVideo(node) {
 
   async function addVideoSource(field) {
     if (!nonEmpty(field)) return;
-    var src = node[field];
+    let src = node[field];
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
-    var args = {
+    let args = {
       params: {
         src
       }
     };
-    var scriptResult = await unsafe.executeCode({
+    let scriptResult = await unsafe.executeCode({
       webext,
       name: 'download refining',
       args,
@@ -166,8 +166,8 @@ function processVideo(node) {
   // 'src' changes observer.
   // Unfortunately, we actually cannot observe 'currentSrc' changes. Still ask
   // for it, in case it become possible in the future.
-  var sourceObserver = new MutationObserver(function(mutations, observer) {
-    for (var mutation of mutations) {
+  let sourceObserver = new MutationObserver(function(mutations, observer) {
+    for (let mutation of mutations) {
       if ((mutation.attributeName == 'src') || (mutation.attributeName == 'currentSrc')) {
         processVideoSource();
         // Stop observing once we have a source url.
@@ -213,9 +213,9 @@ function processVideo(node) {
   }
 }
 
-var nodesObserver = new MutationObserver(function(mutations, observer) {
-  for (var mutation of mutations) {
-    for (var added of mutation.addedNodes) {
+let nodesObserver = new MutationObserver(function(mutations, observer) {
+  for (let mutation of mutations) {
+    for (let added of mutation.addedNodes) {
       findVideo(added);
     }
   }

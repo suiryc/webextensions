@@ -8,7 +8,7 @@ const settings = require('./settings');
 const util = require('./util');
 
 
-var app = new nativeMessaging.NativeApplication(onMessage);
+let app = new nativeMessaging.NativeApplication(onMessage);
 
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.
@@ -28,7 +28,7 @@ async function onMessage(app, msg) {
 
     default:
       // Special case: empty message is a PING.
-      var props = Object.getOwnPropertyNames(msg);
+      let props = Object.getOwnPropertyNames(msg);
       if ((props.length == 1) && msg.hasOwnProperty('correlationId')) return {};
       else return unhandledMessage(msg);
       break;
@@ -64,10 +64,10 @@ function dl_save(app, msg) {
   // of it, and usually when done all the attached processes are terminated.
   // To break out of the Job, the CREATE_BREAKAWAY_FROM_JOB CreateProcess
   // creation flag is needed, which seems possible in python but not nodejs.
-  var deferred = new util.Deferred();
+  let deferred = new util.Deferred();
   // We always ask for the WebSocket port, so that next requests can be posted
   // directly from the browser.
-  var args = ['--ws'];
+  let args = ['--ws'];
   [
     [msg.url, '--url']
     , [msg.referrer, '--http-referrer']
@@ -82,7 +82,7 @@ function dl_save(app, msg) {
     if (opt[0] !== undefined) args.push(opt[1], opt[0]);
   });
   if (msg.auto) args.push('--auto');
-  var child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
+  let child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
     detached: true,
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -108,10 +108,10 @@ function dl_save(app, msg) {
   // There is no such issue with Python 3 though.
   //
   // So we 'simply' wait for the process to exit or fail.
-  var stdout = {
+  let stdout = {
     data: Buffer.allocUnsafe(0)
   };
-  var stderr = {
+  let stderr = {
     data: Buffer.allocUnsafe(0)
   };
 
@@ -123,21 +123,21 @@ function dl_save(app, msg) {
   // Return response.
   // Note: we must properly handle being called more than once because 'error'
   // and 'exit' events may be triggered both; only the first call matters then.
-  var done = false;
+  let done = false;
   function onDone(details) {
     if (done) return;
     done = true;
     // Upon 'exit', code or signal will be null; normalize for easier handling.
     if (!details.code) details.code = 0;
     if (!details.signal) delete details.signal;
-    var response = { };
+    let response = { };
     // We consider the action failed if either:
     //  - the application wrote on stderr: (belt and suspenders) we actually
     //    only expect this to happen with a non-0 return code
     //  - return code is non-0
     //  - application was interrupted by a signal
     //  - an error happened for the child process itself
-    var error = [];
+    let error = [];
     // We really failed if either there is:
     //  - an error code
     //  - a signal
@@ -155,9 +155,10 @@ function dl_save(app, msg) {
       error.unshift('Application failed');
       response.error = error.join('\n');
     } else if (stdout.data.length) {
+      let s;
       try {
-        var s = stdout.data.toString().trim();
-        var ok = /^\d+$/.test(s);
+        s = stdout.data.toString().trim();
+        let ok = /^\d+$/.test(s);
         if (ok) {
           response.wsPort = Number(s);
           ok = !isNaN(response.wsPort);
@@ -204,10 +205,10 @@ function dl_save(app, msg) {
 }
 
 function tw_save(app, msg) {
-  var deferred = new util.Deferred();
+  let deferred = new util.Deferred();
 
   fs.writeFile(msg.path, msg.content, err => {
-    var response = { };
+    let response = { };
     if (err) response.error = err;
     deferred.resolve(response);
   });

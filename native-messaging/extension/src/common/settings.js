@@ -75,7 +75,7 @@ import * as util from './util.js';
 async function getStorageValue(key, value) {
   if (!key) return await browser.storage.local.get(null);
 
-  var keys = {};
+  let keys = {};
   keys[key] = value;
   try {
     return (await browser.storage.local.get(keys))[key];
@@ -87,7 +87,7 @@ async function getStorageValue(key, value) {
 async function setStorageValue(key, value) {
   // Note: even though setting undefined value removes it, explicitely do it.
   if ((value === undefined) || (value === null)) return await removeStorageValue(key);
-  var keys = {};
+  let keys = {};
   keys[key] = value;
   return await browser.storage.local.set(keys);
 }
@@ -100,7 +100,7 @@ class SettingsBranch {
 
   constructor(name, parent) {
     if (name) this._key = (parent && parent._key) ? `${parent._key}.${name}` : name;
-    var handler = {
+    let handler = {
       get: this.proxy_get.bind(this)
       , set: this.proxy_set.bind(this)
     };
@@ -118,7 +118,7 @@ class SettingsBranch {
     // while externally the Proxy does hide those instances to give access to
     // virtual primitive fields.
     if (property === 'inner') return target;
-    var field = target[property];
+    let field = target[property];
     if (field instanceof ExtensionSetting) return field.getValue();
     // For functions, bind 'this' to the target.
     if (typeof(field) === 'function') return field.bind(target);
@@ -126,7 +126,7 @@ class SettingsBranch {
   }
 
   proxy_set(target, property, value) {
-    var field = target[property];
+    let field = target[property];
     if (field instanceof ExtensionSetting) {
       field.setValue(value);
       return true;
@@ -176,7 +176,7 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('interceptRequests', true);
     new ExtensionIntSetting('interceptSize', 20 * 1024 * 1024);
     if (globalThis.browser && browser.webRequest) {
-      var requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
+      let requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
       new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', '', requestTypes, true);
       new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
@@ -197,9 +197,9 @@ class Settings extends SettingsBranch {
     // 'extension://<extension-internal-id>/_generated_background_page.html'
     // is created.
     // We can thus determine whether we are running in the background script.
-    var href = window.location.href;
-    var backgroundPage = browser.runtime.getManifest().background.page;
-    var isBackgroundScript = backgroundPage
+    let href = window.location.href;
+    let backgroundPage = browser.runtime.getManifest().background.page;
+    let isBackgroundScript = backgroundPage
       ? (href === browser.runtime.getManifest().background.page)
       : href.endsWith('/_generated_background_page.html')
       ;
@@ -212,7 +212,7 @@ class Settings extends SettingsBranch {
       // Other listeners will get notified of storage changes if any.
       if (isBackgroundScript) await self.migrate();
 
-      var promises = [];
+      let promises = [];
       self.forEach(setting => promises.push(setting.initValue(isBackgroundScript)));
       // Knowing the browser is sometimes useful/necessary.
       // browser.runtime.getBrowserInfo exists in Firefox >= 51
@@ -238,9 +238,9 @@ class Settings extends SettingsBranch {
 
   // Loops over declared settings, passing each one to given callback.
   forEach(cb) {
-    var self = this;
+    let self = this;
     Object.keys(self.perKey).forEach(key => {
-      var setting = self.perKey[key];
+      let setting = self.perKey[key];
       if (!(setting instanceof ExtensionSetting)) return;
       cb(setting);
     });
@@ -268,22 +268,22 @@ class Settings extends SettingsBranch {
 
   // Code to rename/drop settings keys.
   async migrateKeys(keys) {
-    for (var key of Object.keys(keys)) {
-      var newKey = keys[key];
+    for (let key of Object.keys(keys)) {
+      let newKey = keys[key];
       try {
         if (!newKey) {
           await removeStorageValue(key);
           console.log(`Deleted oldKey=<${key}>`);
           continue;
         }
-        var value = await getStorageValue(key);
+        let value = await getStorageValue(key);
         if (value === undefined) {
           console.log(`Not migrating undefined oldKey=<${key}> newKey=<${newKey}>`);
           continue;
         }
-        var newKeys = newKey;
+        let newKeys = newKey;
         if (!Array.isArray(newKeys)) newKeys = [newKeys];
-        var remove = true;
+        let remove = true;
         for (newKey of newKeys) {
           if (newKey == key) {
             // We are actually keeping the old key.
@@ -305,8 +305,8 @@ class Settings extends SettingsBranch {
     // Note: we don't refresh all settings now, because only latest version
     // settings are registered, and migration mainly deals with legacy settings
     // which we have to grab explicitely.
-    var setting = this.settingsVersion;
-    var settingsVersion = await setting.initValue();
+    let setting = this.settingsVersion;
+    let settingsVersion = await setting.initValue();
 
     // Only migrate if necessary.
     if (settingsVersion >= this.latestSettingsVersion) return;
@@ -329,7 +329,7 @@ class Settings extends SettingsBranch {
       // else: there were previous settings, we wish to migrate.
     }
 
-    for (var version=settingsVersion+1; version<=this.latestSettingsVersion; version++) {
+    for (let version=settingsVersion+1; version<=this.latestSettingsVersion; version++) {
       console.log(`Migrate settings from version=<${version-1}> to next version`);
       try {
         await this[`migrate_v${version}`]();
@@ -368,10 +368,10 @@ class ExtensionSetting {
 
     // Automatically register ourself as a setting.
     // Handle subfields recursively.
-    var target = settings.inner;
-    var keys = key.split('.');
+    let target = settings.inner;
+    let keys = key.split('.');
     while (keys.length) {
-      var leaf = keys.shift();
+      let leaf = keys.shift();
       if (keys.length) {
         // We will need to access another subfield.
         // Belt and suspenders: ensure we did not accidentally assigned a
@@ -399,7 +399,7 @@ class ExtensionSetting {
 
   // Notifies listeners.
   notifyListeners(oldValue, newValue) {
-    var self = this;
+    let self = this;
     self.listeners.forEach(listener => {
       try {
         listener(self, oldValue, newValue);
@@ -428,7 +428,7 @@ class ExtensionSetting {
   // up-to-date (e.g. it reads it) and we only need to take it into account.
   async setValue(v, updated) {
     if (v === undefined) v = this.defaultValue;
-    var oldValue = this.value;
+    let oldValue = this.value;
     // Nothing to do if value is not changed.
     if (util.deepEqual(v, oldValue)) return;
     // Update value.
@@ -455,8 +455,8 @@ class ExtensionSetting {
   // Tracks associated field.
   // Retrieves the field from the document, and refreshes its value.
   trackField() {
-    var self = this;
-    var field = self.field = document.getElementById(self.key);
+    let self = this;
+    let field = self.field = document.getElementById(self.key);
     if (!field) return false;
 
     // Setup field:
@@ -470,7 +470,7 @@ class ExtensionSetting {
     // without us having to explicitely take care of it (e.g. by scheduling
     // value change after some time).
     field.addEventListener('change', () => self.validateField(true));
-    var fieldType = (field.type || field.tagName).toLowerCase();
+    let fieldType = (field.type || field.tagName).toLowerCase();
     if (fieldType =='checkbox') {
       self.getFieldValue = function() { return this.field.checked; }
     } else if ((fieldType == 'text') || (fieldType == 'textarea')) {
@@ -492,7 +492,7 @@ class ExtensionSetting {
   // When requested, setting value is only changed if valid.
   validateField(update) {
     try {
-      var v = this.validateValue(this.getFieldValue());
+      let v = this.validateValue(this.getFieldValue());
       if (update) this.setValue(v);
       this.field.removeAttribute('title');
       this.field.classList.toggle('field-error', false);
@@ -517,7 +517,7 @@ class ExtensionSetting {
     // anything (and initializing the value is part of this).
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
-    var value = await getStorageValue(this.key);
+    let value = await getStorageValue(this.key);
     if (isBackgroundScript && (value !== undefined) && (util.deepEqual(value, this.defaultValue))) {
       // The storage contains this setting with default value: remove it.
       // (only do it once, from background script)
@@ -531,7 +531,7 @@ class ExtensionSetting {
 
   // Persists the setting value.
   persistValue() {
-    var value = this.value;
+    let value = this.value;
     if (util.deepEqual(value, this.defaultValue)) value = undefined;
     return setStorageValue(this.key, value);
   }
@@ -563,7 +563,7 @@ class ExtensionIntSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    var f = parseFloat(v);
+    let f = parseFloat(v);
     if (isNaN(v) || !Number.isInteger(f)) throw new Error('Not an integer value');
     return f;
   }
@@ -586,7 +586,7 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    var self = this;
+    let self = this;
     if (self.getValues(v).some(v => !self.allowed.has(v))) throw new Error(`Allowed values: ${[...self.allowed].join(', ')}`);
     return v;
   }
@@ -602,7 +602,7 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
 
 // Manages a script (string) setting.
 // 'Hide' Function usage to limit code inspection warnings.
-var _fn = Function;
+let _fn = Function;
 class ExtensionScriptSetting extends ExtensionSetting {
 
   constructor(key, value) {
@@ -610,7 +610,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   updateField() {
-    var value = this.getValue();
+    let value = this.getValue();
     if (!value) this.field.value = '';
     else this.field.value = value;
   }
@@ -623,10 +623,10 @@ class ExtensionScriptSetting extends ExtensionSetting {
 }
 
 // The settings.
-export var settings = new Settings().proxy;
+export let settings = new Settings().proxy;
 settings.registerSettings();
 
-export var browserInfo = {};
+export let browserInfo = {};
 
 // Tracks all fields.
 export function trackFields() {
@@ -637,8 +637,8 @@ export function trackFields() {
 // Note: check 'browser' exists (unit tests don't have it).
 if (globalThis.browser) browser.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  for (var key of Object.keys(changes)) {
-    var setting = settings.inner.perKey[key];
+  for (let key of Object.keys(changes)) {
+    let setting = settings.inner.perKey[key];
     if (!(setting instanceof ExtensionSetting)) return;
     setting.setValue(changes[key].newValue, true);
   }

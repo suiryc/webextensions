@@ -54,15 +54,15 @@ export class VideoSourceNamer {
 
   refreshName() {
     // Use 'mp4' as default extension if none could be determined.
-    var { name, extension } = util.getFilenameExtension(this.filename, 'mp4');
+    let { name, extension } = util.getFilenameExtension(this.filename, 'mp4');
     this.name = name;
     this.extension = extension;
     this.refreshFilename();
   }
 
   async refine() {
-    var source = this.videoSource;
-    var scriptParams = {
+    let source = this.videoSource;
+    let scriptParams = {
       params: {
         videoSource: source,
         namer: this
@@ -85,9 +85,9 @@ export class VideoSourceNamer {
     params = params || {};
     if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
     this.getTitleSeparators(params).forEach(sep => {
-      var idx = this.title.indexOf(sep);
+      let idx = this.title.indexOf(sep);
       if (idx < 0) return;
-      var start = this.title.slice(0, idx).trim();
+      let start = this.title.slice(0, idx).trim();
       if (params.withoutSpaces) start = start.replaceAll(/\s+/g, '');
       if (start.localeCompare(str, undefined, {sensitivity: 'base'})) return;
       this.title = this.title.slice(idx + sep.length).trim();
@@ -97,7 +97,7 @@ export class VideoSourceNamer {
   titleStripStartPartRegexp(regexp, params) {
     params = params || {};
     this.getTitleSeparators(params).forEach(sep => {
-      var idx = this.title.indexOf(sep);
+      let idx = this.title.indexOf(sep);
       if (idx < 0) return;
       if (!regexp.test(this.title.slice(0, idx).trim())) return;
       this.title = this.title.slice(idx + sep.length).trim();
@@ -108,9 +108,9 @@ export class VideoSourceNamer {
     params = params || {};
     if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
     this.getTitleSeparators(params).forEach(sep => {
-      var idx = this.title.lastIndexOf(sep);
+      let idx = this.title.lastIndexOf(sep);
       if (idx < 0) return;
-      var end = this.title.slice(idx + sep.length).trim();
+      let end = this.title.slice(idx + sep.length).trim();
       if (params.withoutSpaces) end = end.replaceAll(/\s+/g, '');
       if (end.localeCompare(str, undefined, {sensitivity: 'base'})) return;
       this.title = this.title.slice(0, idx).trim();
@@ -120,7 +120,7 @@ export class VideoSourceNamer {
   titleStripEndPartRegexp(regexp, params) {
     params = params || {};
     this.getTitleSeparators(params).forEach(sep => {
-      var idx = this.title.lastIndexOf(sep);
+      let idx = this.title.lastIndexOf(sep);
       if (idx < 0) return;
       if (!regexp.test(this.title.slice(idx + sep.length).trim())) return;
       this.title = this.title.slice(0, idx).trim();
@@ -129,11 +129,11 @@ export class VideoSourceNamer {
 
   titleStripRegexp(regexp, params) {
     params = params || {};
-    var matches = this.title.match(regexp);
+    let matches = this.title.match(regexp);
     if (matches) {
-      var idx = this.title.indexOf(matches[0]);
-      var title = this.title.substring(0, idx).trim();
-      for (var captured of matches.slice(1)) {
+      let idx = this.title.indexOf(matches[0]);
+      let title = this.title.substring(0, idx).trim();
+      for (let captured of matches.slice(1)) {
         title += ` ${captured.trim()}`;
       }
       title += ` ${this.title.substring(idx + matches[0].length).trim()}`;
@@ -150,7 +150,7 @@ export class VideoSourceNamer {
     //  - the last 3 levels (e.g.: www.sitename.tld)
     //  - the last 2 levels (e.g.: sitename.tld)
     //  - the main domain (e.g.: sitename)
-    var host = this.videoSource.tabSite.nameParts.slice(-3);
+    let host = this.videoSource.tabSite.nameParts.slice(-3);
     if (host.length > 2) {
       this.titleStripStartPart(host.join('.'), params);
       this.titleStripEndPart(host.join('.'), params);
@@ -163,7 +163,7 @@ export class VideoSourceNamer {
       this.titleStripStartPart(host.join('.'), params);
       this.titleStripEndPart(host.join('.'), params);
     }
-    for (var name of (params.names || [])) {
+    for (let name of (params.names || [])) {
       this.titleStripStartPart(name, params);
       this.titleStripEndPart(name, params);
     }
@@ -198,7 +198,7 @@ export class VideoSource {
 
     // Get defaults values to pass to notif, if any.
     this.notifDefaults = {};
-    for (var key of ['windowId', 'tabId', 'frameId']) {
+    for (let key of ['windowId', 'tabId', 'frameId']) {
       this.notifDefaults[key] = details[key];
     }
     util.cleanupFields(this.notifDefaults);
@@ -240,7 +240,7 @@ export class VideoSource {
   }
 
   addUrls(urls) {
-    for (var url of urls) {
+    for (let url of urls) {
       this.addUrl(url);
     }
   }
@@ -285,10 +285,10 @@ export class VideoSource {
 
   merge(from) {
     // Get our missing fields if any.
-    for (var field of ['cookie', 'etag']) {
+    for (let field of ['cookie', 'etag']) {
       this.mergeField(field, from, false);
     }
-    for (var field of ['filename', 'size']) {
+    for (let field of ['filename', 'size']) {
       this.mergeField(field, from, true);
     }
 
@@ -302,8 +302,8 @@ export class VideoSource {
   }
 
   getFilenameRefining() {
-    var self = this;
-    var setting = settings.video.filenameRefining;
+    let self = this;
+    let setting = settings.video.filenameRefining;
     return self.tabHandler.extensionProperties.get({
       key: setting.getKey(),
       create: tabHandler => new unsafe.CodeExecutor({
@@ -319,15 +319,14 @@ export class VideoSource {
   async refresh(menuHandler) {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
-    var changes = false;
 
     if (!this.tabSite) this.tabSite = util.parseSiteUrl(this.tabUrl);
     if (!this.downloadSite) this.downloadSite = util.parseSiteUrl(this.getUrl());
 
-    var namer = new VideoSourceNamer(this);
+    let namer = new VideoSourceNamer(this);
     await namer.refine();
-    var {name, extension, filename} = namer;
-    var downloadFile = {
+    let {name, extension, filename} = namer;
+    let downloadFile = {
       name,
       extension,
       filename
@@ -335,7 +334,7 @@ export class VideoSource {
     // Detect changes in filename.
     // Note: upon first call, refined name is saved; on next calls (e.g. URL
     // redirection detected) we do check whether refined name did change.
-    var changes = !util.deepEqual(this.downloadFile, downloadFile);
+    let changes = !util.deepEqual(this.downloadFile, downloadFile);
     this.downloadFile = downloadFile;
 
     // Update determined download info.
@@ -362,7 +361,7 @@ export class VideoSource {
     // Determine menu title.
     // We will prefix the download size and extension if possible.
     // The rest of the title will be the file name (without extension).
-    var title = '';
+    let title = '';
     // Format size if known.
     if ('size' in this) title = util.getSizeText(this.size);
     // Don't show filename extension in title prefix if too long.
@@ -406,7 +405,7 @@ export class VideoSource {
   // entry is clicked. Only values like 'title' needs to be refreshed when
   // the source is updated.
   async addMenuEntry(menuHandler) {
-    var self = this;
+    let self = this;
     // Nothing to do if already done.
     if (self.menuEntryId) return;
     self.menuEntryId = await menuHandler.addEntry({
@@ -487,7 +486,7 @@ class VideoSourceTabHandler {
   async tabUpdated(details) {
     if (details.tabChanges.url) this.tabReset({sameUrl: false});
     if (details.tabChanges.title) {
-      for (var source of this.sources) {
+      for (let source of this.sources) {
         source.setTabTitle(details.tabChanges.title);
         await source.refresh(this.menuHandler);
         this.updateVideos();
@@ -510,7 +509,7 @@ class VideoSourceTabHandler {
   janitorBuffered(url, buffered, remove) {
     if (util.getTimestamp() - buffered.timeStamp < constants.REQUESTS_TTL) return false;
     if (settings.debug.video) {
-      for (var b of buffered.buffer) {
+      for (let b of buffered.buffer) {
         console.log('Dropping buffered request=<%o> response=<%o>: TTL reached', b.request, b.response);
       }
     }
@@ -523,13 +522,13 @@ class VideoSourceTabHandler {
   // Remove entry if requested.
   // Does passive janitoring on entries.
   getBufferedRequests(url, remove) {
-    var buffered = this.bufferedRequests[url];
+    let buffered = this.bufferedRequests[url];
     if (!buffered) {
       if (remove) return;
       // Search url in known buffers, as it may be a redirection.
       // Reminder: we can reuse 'buffered', but *NOT* 'url' when looping over
       // entries, as the passed 'url' is needed afterwards.
-      for (var [key, buffered] of Object.entries(this.bufferedRequests)) {
+      for (let [key, buffered] of Object.entries(this.bufferedRequests)) {
         if (this.janitorBuffered(key, buffered, true)) continue;
         if (buffered.hasUrl(url)) return buffered;
       }
@@ -546,25 +545,25 @@ class VideoSourceTabHandler {
   }
 
   ignoreUrls(urls) {
-    for (var url of urls) {
+    for (let url of urls) {
       this.ignoreUrl(url);
     }
   }
 
   async addMenuEntries() {
-    for (var source of this.sources) {
+    for (let source of this.sources) {
       await source.addMenuEntry(this.menuHandler);
     }
   }
 
   async removeMenuEntries() {
-    for (var source of this.sources) {
+    for (let source of this.sources) {
       await source.removeMenuEntry(this.menuHandler);
     }
   }
 
   findSource(url) {
-    for (var source of this.sources) {
+    for (let source of this.sources) {
       if (source.hasUrl(url)) return source;
     }
   }
@@ -573,7 +572,7 @@ class VideoSourceTabHandler {
   mergeSources(source) {
     this.sources = this.sources.filter(other => {
       if (other === source) return true;
-      var matches = source.matches(other);
+      let matches = source.matches(other);
       if (matches) {
         if (settings.debug.video) console.log('Merging old source=<%o> into=<%o>: Match on %s', other, source, matches);
         source.merge(other);
@@ -585,9 +584,9 @@ class VideoSourceTabHandler {
   }
 
   async addSource(details) {
-    var tabId = details.tabId;
-    var frameId = details.frameId;
-    var url = details.url;
+    let tabId = details.tabId;
+    let frameId = details.frameId;
+    let url = details.url;
 
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
@@ -595,7 +594,7 @@ class VideoSourceTabHandler {
     // Ignore already known source.
     if (this.findSource(url)) return;
 
-    var tabHandler = this.tabHandler;
+    let tabHandler = this.tabHandler;
     // Note: 'ignoreDownload' takes care of buffered requests if any.
 
     // Ensure we received a message from the current tab: either sender as been
@@ -605,18 +604,18 @@ class VideoSourceTabHandler {
     // Ignore urls that we can't download.
     if (!http.canDownload(url)) return this.ignoreDownload(details, 'URL not handled');
     // Ignore apparent content types that we don't want to download.
-    var contentType = new http.ContentType();
+    let contentType = new http.ContentType();
     contentType.guess(util.getFilename(url));
-    var reason = checkVideoContentType(contentType);
+    let reason = checkVideoContentType(contentType);
     if (reason) return this.ignoreDownload(details, reason);
 
     if (settings.debug.video) console.log('Adding tab=<%s> frame=<%s> video url=<%s>', tabId, frameId, url);
     details.tabTitle = tabHandler.title;
-    var source = new VideoSource(this, details);
+    let source = new VideoSource(this, details);
     this.sources.push(source);
 
     // Process buffered requests.
-    var buffered = this.getBufferedRequests(url, true);
+    let buffered = this.getBufferedRequests(url, true);
     if (buffered) await buffered.replay(this);
 
     // Refresh source, then when applicable add menu entry and trigger videos
@@ -627,11 +626,11 @@ class VideoSourceTabHandler {
   }
 
   async onRequest(request) {
-    var url = request.url;
+    let url = request.url;
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
 
-    var source = this.findSource(url);
+    let source = this.findSource(url);
     if (!source) {
       this.getBufferedRequests(url).addRequest(request);
       return;
@@ -640,16 +639,16 @@ class VideoSourceTabHandler {
     source.seenRequest = true;
 
     // Extract useful request details.
-    var cookie = http.findHeaderValue(request.requestHeaders, 'Cookie');
+    let cookie = http.findHeaderValue(request.requestHeaders, 'Cookie');
     if (cookie) source.cookie = cookie;
-    var userAgent = http.findHeaderValue(request.requestHeaders, 'User-Agent');
+    let userAgent = http.findHeaderValue(request.requestHeaders, 'User-Agent');
     if (userAgent) source.userAgent = userAgent;
   }
 
   async onResponse(response) {
-    var url = response.url;
-    var location;
-    var statusCode = response.statusCode;
+    let url = response.url;
+    let location;
+    let statusCode = response.statusCode;
 
     // Extract redirected url when applicable.
     // Note: even though it should have no meaning/purpose in our case, url may
@@ -664,7 +663,7 @@ class VideoSourceTabHandler {
       return;
     }
 
-    var source = this.findSource(url);
+    let source = this.findSource(url);
     if (!source) {
       this.getBufferedRequests(url).addResponse(response, location);
       return;
@@ -691,7 +690,7 @@ class VideoSourceTabHandler {
     }
     source.setCompleted();
 
-    var requestDetails = new http.RequestDetails(response);
+    let requestDetails = new http.RequestDetails(response);
     requestDetails.parseResponse();
     // Keep filename if given.
     source.setFilename(requestDetails.filename);
@@ -701,7 +700,7 @@ class VideoSourceTabHandler {
     requestDetails.contentType.guess(util.getFilename(source.getUrl(), source.filename), true);
     // Retrieved/actual information may differ from original ones. Check again
     // and ignore content types we don't want to download.
-    var reason = checkVideoContentType(requestDetails.contentType);
+    let reason = checkVideoContentType(requestDetails.contentType);
     if (reason) return this.ignoreDownload(source, response, reason);
 
     // Keep ETag if any.
@@ -719,23 +718,24 @@ class VideoSourceTabHandler {
   // http response contain the information we need, so that caller can pass
   // either one.
   ignoreDownload() {
-    var args = [...arguments];
-    if (args[0] instanceof VideoSource) var [source, details, reason] = args;
-    else var [details, reason] = args;
+    let args = [...arguments];
+    let source, details, reason;
+    if (args[0] instanceof VideoSource) [source, details, reason] = args;
+    else [details, reason] = args;
 
     if (source) this.ignoreUrls(source.getUrls());
     else {
       this.ignoreUrl(details.url);
       // Also drop buffered requests if any, and ignore associated urls: useful
       // when we already received redirection responses.
-      var buffered = this.getBufferedRequests(details.url, true);
+      let buffered = this.getBufferedRequests(details.url, true);
       if (buffered) this.ignoreUrls(buffered.getUrls());
     }
     if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> video url=<%s>: %s', details.tabId, details.frameId, details.url, reason);
   }
 
   updateVideos() {
-    var observer = this.parent.observer;
+    let observer = this.parent.observer;
     if (!observer) return;
     observer.videosUpdated({
       tabHandler: this.tabHandler,
@@ -759,7 +759,7 @@ const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
 export class VideoSourceHandler {
 
   constructor(webext, tabsHandler, menuHandler) {
-    var self = this;
+    let self = this;
     self.webext = webext;
     self.tabsHandler = tabsHandler;
     self.menuHandler = menuHandler;
@@ -783,7 +783,7 @@ export class VideoSourceHandler {
   }
 
   getBufferedRequests(tabId, frameId, remove) {
-    var buffered = this.bufferedRequests[tabId];
+    let buffered = this.bufferedRequests[tabId];
     if (!buffered) {
       if (remove) return;
       buffered = this.bufferedRequests[tabId] = {};
@@ -798,10 +798,10 @@ export class VideoSourceHandler {
   }
 
   getTabHandler(details, create) {
-    var self = this;
-    var frameHandler = self.tabsHandler.getFrame(details);
+    let self = this;
+    let frameHandler = self.tabsHandler.getFrame(details);
     if (!frameHandler) return {};
-    var handler = frameHandler.tabHandler.extensionProperties.get({
+    let handler = frameHandler.tabHandler.extensionProperties.get({
       key: TAB_EXTENSION_PROPERTY,
       create: create ? (tabHandler => new VideoSourceTabHandler(self, tabHandler)) : undefined,
       keepOnReset: true
@@ -816,7 +816,7 @@ export class VideoSourceHandler {
     if (!sources) {
       tabHandler = tabHandler || this.tabsHandler.focusedTab.handler;
       if (!tabHandler) return [];
-      var handler = tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      let handler = tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (!handler) return [];
       sources = handler.sources;
     }
@@ -837,7 +837,7 @@ export class VideoSourceHandler {
     // If we receive a source, it means the content script is running, and thus
     // this tab/frame *should* be known. If it isn't, we can only assume the
     // tab/frame did change after the information was sent.
-    var { handler, frameUrl } = this.getTabHandler(details, true);
+    let { handler, frameUrl } = this.getTabHandler(details, true);
     if (!handler) {
       // Note: this is the only time we log the csUuid.
       // If we found the frame, then the csUuid matches, and there is no more
@@ -852,9 +852,9 @@ export class VideoSourceHandler {
 
   setupInterception() {
     // Check whether we now need to intercept anything
-    var interceptVideo = settings.video.intercept;
+    let interceptVideo = settings.video.intercept;
     // Determine whether we were listening.
-    var interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
+    let interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
     // Add/remove listeners as requested.
     if (interceptVideo && !interceptingVideo) {
       if (settings.debug.video) console.log('Installing video webRequest interception');
@@ -864,7 +864,7 @@ export class VideoSourceHandler {
       // 'embed' elements can indeed include video, for which requests are
       // typed as 'object' instead fo 'media'.
       // Example: https://developer.mozilla.org/fr/docs/Web/HTML/Element/embed
-      var webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object'] };
+      let webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,
         webRequestFilter,
@@ -889,9 +889,9 @@ export class VideoSourceHandler {
   async onRequest(request) {
     // Normalize url.
     request.url = util.normalizeUrl(request.url, settings.debug.video, 'request');
-    var tabId = request.tabId;
-    var frameId = request.frameId;
-    var { handler } = this.getTabHandler({
+    let tabId = request.tabId;
+    let frameId = request.frameId;
+    let { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -906,9 +906,9 @@ export class VideoSourceHandler {
   async onResponse(response) {
     // Normalize url.
     response.url = util.normalizeUrl(response.url, settings.debug.video, 'response');
-    var tabId = response.tabId;
-    var frameId = response.frameId;
-    var { handler } = this.getTabHandler({
+    let tabId = response.tabId;
+    let frameId = response.frameId;
+    let { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -923,10 +923,10 @@ export class VideoSourceHandler {
   // Tab/frame observer
 
   tabUpdated(details) {
-    var self = this;
-    var tabId = details.tabId;
-    var frameId = details.frameId;
-    var { handler } = this.getTabHandler({
+    let self = this;
+    let tabId = details.tabId;
+    let frameId = details.frameId;
+    let { handler } = this.getTabHandler({
       tabId: details.tabId,
       frameId: 0
     }, false);
@@ -939,19 +939,19 @@ export class VideoSourceHandler {
     // loaded. As a precaution, only take into account reset when frame is
     // about to change.
     if (!details.beforeNavigate) return;
-    var { handler } = this.getTabHandler(details, false);
+    let { handler } = this.getTabHandler(details, false);
     if (!handler) return;
     handler.tabReset(details);
   }
 
   async frameAdded(details) {
-    var tabId = details.tabId;
-    var frameId = details.frameId;
-    var buffered = this.getBufferedRequests(tabId, frameId, true);
+    let tabId = details.tabId;
+    let frameId = details.frameId;
+    let buffered = this.getBufferedRequests(tabId, frameId, true);
     if (!buffered) return;
     // Process buffered requests.
     // Belt and suspenders: ensure we do know the frame now.
-    var { handler } = this.getTabHandler({
+    let { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -964,12 +964,12 @@ export class VideoSourceHandler {
   }
 
   async tabRemoved(details) {
-    var self = this;
+    let self = this;
 
     // To ensure we do remove menu entries even when closing the active tab,
     // to it in both situations if possible (tab handler known).
     if (details.tabHandler) {
-      var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      let handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) await handler.removeMenuEntries();
     }
 
@@ -981,7 +981,7 @@ export class VideoSourceHandler {
   }
 
   frameRemoved(details) {
-    var self = this;
+    let self = this;
     // As a precaution, wait a bit before clearing buffered requests, in case
     // we still receive some in parallel.
     setTimeout(() => {
@@ -994,13 +994,13 @@ export class VideoSourceHandler {
     // We still need to (re)apply the newly focused tab, because at the previous
     // change the handler may have been not known yet.
     if ((details.previousTabId !== details.tabId) && details.previousTabHandler) {
-      var handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      let handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) await handler.removeMenuEntries();
     }
 
     // Add entries of new focused tab.
     if (!details.tabHandler) return;
-    var handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+    let handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
     if (handler) await handler.addMenuEntries();
   }
 
@@ -1045,10 +1045,10 @@ class RequestBuffer {
     // request with missing response.
     // Search from end of array, as we expect request to be nearer from end
     // than beginning.
-    var requestId = response.requestId;
-    var idx = this.buffer.length - 1;
+    let requestId = response.requestId;
+    let idx = this.buffer.length - 1;
     while (idx > 0) {
-      var buffered = this.buffer[idx];
+      let buffered = this.buffer[idx];
       if (buffered.request && (buffered.request.requestId == requestId)) {
         // We may receive responses without request when extension is starting.
         if (buffered.response) break;
@@ -1065,12 +1065,12 @@ class RequestBuffer {
   async replay(target) {
     // Caller is not expected to reuse us, but in case: clear us, so that adding
     // requests don't interfere with our replaying.
-    var buffer = this.buffer;
+    let buffer = this.buffer;
     this.clear();
     target.replaying = true;
     try {
-      for (var buffered of buffer) {
-        var request = buffered.request;
+      for (let buffered of buffer) {
+        let request = buffered.request;
         if (request) {
           try {
             await target.onRequest(request);
@@ -1078,7 +1078,7 @@ class RequestBuffer {
             console.log('Failed to replay request=<%o>: %o', request, error);
           }
         }
-        var response = buffered.response;
+        let response = buffered.response;
         if (response) {
           try {
             await target.onResponse(response);

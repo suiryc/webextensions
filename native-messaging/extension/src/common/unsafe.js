@@ -6,12 +6,12 @@ import * as unsafe from './unsafe.js';
 
 
 // 'Hide' Function usage to limit code inspection warnings.
-var _fn = Function;
+let _fn = Function;
 
 export class CodeExecutor {
 
   constructor(params) {
-    var self = this;
+    let self = this;
     self.webext = params.webext;
     self.notifDefaults = params.notifDefaults;
     self.scriptName = params.name;
@@ -24,7 +24,7 @@ export class CodeExecutor {
     // We should have been given a setting, or setting branch.
     // We will listen to setting changes, unless code is expected to be executed
     // only once (caller should do it right after the instance is built).
-    var setting = params.setting;
+    let setting = params.setting;
     if (setting.addListener) {
       // This is a setting: setup script and listen to changes.
       if (!params.once) setting.addListener(() => {
@@ -42,7 +42,7 @@ export class CodeExecutor {
       });
       return;
     }
-    var enabled = setting.inner.enabled;
+    let enabled = setting.inner.enabled;
     if (enabled) {
       // Setting that can switch on/off script.
       if (!params.once) enabled.addListener(() => {
@@ -75,8 +75,8 @@ export class CodeExecutor {
 
   async execute(args) {
     if (!this.f) return {};
-    var argValues = [];
-    var notif = this.getNotif();
+    let argValues = [];
+    let notif = this.getNotif();
     args = Object.assign({
       http,
       notif,
@@ -84,11 +84,11 @@ export class CodeExecutor {
       util,
       webext: this.webext
     }, args);
-    for (var arg of this.argNames) {
+    for (let arg of this.argNames) {
       argValues.push(args[arg]);
     }
     try {
-      var r = await Promise.resolve(this.f.apply(null, argValues));
+      let r = await Promise.resolve(this.f.apply(null, argValues));
       return r || {};
     } catch (error) {
       notif.error({
@@ -107,6 +107,6 @@ export class CodeExecutor {
 
 // Executes script code.
 export async function executeCode(params) {
-  var executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
+  let executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
   return await executor.execute(params.args);
 }

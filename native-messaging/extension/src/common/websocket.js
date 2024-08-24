@@ -55,9 +55,9 @@ export class WebSocketClient {
   }
 
   postRequest(msg, timeout) {
-    var self = this;
+    let self = this;
     // Get a unique - non-used - id
-    var correlationId;
+    let correlationId;
     do {
       correlationId = util.uuidv4();
     } while(self.requests[correlationId]);
@@ -68,7 +68,7 @@ export class WebSocketClient {
 
     // Setup response handling
     if (!timeout) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
-    var promise = new util.Deferred().promise;
+    let promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
     return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
@@ -85,9 +85,9 @@ export class WebSocketClient {
     // Code 1000 is used when *we* request disconnection.
     if (event.code === 1000) return;
     delete(this.ws);
-    var msg = `WebSocket closed with code=<${event.code}> reason=<${event.reason}> clean=<${event.wasClean}>`;
+    let msg = `WebSocket closed with code=<${event.code}> reason=<${event.reason}> clean=<${event.wasClean}>`;
     console.error(msg);
-    for (var promise of Object.values(this.requests)) {
+    for (let promise of Object.values(this.requests)) {
       promise.reject(msg);
     }
     this.requests = {};
@@ -100,16 +100,17 @@ export class WebSocketClient {
 
   onMessage(message) {
     // message.data is the actual content
+    let msg;
     try {
-      var msg = JSON.parse(message.data);
+      msg = JSON.parse(message.data);
     } catch (error) {
       console.error('Failed to parse WebSocket message %o: %o', message, error);
       return;
     }
-    var correlationId = msg.correlationId;
-    var orphan = true;
+    let correlationId = msg.correlationId;
+    let orphan = true;
     if (correlationId) {
-      var promise = this.requests[correlationId];
+      let promise = this.requests[correlationId];
       if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.

@@ -76,7 +76,7 @@ describe('util', function() {
     });
 
     it('should detect resursive object', function() {
-      var a = {};
+      let a = {};
       a.b = {};
       a.b.c = {};
       a.b.c.d = a;
@@ -140,9 +140,9 @@ describe('util', function() {
     });
 
     it('should handle functions', function() {
-      var f1 = () => {};
-      var f2 = () => {};
-      var f3 = function () {};
+      let f1 = () => {};
+      let f2 = () => {};
+      let f3 = function () {};
 
       assert.equal(util.deepEqual(f1, f1), true);
       assert.equal(util.deepEqual(f2, f2), true);
@@ -182,7 +182,7 @@ describe('util', function() {
   describe('cleanupFields', function() {
 
     it('should remove undefined and null fields', function() {
-      var obj = {
+      let obj = {
         a: 0,
         b: '',
         c: false,
@@ -191,7 +191,7 @@ describe('util', function() {
         f: {},
         g: []
       };
-      var expected = {
+      let expected = {
         a: 0,
         b: '',
         c: false,
@@ -224,7 +224,7 @@ describe('util', function() {
   describe('parseSiteUrl', function() {
 
     it('should handle full URL', function() {
-      var url = 'https://www.sitename.tld/path/subpath/file.ext?param=value#fragment';
+      let url = 'https://www.sitename.tld/path/subpath/file.ext?param=value#fragment';
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
@@ -238,7 +238,7 @@ describe('util', function() {
     });
 
     it('should handle minimal URL', function() {
-      var url = 'https://sitename';
+      let url = 'https://sitename';
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
@@ -252,7 +252,7 @@ describe('util', function() {
     });
 
     it('should handle an URL object', function() {
-      var url = new URL('https://www.sitename.tld/path/subpath/file.ext?param=value#fragment');
+      let url = new URL('https://www.sitename.tld/path/subpath/file.ext?param=value#fragment');
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {

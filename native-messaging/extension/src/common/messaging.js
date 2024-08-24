@@ -60,7 +60,7 @@ export class WebExtension {
       key: `notif.${source}`,
       tabId: (defaults || {}).tabId,
       create: webext => {
-        var notif = {};
+        let notif = {};
         ['info', 'warn', 'error'].forEach(level => {
           notif[level] = function(details, error) {
             // Prepare details.
@@ -81,9 +81,9 @@ export class WebExtension {
     // it is sent back to the sender; when it returns a value, the sender gets
     // an empty response.
     // Port.onMessage listener properly transmits any returned value/Promise.
-    var actualSender = sender;
+    let actualSender = sender;
     // If the sender is a Port, get the real sender field.
-    var isPort = !!sender.sender;
+    let isPort = !!sender.sender;
     if (isPort) actualSender = sender.sender;
     // Ignore message when applicable.
     if (!this.isTarget(msg)) {
@@ -98,8 +98,8 @@ export class WebExtension {
     // frame information and the sender is a tab, we can see whether the frame
     // matches a current one.
     if (this.isBackground && actualSender.tab && this.params.tabsHandler && msg.sender) {
-      var tab = actualSender.tab;
-      var frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
+      let tab = actualSender.tab;
+      let frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
       msg.sender.live = frameHandler && (frameHandler.url == msg.sender.frame.url);
       // Note:
       // Sometimes the sender tab url reported by the browser is not up-to-date.
@@ -116,8 +116,8 @@ export class WebExtension {
         });
 
       case constants.KIND_REGISTER_PORT:
-        var handler = this.registerPort(sender, msg.name);
-        var tab = actualSender.tab;
+        let handler = this.registerPort(sender, msg.name);
+        let tab = actualSender.tab;
         if (!tab || !this.params.tabsHandler) return;
         // Hand over frame information to the tabs handler, which will check
         // whether this is a brand new one or is already known.
@@ -139,7 +139,7 @@ export class WebExtension {
         util.callMethod(this.params.tabsEventsObserver, msg.event.kind, msg.event.args);
         return;
     }
-    var r;
+    let r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
     // This is also needed so that the response content (if not a Promise) is
     // properly transmitted to the sender in all cases.
@@ -175,7 +175,7 @@ export class WebExtension {
 
   registerPort(port, target) {
     // Create the handler the first time.
-    var handler = this.ports.get(port);
+    let handler = this.ports.get(port);
     if (!handler) {
       handler = new PortHandler(this, {
         onMessage: this.onMessage.bind(this),
@@ -188,7 +188,7 @@ export class WebExtension {
     // should send).
     handler.params.target = target;
     if (!target) return handler;
-    var targets = this.targets[target] || [];
+    let targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
     return handler;
@@ -196,12 +196,12 @@ export class WebExtension {
 
   unregisterPort(port, handler) {
     this.unregisterTabsEvents(handler);
-    var target = handler.params.target;
+    let target = handler.params.target;
     // Note: explicitly delete because if we don't know the target, we have
     // nothing else to do; and we don't want to keep the weak reference either.
     this.ports.delete(port);
     if (!target) return;
-    var targets = this.targets[target];
+    let targets = this.targets[target];
     // Belt and suspenders: we should know this target.
     if (!targets) return;
     targets = targets.filter(v => v !== handler);
@@ -210,11 +210,11 @@ export class WebExtension {
   }
 
   registerTabsEvents(port, events) {
-    var self = this;
+    let self = this;
     if (!events) return;
-    var handler = self.ports.get(port);
+    let handler = self.ports.get(port);
     if (!handler) return;
-    var setup = !self.tabsEventsTargets;
+    let setup = !self.tabsEventsTargets;
     if (setup) {
       self.tabsEventsTargets = {};
       constants.EVENTS_TABS.forEach(key => {
@@ -223,33 +223,33 @@ export class WebExtension {
     }
     self.unregisterTabsEvents(handler);
     handler.params.tabsEvents = events || [];
-    for (var key of handler.params.tabsEvents) {
+    for (let key of handler.params.tabsEvents) {
       self.tabsEventsTargets[key].add(handler);
     }
     self.observeTabsEvents(port, setup ? undefined : events);
   }
 
   unregisterTabsEvents(handler) {
-    for (var key of (handler.params.tabsEvents || [])) {
+    for (let key of (handler.params.tabsEvents || [])) {
       this.tabsEventsTargets[key].delete(handler);
     }
   }
 
   observeTabsEvents(observer, events) {
-    var self = this;
-    var tabsHandler = self.params.tabsHandler;
+    let self = this;
+    let tabsHandler = self.params.tabsHandler;
 
     if (tabsHandler) {
       // The tabs handler should be defined for the background script.
       // Post tabs events to observers.
       if (!events) {
         // Setup common proxy observer for the first actual observer.
-        var dummyObserver = {};
+        let dummyObserver = {};
         constants.EVENTS_TABS.forEach(key => {
           dummyObserver[key] = function() {
-            var msg;
+            let msg;
             // Use arrow function so that 'arguments' is the parent one.
-            var getMsg = () => {
+            let getMsg = () => {
               if (msg) return msg;
               msg = {
                 kind: constants.KIND_TABS_EVENT,
@@ -270,7 +270,7 @@ export class WebExtension {
         // For next observers, create a one-shot proxy observer to trigger
         // initial events. The next events will be proxyied by the common
         // proxy observer.
-        var dummyObserver = {};
+        let dummyObserver = {};
         events.forEach(key => {
           dummyObserver[key] = function() {
             observer.postMessage({
@@ -294,7 +294,7 @@ export class WebExtension {
     // Register us, and pass events to the actual observer.
     // We automatically determine events that are handled.
     if (observer) {
-      var events = new Set();
+      let events = new Set();
       constants.EVENTS_TABS.forEach(key => {
         if (util.hasMethod(observer, key)) events.add(key);
       });
@@ -329,9 +329,9 @@ export class WebExtension {
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
     if (this.targets && msg.target) {
-      var ports = this.targets[msg.target] || [];
-      var promises = [];
-      for (var port of ports) {
+      let ports = this.targets[msg.target] || [];
+      let promises = [];
+      for (let port of ports) {
         promises.push(port.postRequest(msg));
       }
       // Message actually sent to self.
@@ -344,7 +344,7 @@ export class WebExtension {
     // should not be needed/useful, as only non-background scripts do use Ports,
     // and if remote endpoint disconnects, it should mean it is not running
     // anymore.
-    var usePort = this.portHandler && this.portHandler.isConnected();
+    let usePort = this.portHandler && this.portHandler.isConnected();
     if (usePort) return this.portHandler.postRequest(msg);
     return browser.runtime.sendMessage(msg);
   }
@@ -395,7 +395,7 @@ class PortHandler {
   connect() {
     if (this.port) return;
 
-    var name = this.params.target;
+    let name = this.params.target;
     if (name == constants.TARGET_CONTENT_SCRIPT) {
       // Generate a unique content script UUID, shared between all content
       // scripts running in the frame.
@@ -410,7 +410,7 @@ class PortHandler {
       name
     });
     // Re-register events to observe.
-    var events = this.params.tabsEvents || new Set();
+    let events = this.params.tabsEvents || new Set();
     if (events.size) {
       this.postMessage({
         kind: constants.KIND_REGISTER_TABS_EVENTS,
@@ -420,7 +420,7 @@ class PortHandler {
   }
 
   onDisconnect(port) {
-    var self = this;
+    let self = this;
 
     if (port !== self.port) {
       // This is not our connection; should not happen
@@ -431,15 +431,15 @@ class PortHandler {
     // If script simply ends (e.g. browser action page is closed), we get a
     // null error field.
     if (port.error == null) delete(port.error);
-    var error = port.error;
+    let error = port.error;
     if (error) console.warn('Extension port %o disconnected: %o', port, error);
     delete(self.port);
     // Wipe out current requests; reject any pending Promise.
     // Parent will either wipe us out (background script), or we should not
     // expect to receive any response as the remote endpoint is supposedly
     // dead.
-    for (var promise of Object.values(self.requests)) {
-      var msg = 'Remote script disconnected';
+    for (let promise of Object.values(self.requests)) {
+      let msg = 'Remote script disconnected';
       if (error) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
@@ -465,9 +465,9 @@ class PortHandler {
 
   // Posts request and return reply through Promise.
   postRequest(msg, timeout) {
-    var self = this;
+    let self = this;
     // Get a unique - non-used - id
-    var correlationId;
+    let correlationId;
     do {
       correlationId = util.uuidv4();
     } while (self.requests[correlationId] && (correlationId !== self.lastRequestId));
@@ -482,7 +482,7 @@ class PortHandler {
 
     // Setup response handling
     if (!timeout) timeout = this.defaultTimeout;
-    var promise = new util.Deferred().promise;
+    let promise = new util.Deferred().promise;
     self.requests[correlationId] = promise;
     return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
@@ -491,11 +491,11 @@ class PortHandler {
   }
 
   onMessage(msg, sender) {
-    var correlationId = msg.correlationId;
-    var callback = true;
+    let correlationId = msg.correlationId;
+    let callback = true;
     // Handle this message as a reponse when applicable.
     if (correlationId) {
-      var promise = this.requests[correlationId];
+      let promise = this.requests[correlationId];
       if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.
@@ -504,7 +504,7 @@ class PortHandler {
         // 'error' field. For simplicity, we don't transform an error into a
         // failed Promise, but let caller check whether this in an error
         // through the field.
-        var actual = 'reply' in msg ? msg.reply : msg;
+        let actual = 'reply' in msg ? msg.reply : msg;
         if (actual && actual.warning) {
           console.log('A warning was received in request response:', actual);
           this.webext.notify({
@@ -524,7 +524,7 @@ class PortHandler {
   }
 
   async handleMessage(msg, sender) {
-    var self = this;
+    let self = this;
 
     // Take care of a possible endless request/response loop:
     //  - A sends a query to B
@@ -545,7 +545,7 @@ class PortHandler {
       return;
     }
 
-    var r;
+    let r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
     try {
       r = Promise.resolve(self.params.onMessage(msg, sender));
@@ -630,7 +630,7 @@ export class NativeApplication extends PortHandler {
       console.warn('Received unknown native application %s port %o disconnection', this.appId, port);
       return;
     }
-    var error;
+    let error;
     if (this.port) {
       // We don't expect the native application (port) to close itself: this
       // should mean an error was encoutered.
@@ -639,8 +639,8 @@ export class NativeApplication extends PortHandler {
     }
     delete(this.port);
     this.fragments = {};
-    for (var promise of Object.values(this.requests)) {
-      var msg = 'Native application disconnected';
+    for (let promise of Object.values(this.requests)) {
+      let msg = 'Native application disconnected';
       if (error) msg += ' with error: ' + util.formatObject(error);
       promise.reject(msg);
     }
@@ -663,15 +663,15 @@ export class NativeApplication extends PortHandler {
   }
 
   addFragment(msg) {
-    var fragmentKind = msg.fragment;
-    var correlationId = msg.correlationId;
+    let fragmentKind = msg.fragment;
+    let correlationId = msg.correlationId;
 
     if (!correlationId) {
       console.warn('Dropping message %o: missing correlationId', msg)
       return;
     }
 
-    var previousFragment = this.fragments[correlationId];
+    let previousFragment = this.fragments[correlationId];
     if (!previousFragment) {
       if (fragmentKind === FRAGMENT_KIND_START) {
         // First fragment
@@ -704,7 +704,7 @@ export class NativeApplication extends PortHandler {
   idleCheck() {
     delete(this.idleId);
     // Re-schedule if idle not yet reached
-    var remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
+    let remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
     if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
     // Then get rid of old fragments if any
     if (this.fragments.length) this.janitoring();
@@ -721,7 +721,7 @@ export class NativeApplication extends PortHandler {
 
   janitoring() {
     if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return;
-    for (var msg of Object.values(this.fragments)) {
+    for (let msg of Object.values(this.fragments)) {
       if (util.getTimestamp() - msg.msgCreationTime > constants.FRAGMENTS_TTL) {
         console.warn('Dropping incomplete message %o: TTL reached', msg);
         delete(this.fragments[msg.correlationId]);

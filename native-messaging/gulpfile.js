@@ -8,7 +8,7 @@ const fse = require('fs-extra');
 const rename = require('gulp-rename');
 const replace = require('gulp-replace');
 const webpack = require('webpack');
-var settings = require('./gulpfile-settings');
+let settings = require('./gulpfile-settings');
 const util = require('./app/src/util');
 
 
@@ -75,9 +75,9 @@ function installApp() {
 }
 
 function getTemplatePath(p) {
-  var dirname = path.dirname(p);
-  var extname = path.extname(p);
-  var basename = path.basename(p);
+  let dirname = path.dirname(p);
+  let extname = path.extname(p);
+  let basename = path.basename(p);
   return path.join(dirname, `${path.basename(p, extname)}-template${extname}`);
 }
 
@@ -86,7 +86,7 @@ function getIgnoredFiles() {
   //  - templates
   //  - other files: mocha/babel configuration
   //  - source files: we generate bundles
-  var excludedPaths = settings.excludedPaths.map(p => p.substring(extensionPath.length + 1));
+  let excludedPaths = settings.excludedPaths.map(p => p.substring(extensionPath.length + 1));
   return settings.extensionTemplatedPaths.map(p => {
     return getTemplatePath(p).substring(extensionPath.length + 1);
   }).concat(excludedPaths).concat([
@@ -95,13 +95,13 @@ function getIgnoredFiles() {
 }
 
 async function webpackBundle(mode) {
-  var pathDist = path.join(extensionPath, 'dist');
+  let pathDist = path.join(extensionPath, 'dist');
 
   // Cleanup distribution path.
   await fse.remove(pathDist);
 
-  var deferred = new util.Deferred();
-  var webpackSettings = {
+  let deferred = new util.Deferred();
+  let webpackSettings = {
     mode: mode,
     entry: {
       'background': path.resolve(extensionPath, 'src', 'background', 'background.js'),
@@ -139,10 +139,10 @@ async function webpackBundle(mode) {
 }
 
 async function buildExt(webpackMode) {
-  var fill = function(p) {
-    var dirname = path.dirname(p);
-    var basename = path.basename(p);
-    var template = getTemplatePath(p);
+  let fill = function(p) {
+    let dirname = path.dirname(p);
+    let basename = path.basename(p);
+    let template = getTemplatePath(p);
     return gulp.src(template)
       .pipe(rename(basename))
       .pipe(replace('__EXTENSION_ID__', settings.extensionId))
@@ -167,12 +167,12 @@ async function buildExt_prod() {
 }
 
 async function unitTestExt() {
-  var deferred = new util.Deferred();
+  let deferred = new util.Deferred();
   glob(path.posix.join('src', 'unit-test', '**', '*.js'), { cwd: extensionPath }, (err, files) => {
     if (err) deferred.reject(err);
     else deferred.resolve(files);
   });
-  var files = await deferred;
+  let files = await deferred;
   await util.spawn('node',
     [path.join(__dirname, 'node_modules', 'mocha', 'bin', 'mocha')].concat(files),
     { cwd: extensionPath });
@@ -181,7 +181,7 @@ async function unitTestExt() {
 async function packageExt() {
   await buildExt_prod();
 
-  var ignoredFiles = getIgnoredFiles();
+  let ignoredFiles = getIgnoredFiles();
   console.log('Ignoring:', ignoredFiles);
   await util.spawn('web-ext',
     ['build', '--overwrite-dest', '--ignore-files'].concat(ignoredFiles),
@@ -190,7 +190,7 @@ async function packageExt() {
 
 async function signExt() {
   await buildExt_prod();
-  var ignoredFiles = getIgnoredFiles();
+  let ignoredFiles = getIgnoredFiles();
   console.log('Ignoring:', ignoredFiles);
   await util.spawn('web-ext',
     ['sign', '--api-key', process.env.WEBEXT_API_KEY, '--api-secret', process.env.WEBEXT_API_SECRET,
@@ -202,12 +202,12 @@ async function signExt() {
 function watch() {
   gulp.watch(settings.appPaths.concat([`!${settings.appInstallScript}`]), deployApp);
   gulp.watch(settings.appInstallScript, exports.install);
-  var extensionTemplatePaths = settings.extensionTemplatedPaths.map(p => getTemplatePath(p));
+  let extensionTemplatePaths = settings.extensionTemplatedPaths.map(p => getTemplatePath(p));
   // Follow changes in sources and templates.
   // Excluded templated files (generated from templates).
   // There is also no need to follow resources, since they are directly pointed
   // to in manifest.
-  var extensionPaths = [
+  let extensionPaths = [
     path.posix.join(extensionPath, 'src', '**', '*')
   ].concat(extensionTemplatePaths).concat(settings.extensionTemplatedPaths.map(p => `!${p}`));
   gulp.watch(extensionPaths, buildExt_dev);

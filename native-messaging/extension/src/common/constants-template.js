@@ -83,14 +83,14 @@ export const constants = {
 
 };
 
-for (var key of Object.keys(constants).filter(key => key.startsWith('EVENT_'))) {
-  var category = `EVENTS_${key.split('_')[1]}`;
+for (let key of Object.keys(constants).filter(key => key.startsWith('EVENT_'))) {
+  let category = `EVENTS_${key.split('_')[1]}`;
   if (!constants[category]) constants[category] = new Set();
   constants[category].add(constants[key]);
 }
 constants.EVENTS_TABS = new Set([...constants.EVENTS_WINDOW, ...constants.EVENTS_TAB, ...constants.EVENTS_FRAME]);
 
 // Notes:
-// 'const' only prevents re-assigning the constants var.
+// 'const' only prevents re-assigning the constants let/var.
 // 'Object.freeze' makes the object read-only, preventing changing its content.
 Object.freeze(constants);

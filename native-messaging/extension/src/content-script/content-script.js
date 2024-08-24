@@ -39,9 +39,9 @@ function unhandledMessage(msg, sender) {
 
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)
-var webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
+let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
 (async function() {
-  var echo = webext.sendMessage({
+  let echo = webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_ECHO
   });

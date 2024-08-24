@@ -10,7 +10,7 @@ describe('http', function() {
 
     function test(headers, name, expected) {
       // Test findHeader
-      var r = http.findHeader(headers, name);
+      let r = http.findHeader(headers, name);
       r = http.findHeader(headers, name);
       assert.deepEqual(r, expected);
       // Ensure that findHeader returns the original object.
@@ -63,14 +63,14 @@ describe('HeaderParser', function() {
 
     it('should skip any whitespace', function() {
       [' ', '\t', '\r', '\n'].forEach(c => {
-        var parser = new http.HeaderParser(`${c}a`);
+        let parser = new http.HeaderParser(`${c}a`);
         assert.equal(parser.skipFWS(), (c != '\n') ? c : ' ');
         assert.equal(parser.value, 'a');
       })
     });
 
     it('should skip multiple whitespaces', function() {
-      var parser = new http.HeaderParser(` \r \t a`);
+      let parser = new http.HeaderParser(` \r \t a`);
       assert.equal(parser.skipFWS(), ' \r \t ');
       assert.equal(parser.value, 'a');
       parser = new http.HeaderParser(` \r\n \t a`);
@@ -83,18 +83,18 @@ describe('HeaderParser', function() {
   describe('#parseToken', function() {
 
     it('should match all token characters', function() {
-      var token = "!#$%&'*+-.^_\`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let token = "!#$%&'*+-.^_\`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
       '" \r\n\t(),/:;<=>?@[\\]{}]'.split('').forEach(c => {
-        var parser = new http.HeaderParser(`${token}${c}`);
-        var r = parser.parseToken();
+        let parser = new http.HeaderParser(`${token}${c}`);
+        let r = parser.parseToken();
         assert.equal(r, token);
         assert.equal(parser.value, /\s/.test(c) ? '' : c);
       });
     });
 
     it('should skip whitespaces around token', function() {
-      var parser = new http.HeaderParser(' \t a\r\nb');
-      var r = parser.parseToken();
+      let parser = new http.HeaderParser(' \t a\r\nb');
+      let r = parser.parseToken();
       assert.equal(r, 'a');
       assert.equal(parser.value, 'b');
     });
@@ -104,19 +104,19 @@ describe('HeaderParser', function() {
   describe('#skipComment', function() {
 
     it('should skip comment', function() {
-      var parser = new http.HeaderParser('(anything "whatever" \(\))b');
+      let parser = new http.HeaderParser('(anything "whatever" \(\))b');
       parser.skipComment();
       assert.equal(parser.value, 'b');
     });
 
     it('should handle recursive comment', function() {
-      var parser = new http.HeaderParser('(anything ("whatever") \(\))b');
+      let parser = new http.HeaderParser('(anything ("whatever") \(\))b');
       parser.skipComment();
       assert.equal(parser.value, 'b');
     });
 
     it('should also skip whitespaces around comment', function() {
-      var parser = new http.HeaderParser(' \t ()\r\nb');
+      let parser = new http.HeaderParser(' \t ()\r\nb');
       parser.skipComment();
       assert.equal(parser.value, 'b');
     });
@@ -125,30 +125,30 @@ describe('HeaderParser', function() {
 
   describe('#decodeString', function() {
 
-    var parser = new http.HeaderParser('');
+    let parser = new http.HeaderParser('');
 
     it('should handle plain value', function() {
-      var r = parser.decodeString("utf-8'language'value");
+      let r = parser.decodeString("utf-8'language'value");
       assert.equal(r, 'value');
     });
 
     it('should handle UTF-8 value', function() {
-      var r = parser.decodeString("utf-8'anything'%c2%a3%20and%20%e2%82%ac%20rates");
+      let r = parser.decodeString("utf-8'anything'%c2%a3%20and%20%e2%82%ac%20rates");
       assert.equal(r, '£ and € rates');
     });
 
     it('should ignore language', function() {
-      var r = parser.decodeString("utf-8''value");
+      let r = parser.decodeString("utf-8''value");
       assert.equal(r, 'value');
     });
 
     it('should simply unescape for unknown charset', function() {
-      var r = parser.decodeString("anything''%E4%F6%FC");
+      let r = parser.decodeString("anything''%E4%F6%FC");
       assert.equal(r, 'äöü');
     });
 
     it('should not change non-encoded string', function() {
-      var r = parser.decodeString("utf-8");
+      let r = parser.decodeString("utf-8");
       assert.equal(r, "utf-8");
       r = parser.decodeString("utf-8'%E4%F6%FC");
       assert.equal(r, "utf-8'%E4%F6%FC");
@@ -159,57 +159,57 @@ describe('HeaderParser', function() {
   describe('#parseParameters', function() {
 
     it('should handle a token parameter value', function() {
-      var parser = new http.HeaderParser(';a=b');
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser(';a=b');
+      let r = parser.parseParameters(true);
       assert.deepEqual(r, {a: 'b'});
       assert.equal(parser.value, '');
     });
 
     it('should handle a quoted string parameter value', function() {
-      var parser = new http.HeaderParser(';a="b\\"c');
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser(';a="b\\"c');
+      let r = parser.parseParameters(true);
       assert.deepEqual(r, {a: 'b"c'});
       assert.equal(parser.value, '');
     });
 
     it('should handle an encoded parameter value', function() {
-      var parser = new http.HeaderParser(`;a*="utf-8''%e2%82%ac"`);
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser(`;a*="utf-8''%e2%82%ac"`);
+      let r = parser.parseParameters(true);
       assert.deepEqual(r, {a: '€'});
       assert.equal(parser.value, '');
     });
 
     it('should handle a split parameter value', function() {
-      var parser = new http.HeaderParser(`;a*0="b";a*2="c";a*1*="utf-8''%e2%82%ac"`);
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser(`;a*0="b";a*2="c";a*1*="utf-8''%e2%82%ac"`);
+      let r = parser.parseParameters(true);
       assert.deepEqual(r, {a: 'b€c'});
       assert.equal(parser.value, '');
     });
 
     it('should skip whitespaces', function() {
-      var parser = new http.HeaderParser(' \t\r\n ; \t\r\n a \t\r\n = \t\r\n b \t\r\n ');
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser(' \t\r\n ; \t\r\n a \t\r\n = \t\r\n b \t\r\n ');
+      let r = parser.parseParameters(true);
       assert.deepEqual(r, {a: 'b'});
       assert.equal(parser.value, '');
     });
 
     it('should skip comments if requested', function() {
-      var parser = new http.HeaderParser(' \t\r\n ; \t\r\n a \t\r\n = \t\r\n (( \t\r\n )) \t\r\n b \t\r\n (( ""\t\r\n )) \t\r\n ');
-      var r = parser.parseParameters();
+      let parser = new http.HeaderParser(' \t\r\n ; \t\r\n a \t\r\n = \t\r\n (( \t\r\n )) \t\r\n b \t\r\n (( ""\t\r\n )) \t\r\n ');
+      let r = parser.parseParameters();
       assert.deepEqual(r, {a: 'b'});
       assert.equal(parser.value, '');
     });
 
     it('should handle multiple parameters', function() {
-      var parser = new http.HeaderParser(`;param2*1*="utf-8''%e2%82%ac"; param1=value1; param2*0="b"; param2*2="c"; param3=()""(); param4=0`);
-      var r = parser.parseParameters();
+      let parser = new http.HeaderParser(`;param2*1*="utf-8''%e2%82%ac"; param1=value1; param2*0="b"; param2*2="c"; param3=()""(); param4=0`);
+      let r = parser.parseParameters();
       assert.deepEqual(r, {param1: 'value1', param2: 'b€c', param3: '', param4: '0'});
       assert.equal(parser.value, '');
     });
 
     it('should handle malformed values', function() {
-      var parser = new http.HeaderParser('; \t\r\n a \t\r\n = \t\r\n (()) b (("")) \t\r\n ');
-      var r = parser.parseParameters(true);
+      let parser = new http.HeaderParser('; \t\r\n a \t\r\n = \t\r\n (()) b (("")) \t\r\n ');
+      let r = parser.parseParameters(true);
       // The RFC only expects token or quoted string as value.
       // This is neither, but we wish to parse as much as possible, so reads
       // everything up to the next parameter (or header end).
@@ -222,17 +222,17 @@ describe('HeaderParser', function() {
       assert.equal(parser.value, '');
 
       parser = new http.HeaderParser(';a= \t\r\n "(())" b (("")) \t\r\n ');
-      var r = parser.parseParameters(true);
+      r = parser.parseParameters(true);
       assert.deepEqual(r, {a: '(())b ((""))'});
       assert.equal(parser.value, '');
 
       parser = new http.HeaderParser(';a="(())" b (("")) \t\r\n ;b=c');
-      var r = parser.parseParameters(true);
+      r = parser.parseParameters(true);
       assert.deepEqual(r, {a: '(())b ((""))', b: 'c'});
       assert.equal(parser.value, '');
 
       parser = new http.HeaderParser(`;param2*1*="utf-8''%e2%82%ac"; param1=value1; param2*0="b"; param2*2="c"; param3=()""(); param4=0`);
-      var r = parser.parseParameters(true);
+      r = parser.parseParameters(true);
       assert.deepEqual(r, {param1: 'value1', param2: 'b€c', param3: '()""()', param4: '0'});
       assert.equal(parser.value, '');
     });
@@ -241,18 +241,18 @@ describe('HeaderParser', function() {
 
   describe('#parseMediaType', function() {
 
-    var mediaType = 'main/sub';
+    let mediaType = 'main/sub';
 
     it('should parse media type', function() {
-      var parser = new http.HeaderParser(mediaType);
-      var r = parser.parseMediaType();
+      let parser = new http.HeaderParser(mediaType);
+      let r = parser.parseMediaType();
       assert.equal(r, mediaType);
       assert.equal(parser.value, '');
     });
 
     it('should skip whitespaces around media type', function() {
-      var parser = new http.HeaderParser(` \r\n\t ${mediaType} \r\n\t ;`);
-      var r = parser.parseMediaType();
+      let parser = new http.HeaderParser(` \r\n\t ${mediaType} \r\n\t ;`);
+      let r = parser.parseMediaType();
       assert.equal(r, mediaType);
       assert.equal(parser.value, ';');
     });
@@ -263,12 +263,12 @@ describe('HeaderParser', function() {
 
 describe('ContentType', function() {
 
-  var mainType = 'main';
-  var subType = 'sub';
-  var mimeType = `${mainType}/${subType}`;
+  let mainType = 'main';
+  let subType = 'sub';
+  let mimeType = `${mainType}/${subType}`;
 
   function guess(ct, filename, expected, ifNeeded) {
-    var ct2 = new http.ContentType(expected || ct.mimeType);
+    let ct2 = new http.ContentType(expected || ct.mimeType);
     ct.guess(filename, ifNeeded || !expected);
     assert.equal(ct.guessed, !!expected);
     assert.equal(ct.mimeType, ct2.mimeType);
@@ -277,7 +277,7 @@ describe('ContentType', function() {
   }
 
   function isKind(mimeType, isText, isImage, isAudio) {
-    var ct = new http.ContentType(mimeType);
+    let ct = new http.ContentType(mimeType);
     assert.equal(ct.isText(), isText);
     assert.equal(ct.maybeText(), isText);
     assert.equal(ct.isImage(), isImage);
@@ -303,7 +303,7 @@ describe('ContentType', function() {
   // ContentType relies on HeaderParser.
   // We just need to check it properly handles a full header value.
   it('should parse content type header', function() {
-    var ct = new http.ContentType(mimeType);
+    let ct = new http.ContentType(mimeType);
     assert.equal(ct.mimeType, mimeType);
     assert.equal(ct.mainType, mainType);
     assert.equal(ct.subType, subType);
@@ -316,7 +316,7 @@ describe('ContentType', function() {
   });
 
   it('should guess mime type from filename', function() {
-    var ct = new http.ContentType(mimeType);
+    let ct = new http.ContentType(mimeType);
     guess(ct, 'test.txt', 'text/plain');
     guess(ct, 'test.htm', 'text/html');
     guess(ct, 'test.html', 'text/html');
@@ -325,12 +325,12 @@ describe('ContentType', function() {
   });
 
   it('should not guess mime type if not needed', function() {
-    var ct = new http.ContentType(mimeType);
+    let ct = new http.ContentType(mimeType);
     guess(ct, 'test.txt', '', true);
   });
 
   it('should guess mime type if needed', function() {
-    var ct = new http.ContentType('application/octet-stream');
+    let ct = new http.ContentType('application/octet-stream');
     guess(ct, 'test.txt', 'text/plain', true);
   });
 
@@ -342,7 +342,7 @@ describe('ContentType', function() {
   });
 
   it('may know text types with charset', function() {
-    var ct = new http.ContentType(`${mimeType}; charset=whatever`);
+    let ct = new http.ContentType(`${mimeType}; charset=whatever`);
     assert.equal(ct.isText(), false);
     assert.equal(ct.maybeText(), true);
     assert.equal(ct.isImage(), false);
@@ -364,7 +364,7 @@ describe('ContentType', function() {
   });
 
   it('should keep parameters after guessing mime type', function() {
-    var ct = new http.ContentType(`${mimeType}; param1=value1; param2=value2`);
+    let ct = new http.ContentType(`${mimeType}; param1=value1; param2=value2`);
     ct.guess('test.txt');
     assert.equal(ct.guessed, true);
     assert.deepEqual(ct.params, {param1: 'value1', param2: 'value2'});
@@ -386,8 +386,8 @@ describe('Cookie', function() {
   });
 
   it('should handle nominal cookies', function() {
-    var cookie = 'a=b; A=c; a=d; a=';
-    var c = new http.Cookie(cookie);
+    let cookie = 'a=b; A=c; a=d; a=';
+    let c = new http.Cookie(cookie);
     assert.equal(c.value(), cookie);
     assert.equal(c.find('a'), 'b');
     assert.equal(c.find('A'), 'c');
@@ -395,33 +395,33 @@ describe('Cookie', function() {
   });
 
   it('should handle spaceless cookies', function() {
-    var cookie = 'a=b;A=c;a=d;a=';
-    var c = new http.Cookie(cookie);
+    let cookie = 'a=b;A=c;a=d;a=';
+    let c = new http.Cookie(cookie);
     assert.equal(c.find('a'), 'b');
     assert.equal(c.find('A'), 'c');
     assert.deepEqual(c.findAll('a'), ['b', 'd', '']);
   });
 
   it('should handle removing cookies', function() {
-    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=; b=1');
+    let c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=; b=1');
     assert.equal(c.remove('a', true).value(), 'a=2; a=3; A=1; A=2; a=; b=1');
     assert.equal(c.remove('A').value(), 'a=2; a=3; a=; b=1');
   });
 
   it('should handle adding cookies', function() {
-    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
+    let c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
     assert.equal(c.add('a', '1').value(), 'a=1; a=2; a=3; A=1; A=2; a=4; b=1; a=1');
   });
 
   it('should handle setting cookies', function() {
-    var c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
+    let c = new http.Cookie('a=1; a=2; a=3; A=1; A=2; a=4; b=1');
     assert.equal(c.set('a', '4', true).value(), 'a=4; a=2; a=3; A=1; A=2; a=4; b=1');
     assert.equal(c.set('a', '5').value(), 'a=5; A=1; A=2; b=1');
     assert.equal(c.set('B', '1').value(), 'a=5; A=1; A=2; b=1; B=1');
   });
 
   it('should handle quoted values', function() {
-    var c = new http.Cookie(' a = 1 ; a = "2" ; a = " 3 " ; a = "" ');
+    let c = new http.Cookie(' a = 1 ; a = "2" ; a = " 3 " ; a = "" ');
     assert.deepEqual(c.findAll('a'), ['1', '2', ' 3 ', '']);
     assert.equal(c.set('a', ' 1', true).value(), 'a=" 1"; a=2; a=" 3 "; a=');
     assert.equal(c.set('a', '1 ', true).value(), 'a="1 "; a=2; a=" 3 "; a=');
@@ -430,7 +430,7 @@ describe('Cookie', function() {
   });
 
   it('should handle nameless cookies', function() {
-    var c = new http.Cookie('=1; 2; ; ""; b=1;');
+    let c = new http.Cookie('=1; 2; ; ""; b=1;');
     assert.equal(c.find(''), '=1');
     assert.deepEqual(c.findAll(''), ['=1', '2', '', '', '']);
     assert.equal(c.add('a', '1').value(), '=1; 2; ; ; b=1; ; a=1');

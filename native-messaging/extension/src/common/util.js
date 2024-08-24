@@ -40,7 +40,7 @@ export class PropertiesHandler {
   }
 
   reset() {
-    for (var [key, entry] of Object.entries(this.properties)) {
+    for (let [key, entry] of Object.entries(this.properties)) {
       if (entry.keepOnReset) continue;
       delete(this.properties[key]);
     }
@@ -49,13 +49,13 @@ export class PropertiesHandler {
   // Note: creator can be passed by caller, e.g. when getting per-tab property
   // through a global handler.
   get(details, creator) {
-    var key = details.key;
-    var create = details.create;
+    let key = details.key;
+    let create = details.create;
     creator ||= this.creator;
 
     // Specifically manage per-tab properties when there is an handler.
     if (this.tabsHandler && (details.tabId !== undefined)) {
-      var tab = this.tabsHandler.tabs[details.tabId];
+      let tab = this.tabsHandler.tabs[details.tabId];
       if (!tab) {
         // Tab is not yet known: build the object right now, but do not cache it
         // (we wait for the tab to be known in order to use its cache).
@@ -67,7 +67,7 @@ export class PropertiesHandler {
       if (!tab.extensionProperties) tab.extensionProperties = new PropertiesHandler(creator);
       return tab.extensionProperties.get(details, creator);
     }
-    var entry = this.properties[key];
+    let entry = this.properties[key];
     if (!entry && create) {
       entry = this.properties[key] = {
         prop: create(creator),
@@ -96,7 +96,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   // which directly - field - or indirectly - child field - points back to
   // itself).
   // Re-use formatting code to at least get the object kind.
-  var recurse = function(child) {
+  let recurse = function(child) {
     processed = processed || new Set();
     processed.add(obj);
     return processed.has(child)
@@ -110,7 +110,7 @@ export function formatObject(obj, processed, recursiveLoop) {
     // Recursively handle arrays.
     if (recursiveLoop) return `Array(${obj.length})`;
     s = '[';
-    var idx = 0;
+    let idx = 0;
     obj.forEach(v => {
       s += (idx++ ? ', ' : ' ') + recurse(v);
     })
@@ -132,7 +132,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   }
 
   function append(p, o) {
-    var s = recurse(o);
+    let s = recurse(o);
     return s ? p + '; ' + s : p;
   }
 
@@ -146,7 +146,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   // Handle objects which fail to be stringified, and keep the error. We assume
   // at least the error can be turned into a string.
   // (e.g. 'TypeError: Cannot convert object to primitive value')
-  var s = '';
+  let s = '';
   try {
     s += obj;
   } catch (error) {
@@ -156,9 +156,9 @@ export function formatObject(obj, processed, recursiveLoop) {
     s = obj.constructor.name;
     if (!s) s = 'Object';
     if (recursiveLoop) return s;
-    var idx = 0;
+    let idx = 0;
     Object.keys(obj).forEach(f => {
-      var v = obj[f];
+      let v = obj[f];
       // Don't include functions
       if (typeof(v) == 'function') return;
       s += ` ${f}=<${recurse(v)}>`;
@@ -187,11 +187,11 @@ export function deepEqual(v1, v2) {
   // We have got two non-null objects.
 
   // There must be the same number of keys.
-  var keys = Object.keys(v1);
+  let keys = Object.keys(v1);
   if (Object.keys(v2).length !== keys.length) return false;
 
   // All fields must be equal.
-  for (var key of keys) {
+  for (let key of keys) {
     if (!deepEqual(v1[key], v2[key])) return false;
   }
 
@@ -201,8 +201,8 @@ export function deepEqual(v1, v2) {
 
 // Remove undefined and null fields.
 export function cleanupFields(obj) {
-  for (var f in obj) {
-    var v = obj[f];
+  for (let f in obj) {
+    let v = obj[f];
     if ((v === null) || (v === undefined)) delete(obj[f]);
   }
 }
@@ -218,7 +218,7 @@ export function toJSON(v) {
   // Check whether 'toJSON' has been defined to get a lighter version of
   // the object.
   v = v.toJSON ? v.toJSON() : Object.assign({}, v);
-  for (var [key, value] of Object.entries(v)) {
+  for (let [key, value] of Object.entries(v)) {
     if (typeof(value) == 'function') delete(v[key]);
     else v[key] = toJSON(value);
   }
@@ -249,7 +249,7 @@ export function normalizeUrl(url, log, label) {
   // Notes:
   // We could simply do url.split('#').shift(), but using URL is more standard
   // and does sanitize a bit more.
-  var normalized = new URL(url);
+  let normalized = new URL(url);
   normalized.hash = '';
   normalized = normalized.href;
   if (log && (normalized !== url)) console.log('Normalized=<%s> %s url=<%s>', normalized, url, label);
@@ -259,11 +259,11 @@ export function normalizeUrl(url, log, label) {
 export function parseSiteUrl(url) {
   // First ensure we have an URL object
   url = new URL(url);
-  var hostname = url.hostname;
-  var nameParts = hostname.split('.');
-  var name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
+  let hostname = url.hostname;
+  let nameParts = hostname.split('.');
+  let name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
   // pathname starts with '/', so splitting creates an empty entry in first position.
-  var pathParts = (url.pathname != '/')
+  let pathParts = (url.pathname != '/')
     ? url.pathname.split('/').slice(1).map(decodeURIComponent)
     : []
     ;
@@ -298,9 +298,9 @@ export function getFilename(url, filename) {
 // Gets file name and extension.
 // Extension is lowercased.
 export function getFilenameExtension(filename, defaultExtension) {
-  var idx = (filename || '').lastIndexOf('.');
-  var name = (idx > 0) ? filename.slice(0, idx) : filename;
-  var extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : '';
+  let idx = (filename || '').lastIndexOf('.');
+  let name = (idx > 0) ? filename.slice(0, idx) : filename;
+  let extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : '';
   return {
     name: name || '',
     extension: extension || defaultExtension || ''
@@ -317,8 +317,8 @@ export function roundNumber(num, dec, precision) {
   if (num == 0) return 0;
   if (dec === undefined) {
     if (precision === undefined) precision = 3;
-    var threshold = Math.pow(10, precision - 1);
-    var tmp = Math.abs(num);
+    let threshold = Math.pow(10, precision - 1);
+    let tmp = Math.abs(num);
     if (tmp >= threshold) return Math.round(num);
 
     dec = 0;
@@ -332,7 +332,7 @@ export function roundNumber(num, dec, precision) {
 }
 
 export function padNumber(num, chars) {
-  var s = '' + num;
+  let s = '' + num;
   return (s.length >= chars) ? s : ('0'.repeat(chars) + s).slice(-chars);
 }
 
@@ -341,7 +341,7 @@ const sizeUnits = ['B', 'K', 'M', 'G', 'T'];
 
 // Gets human-readable representation of size (in bytes).
 export function getSizeText(size) {
-  var idx = 0;
+  let idx = 0;
   while ((idx + 1 < sizeUnits.length) && (size >= sizeUnitFactor)) {
     size /= sizeUnitFactor;
     idx++;
@@ -368,7 +368,7 @@ export function limitText(s, limit) {
 // Executes given callback if any once ready.
 // Returns a Promise resolved when ready, with passed callback result if any.
 export function waitForDocument(callback) {
-  var d = new Deferred();
+  let d = new Deferred();
 
   function complete() {
     if (callback) d.completeWith(callback);
@@ -393,7 +393,7 @@ export function setHtml(node, html) {
   // Then parse/sanitize the html string.
   // For our usage, this should be enough. Alternatively we may use a real
   // sanitizer/purifier like DOMPurify.
-  var dom = new DOMParser().parseFromString(`<template>${html}</template>`, 'text/html').head;
+  let dom = new DOMParser().parseFromString(`<template>${html}</template>`, 'text/html').head;
   // Finally inject the content.
   node.appendChild(dom.firstElementChild.content);
 }
@@ -404,7 +404,7 @@ export function setHtml(node, html) {
 // When innerHTML is set on a 'template' node, content is populated.
 // When nodes are manipulated, childNodes/children is populated.
 export function htmlToElement(html) {
-  var template = document.createElement('template');
+  let template = document.createElement('template');
   setHtml(template, html);
   return template.firstChild;
 }
@@ -413,7 +413,7 @@ export function htmlToElement(html) {
 // html tags are stripped, only text remains.
 export function htmlToText(html) {
   if (!html) return '';
-  var template = document.createElement('template');
+  let template = document.createElement('template');
   setHtml(template, html);
   return template.textContent;
 }
@@ -426,20 +426,20 @@ export function htmlToText(html) {
 // It works as needed when using a 'div' node.
 export function textToHtml(text) {
   if (!text) return '';
-  var el = document.createElement('div');
+  let el = document.createElement('div');
   el.textContent = text;
   return el.innerHTML.replace(/\n/g, '<br>');;
 }
 
 // Displays a browser notification and hide it after TTL (milliseconds).
 export function browserNotification(notification, ttl) {
-  var id = uuidv4();
+  let id = uuidv4();
   // Add our icon if necessary.
   // Note: with Firefox on Windows 10 the notification icon will be inserted in
   // a 80px square and SVG will be scaled to fit inside, similarly to what is
   // done for the pages (e.g options and browser action) icons.
   if (!('iconUrl' in notification)) notification['iconUrl'] = browser.runtime.getURL('/resources/icon.svg');
-  var p = browser.notifications.create(id, notification);
+  let p = browser.notifications.create(id, notification);
   if (ttl) {
     // We need to wait for the notification to be created in order to be able
     // to clear it.
@@ -454,16 +454,16 @@ export function browserNotification(notification, ttl) {
 export function log(details) {
   if (details.level == 'warning') details.level = 'warn';
   if (details.logged) return;
-  var level = details.level || 'info';
+  let level = details.level || 'info';
   if (!(level in console)) level = 'info';
 
   function stripHtml(s) {
     return (details.html ? htmlToText(s) : s);
   }
 
-  var msg = [];
-  var args = [];
-  var title = stripHtml(details.title);
+  let msg = [];
+  let args = [];
+  let title = stripHtml(details.title);
   if (title) {
     if (details.source) {
       msg.push('[%s] %s');
@@ -473,8 +473,8 @@ export function log(details) {
     }
     args.push(title);
   }
-  var message = stripHtml(details.message);
-  var error = details.error;
+  let message = stripHtml(details.message);
+  let error = details.error;
 
   if (message) {
     if (!msg.length && details.source) {
@@ -508,7 +508,7 @@ export function notification(details) {
   }
 
   // The title is mandatory for browser notifications.
-  var title = stripHtml(details.title);
+  let title = stripHtml(details.title);
   if (details.source) title = title ? `[${details.source}] ${title}` : details.source;
   if (!title) title = constants.EXTENSION_ID;
   browserNotification({
@@ -521,9 +521,9 @@ export function notification(details) {
 
 // Formats application message (optional content/error).
 export function formatApplicationMessage(details) {
-  var message = details.message;
-  var error = details.error;
-  var msg = [];
+  let message = details.message;
+  let error = details.error;
+  let msg = [];
   if (message) msg.push(message);
   if (error) msg.push(`Error: ${formatObject(error)}`);
   return msg.join('\n');
@@ -546,7 +546,7 @@ export class Deferred {
     this.promise.reject = this.reject;
     // Plug useful functions, in case they are called on Deferred instead of
     // our embedded promise.
-    for (var f of ['catch', 'finally', 'then']) {
+    for (let f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
       if (!this.promise[f]) continue;
       this[f] = this.promise[f].bind(this.promise);
@@ -566,8 +566,8 @@ export class Deferred {
 
 // Creates a Promise that fails after the given time (ms)
 export function timeoutPromise(ms) {
-  var d = new Deferred();
-  var p = d.promise;
+  let d = new Deferred();
+  let p = d.promise;
   p.timeoutId = setTimeout(() => {
     d.reject(`Timeout (${ms}) reached`);
   }, ms);
@@ -576,8 +576,8 @@ export function timeoutPromise(ms) {
 
 // Creates a Promise that is resolved after the given time (ms)
 export function delayPromise(ms) {
-  var d = new Deferred();
-  var p = d.promise;
+  let d = new Deferred();
+  let p = d.promise;
   p.timeoutId = setTimeout(() => {
     d.resolve();
   }, ms);
@@ -597,8 +597,8 @@ export function promiseThen(p, f) {
 
 // Creates a promise that is completed from another one or after a given timeout
 export function promiseOrTimeout(p, ms) {
-  var timeout = timeoutPromise(ms);
-  var timeoutId = timeout.timeoutId;
+  let timeout = timeoutPromise(ms);
+  let timeoutId = timeout.timeoutId;
   // Race for promise/timeout and clear timeout before caller can chain code.
   return promiseThen(Promise.race([p, timeout]), () => {
     clearTimeout(timeoutId);
@@ -607,4 +607,4 @@ export function promiseOrTimeout(p, ms) {
 
 // Shortcut to defer code for immediate execution:
 //  defer.then(() => ...);
-export var defer = Promise.resolve();
+export let defer = Promise.resolve();
