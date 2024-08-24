@@ -71,7 +71,7 @@ class DlMngrClient {
       try {
         details.cookie = await http.getCookie(details.url);
       } catch (error) {
-        console.log('Could not add cookie for url=<%s>: %o', details.url, error);
+        console.log(`Could not add cookie for url=<${details.url}>:`, error);
       }
     }
     if (params.addUserAgent && !details.userAgent) {
@@ -308,7 +308,7 @@ export class RequestsHandler {
     }
     // Nothing to do if we already are ignoring.
     if (self.ignoringNext) return;
-    console.log('Ignoring next interception with ttl=<%s>', ttl);
+    console.log(`Ignoring next interception with ttl=<${ttl}>`);
     let ttlStep = 1000;
     // Start TTL ('+ ttlStep' to reuse the function to decrement the TTL).
     self.ignoringNext = {
@@ -461,12 +461,12 @@ export class RequestsHandler {
       reason = `ignoring (initial interception reason: ${reason})`;
     }
     if (!intercept) {
-      if (settings.debug.downloads) console.log('Not intercepting request %o: %s', requestDetails, reason);
+      if (settings.debug.downloads) console.log(`Not intercepting request %o: ${reason}`, requestDetails);
       if (requestDetails.remember) self.addUnintercepted(requestDetails);
       return {};
     }
     delete(requestDetails.remember);
-    console.info('Intercepting request %o: %s', requestDetails, reason);
+    console.info(`Intercepting request %o: ${reason}`, requestDetails);
 
     let url = requestDetails.url;
     if (settings.notifyDownload) {
@@ -580,10 +580,10 @@ export class RequestsHandler {
       reason = `ignoring (initial interception reason: ${reason})`;
     }
     if (!intercept) {
-      if (settings.debug.downloads) console.log('Not intercepting download %o: %s', download, reason);
+      if (settings.debug.downloads) console.log(`Not intercepting download %o: ${reason}`, download);
       return;
     }
-    console.info('Intercepting download %o', download);
+    console.info('Intercepting download', download);
 
     // First cancel this download.
     // We better wait for this to be done before handing over the download to

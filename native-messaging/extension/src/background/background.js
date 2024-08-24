@@ -12,7 +12,7 @@ import { TabSuccessor } from './tab-successor.js';
 import { TabsHandler } from './tabs.js';
 
 
-console.log('Starting %s version %s', constants.EXTENSION_ID, browser.runtime.getManifest().version);
+console.log(`Starting ${constants.EXTENSION_ID} version ${browser.runtime.getManifest().version}`);
 
 // Detect addon installation/updating.
 browser.runtime.onInstalled.addListener(function(details) {
@@ -30,7 +30,7 @@ browser.runtime.onInstalled.addListener(function(details) {
       break;
     default:
   }
-  console.log(`${msg}: %o`, details);
+  console.log(`${msg}:`, details);
 });
 
 // Notes on content script injection/execution:
@@ -238,7 +238,7 @@ function dl_addVideoSource(msg, sender) {
 
 // Logs unhandled messages received.
 function unhandledNativeMessage(app, msg) {
-  console.warn('Received unhandled native application %s message %o', app.appId, msg);
+  console.warn(`Received unhandled native application ${app.appId} message`, msg);
 }
 
 // Logs native application log message.
@@ -452,11 +452,11 @@ try {
 
   // Start native application and request its specs
   nativeApp.connect();
-  console.info('Native application %s starting', nativeApp.appId);
+  console.info(`Native application ${nativeApp.appId} starting`);
   nativeApp.postRequest({
     kind: constants.KIND_SPECS
   }).then(specs => {
-    console.log('Native application %s started: %o', nativeApp.appId, specs);
+    console.log(`Native application ${nativeApp.appId} started:`, specs);
   }).catch(err => {
     webext.getNotif().error(`Native application ${nativeApp.appId} failed to start`, err);
   });

@@ -574,7 +574,7 @@ class VideoSourceTabHandler {
       if (other === source) return true;
       let matches = source.matches(other);
       if (matches) {
-        if (settings.debug.video) console.log('Merging old source=<%o> into=<%o>: Match on %s', other, source, matches);
+        if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, other, source);
         source.merge(other);
         other.removeMenuEntry(this.menuHandler);
         return false;
@@ -609,7 +609,7 @@ class VideoSourceTabHandler {
     let reason = checkVideoContentType(contentType);
     if (reason) return this.ignoreDownload(details, reason);
 
-    if (settings.debug.video) console.log('Adding tab=<%s> frame=<%s> video url=<%s>', tabId, frameId, url);
+    if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> video url=<${url}>`);
     details.tabTitle = tabHandler.title;
     let source = new VideoSource(this, details);
     this.sources.push(source);
@@ -676,7 +676,7 @@ class VideoSourceTabHandler {
     // has nothing to do with the URL the response redirects to. So we are done
     // with this response by taking into account the new url.
     if (location) {
-      if (settings.debug.video) console.log('Tab=<%s> frame=<%s> video src=<%s> is redirected to=<%s>', response.tabId, response.frameId, source.url, location);
+      if (settings.debug.video) console.log(`Tab=<${response.tabId}> frame=<${response.frameId}> video src=<${source.url}> is redirected to=<${location}>`);
       source.setRedirection(location);
       // Note: we wait for the actual redirected URL request to refresh.
       return;
@@ -685,7 +685,7 @@ class VideoSourceTabHandler {
     // Only process standard success code. This filters out errors and
     // non-standard successes.
     if ((statusCode != 200) && (statusCode != 206)) {
-      if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> video response=<%o>: Response code=<%s> not managed', response.tabId, response.frameId, response, statusCode);
+      if (settings.debug.video) console.log(`Not handling tab=<${response.tabId}> frame=<${response.frameId}> video response=<%o>: Response code=<${statusCode}> not managed`, response);
       return;
     }
     source.setCompleted();
@@ -731,7 +731,7 @@ class VideoSourceTabHandler {
       let buffered = this.getBufferedRequests(details.url, true);
       if (buffered) this.ignoreUrls(buffered.getUrls());
     }
-    if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> video url=<%s>: %s', details.tabId, details.frameId, details.url, reason);
+    if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> video url=<${details.url}>: ${reason}`);
   }
 
   updateVideos() {
@@ -842,7 +842,7 @@ export class VideoSourceHandler {
       // Note: this is the only time we log the csUuid.
       // If we found the frame, then the csUuid matches, and there is no more
       // need to log it.
-      if (settings.debug.video) console.log('Not handling tab=<%s> frame=<%s> csUuid=<%s> video url=<%s>: Unknown tab frame', details.tabId, details.frameId, details.csUuid, details.url);
+      if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> csUuid=<${details.csUuid}> video url=<${details.url}>: Unknown tab frame`);
       return;
     }
     details.frameUrl = frameUrl;
@@ -957,7 +957,7 @@ export class VideoSourceHandler {
     }, true);
     if (!handler) {
       // Should not happen.
-      console.log('Tab=<%s> frame=<%s> is still unknown after being added: not replaying requests', tabId, frameId);
+      console.log(`Tab=<${tabId}> frame=<${frameId}> is still unknown after being added: not replaying requests`);
       return;
     }
     await buffered.replay(this);

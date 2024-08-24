@@ -50,7 +50,7 @@ export async function run() {
         body: `Plugin '${constants.EXTENSION_ID}' cannot handle TiddlyWiki saving action`,
         kind: 'error'
       });
-      console.error('Failed to initialize TiddlyWiki handling: %o', error);
+      console.error('Failed to initialize TiddlyWiki handling:', error);
     }
   } else if (settings.debug.misc) {
     console.log('Is not TW5');
@@ -66,7 +66,7 @@ export async function run() {
           body: `Native application '${constants.APPLICATION_ID}' checking returned an error:\n${util.formatObject(r.error)}`,
           kind: 'error'
         });
-        console.error('Native application is not working: %o', r.error);
+        console.error('Native application is not working:', r.error);
       }
     });
   }
@@ -88,7 +88,7 @@ function displayModal(title, params) {
     titleNode.appendChild(document.createTextNode(title));
   }
   modalHeader.appendChild(titleNode);
-  modalHeader.classList.add('modal-' + params.kind);
+  modalHeader.classList.add(`modal-${params.kind}`);
 
   // Fill the message (body) part
   let bodyNode = params.body;
@@ -156,14 +156,14 @@ function getSavePath(message) {
   let pathname = document.location.toString().split("#")[0];
   // Replace file://localhost/ with file:///
   if (pathname.indexOf("file://localhost/") === 0) {
-    pathname = "file://" + pathname.substr(16);
+    pathname = `file://${pathname.substr(16)}`;
   }
   if (/^file\:\/\/\/[A-Z]\:\//i.test(pathname)) {
     // Windows path file:///x:/blah/blah --> x:\blah\blah
-    pathname = pathname.substr(8).replace(/\//g,"\\");
+    pathname = pathname.substr(8).replace(/\//g, "\\");
   } else if (pathname.indexOf("file://///") === 0) {
     // Firefox Windows network path file://///server/share/blah/blah --> //server/share/blah/blah
-    pathname = "\\\\" + pathname.substr(10).replace(/\//g,"\\");
+    pathname = "\\\\" + pathname.substr(10).replace(/\//g, "\\");
   } else if (pathname.indexOf("file:///") === 0) {
     // Mac/Unix local path file:///path/path --> /path/path
     pathname = pathname.substr(7);
@@ -172,7 +172,7 @@ function getSavePath(message) {
     pathname = pathname.substr(5);
   } else {
     // Otherwise Windows networth path file://server/share/path/path --> \\server\share\path\path
-    pathname = "\\\\" + pathname.substr(7).replace(new RegExp("/","g"),"\\");
+    pathname = "\\\\" + pathname.substr(7).replace(new RegExp("/","g"), "\\");
   }
   try {
     pathname = decodeURI(pathname);
@@ -250,7 +250,7 @@ function injectMessageBox() {
           util.formatObject(error),
         kind: 'error'
       });
-      console.error('Failed to save TiddlyWiki: %o', error);
+      console.error('Failed to save TiddlyWiki:', error);
     });
 
     return false;

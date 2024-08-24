@@ -87,7 +87,7 @@ export class RequestDetails {
         contentLength = range.split('/').pop().trim();
       } else {
         // Should not happen.
-        if (settings.debug.misc) console.log('Ignoring unhandled Content-Range=<%s> in response=<%o>', range, response);
+        if (settings.debug.misc) console.log(`Ignoring unhandled Content-Range=<${range}> in response=<%o>`, response);
       }
     }
     // Only existing positive length is valid.

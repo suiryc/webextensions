@@ -37,8 +37,7 @@ async function onMessage(app, msg) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg) {
-  console.warn('Received unhandled message feature=<%s> kind=<%s> contentSize=%d',
-    msg.feature, msg.kind, (msg.content || '').length)
+  console.warn(`Received unhandled message feature=<${msg.feature}> kind=<${msg.kind}> contentSize=${(msg.content || '').length}`)
   return {
     error: 'Message is not handled by native application',
     message: msg

@@ -61,7 +61,7 @@ export class PropertiesHandler {
         // (we wait for the tab to be known in order to use its cache).
         // We don't expect this to happen often, if at all (race conditions ?),
         // so log a warning when it happens.
-        console.warn('One-shot building property key=<%s> for not-yet-known tab=<%s> in handler=<%o> and creator=<%o>', key, details.tabId, this.tabsHandler, creator);
+        console.warn(`One-shot building property key=<${key}> for not-yet-known tab=<${details.tabId}> in handler=<%o> and creator=<%o>`, this.tabsHandler, creator);
         return create(creator);
       }
       if (!tab.extensionProperties) tab.extensionProperties = new PropertiesHandler(creator);
@@ -120,25 +120,25 @@ export function formatObject(obj, processed, recursiveLoop) {
   // Quote strings.
   if (typeof(obj) == 'string') return `"${obj}"`;
   // Get raw value for non-objects (and null).
-  if ((typeof(obj) != 'object') || (obj === null)) return '' + obj;
+  if ((typeof(obj) != 'object') || (obj === null)) return `${obj}`;
 
   // Handle errors.
-  if (obj instanceof Error) return obj.name + ' message=<' + obj.message + '>';
+  if (obj instanceof Error) return `${obj.name} message=<${obj.message}>`;
   // Handle requests.
   if ((obj instanceof XMLHttpRequest) || (('status' in obj) && ('statusText' in obj))) {
     if (!obj.status && !obj.statusText) return 'XHR failed';
     if (obj.status == 200) return 'XHR succeeded';
-    return 'XHR status=<' + obj.status + '> statusText=<' + obj.statusText + '>';
+    return `XHR status=<${obj.status}> statusText=<${obj.statusText}>`;
   }
 
   function append(p, o) {
     let s = recurse(o);
-    return s ? p + '; ' + s : p;
+    return s ? `${p}; ${s}` : p;
   }
 
   // Handle events.
   if ((obj instanceof Event) || (('type' in obj) && ('target' in obj))) {
-    return append('Event type=<' + obj.type + '>', obj.target);
+    return append(`Event type=<${obj.type}>`, obj.target);
   }
 
   // If object has its own representation, use it. Otherwise get its name and
@@ -252,7 +252,7 @@ export function normalizeUrl(url, log, label) {
   let normalized = new URL(url);
   normalized.hash = '';
   normalized = normalized.href;
-  if (log && (normalized !== url)) console.log('Normalized=<%s> %s url=<%s>', normalized, url, label);
+  if (log && (normalized !== url)) console.log(`Normalized=<${normalized}> ${label} url=<${url}>`);
   return normalized;
 }
 

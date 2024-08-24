@@ -14,8 +14,8 @@ function createManifest(dir, filename, command) {
   let manifestPath = path.join(dir, filename);
   console.log('');
   console.log('>> Creating manifest');
-  console.log('>>> File: %s', manifestPath);
-  console.log('>>> Command: %s', command);
+  console.log(`>>> File: ${manifestPath}`);
+  console.log(`>>> Command: ${command}`);
   return fse.mkdirp(dir).then(() => {
     fse.writeFile(manifestPath, `{
   "name": "${params.applicationId}",

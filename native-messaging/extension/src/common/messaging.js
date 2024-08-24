@@ -90,7 +90,7 @@ export class WebExtension {
       // If the background script receives a Port message for another target,
       // forward the message.
       if (isPort && this.targets && msg.target) return this.sendMessage(msg);
-      if (settings.debug.misc) console.log('Ignore message %o: receiver=<%s> does not match target=<%s>', msg, this.params.target, msg.target);
+      if (settings.debug.misc) console.log(`Ignore message %o: receiver=<${this.params.target}> does not match target=<${msg.target}>`, msg);
       return;
     }
     // In background script, we may need to know whether received message is
@@ -440,7 +440,7 @@ class PortHandler {
     // dead.
     for (let promise of Object.values(self.requests)) {
       let msg = 'Remote script disconnected';
-      if (error) msg += ' with error: ' + util.formatObject(error);
+      if (error) msg += ` with error: ${util.formatObject(error)}`;
       promise.reject(msg);
     }
     self.requests = {};
@@ -602,7 +602,7 @@ export class NativeApplication extends PortHandler {
     try {
       this.setPort(browser.runtime.connectNative(this.appId));
     } catch (error) {
-      console.error('Failed to connect to native application %s: %o', this.appdId, error);
+      console.error(`Failed to connect to native application ${this.appdId}:`, error);
       throw error;
     }
     this.lastActivity = util.getTimestamp();
@@ -627,7 +627,7 @@ export class NativeApplication extends PortHandler {
     // Note: this.port is undefined if *we* asked to disconnect.
     if (this.port && (port !== this.port)) {
       // This is not our connection; should not happen
-      console.warn('Received unknown native application %s port %o disconnection', this.appId, port);
+      console.warn(`Received unknown native application ${this.appId} port %o disconnection`, port);
       return;
     }
     let error;
@@ -635,13 +635,13 @@ export class NativeApplication extends PortHandler {
       // We don't expect the native application (port) to close itself: this
       // should mean an error was encoutered.
       error = port.error;
-      console.warn('Native application %s port disconnected: %o', this.appId, port.error);
+      console.warn(`Native application ${this.appId} port disconnected:`, port.error);
     }
     delete(this.port);
     this.fragments = {};
     for (let promise of Object.values(this.requests)) {
       let msg = 'Native application disconnected';
-      if (error) msg += ' with error: ' + util.formatObject(error);
+      if (error) msg += ` with error: ${util.formatObject(error)}`;
       promise.reject(msg);
     }
     this.requests = {};
@@ -710,7 +710,7 @@ export class NativeApplication extends PortHandler {
     if (this.fragments.length) this.janitoring();
     // Re-schedule if there are pending requests/fragments
     if (this.fragments.length || this.requests.length) return this.scheduleIdleCheck(1000);
-    console.log('Extension %s idle timeout', constants.EXTENSION_ID);
+    console.log(`Extension ${constants.EXTENSION_ID} idle timeout`);
     this.disconnect();
   }
 

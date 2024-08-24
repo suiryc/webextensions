@@ -47,7 +47,7 @@ class NativeSource extends stream.Transform {
     // Buffered data to parse
     this.buffer = Buffer.alloc(0);
     this.messageLength = -1;
-    this.readUInt32 = Buffer.prototype['readUInt32' + os.endianness()];
+    this.readUInt32 = Buffer.prototype[`readUInt32${os.endianness()}`];
   }
 
   _transform(chunk, encoding, done) {
@@ -105,7 +105,7 @@ class NativeSink extends stream.Writable {
     });
     this.stdout_write = app.stdout_write;
     // endian-dependant Buffer uint32 write function
-    this.writeUInt32 = Buffer.prototype['writeUInt32' + os.endianness()];
+    this.writeUInt32 = Buffer.prototype[`writeUInt32${os.endianness()}`];
   }
 
   _write(msg, encoding, done) {

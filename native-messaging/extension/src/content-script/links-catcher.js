@@ -176,7 +176,7 @@ function debugSample(kind) {
   if (samples.mark != now) {
     samples.mark = now;
     if (samples.skipped > 0) {
-      debug('[LinksCatcher] Skipped samples=<%d> kind=<%s>', samples.skipped, kind);
+      debug(`[LinksCatcher] Skipped samples=<${samples.skipped}> kind=<${kind}>`);
       samples.skipped = 0;
     }
     return debug;
@@ -357,10 +357,10 @@ class LinkHandler {
         let node = document.createElement('div');
         this.highlights.push(node);
         node.classList.add('linksCatcher_highlight');
-        node.style.left = rect.x + 'px';
-        node.style.top = rect.y + 'px';
-        node.style.width = rect.width + 'px';
-        node.style.height = rect.height + 'px';
+        node.style.left = `${rect.x}px`;
+        node.style.top = `${rect.y}px`;
+        node.style.width = `${rect.width}px`;
+        node.style.height = `${rect.height}px`;
         // Note: since position is relative to the parent, we better add this node
         // to the body and not the catcher zone.
         document.body.appendChild(node);
@@ -569,10 +569,10 @@ class LinksCatcher {
         this.mutationObserver.observe(document.body, { childList: true, subtree: true });
         this.detectLinks();
       }
-      this.catchZone.node.style.left = this.catchZone.left + 'px';
-      this.catchZone.node.style.top = this.catchZone.top + 'px';
-      this.catchZone.node.style.width = this.catchZone.width + 'px';
-      this.catchZone.node.style.height = this.catchZone.height + 'px';
+      this.catchZone.node.style.left = `${this.catchZone.left}px`;
+      this.catchZone.node.style.top = `${this.catchZone.top}px`;
+      this.catchZone.node.style.width = `${this.catchZone.width}px`;
+      this.catchZone.node.style.height = `${this.catchZone.height}px`;
       this.catchZone.node.style.display = 'block';
 
       this.catchLinks();
@@ -611,7 +611,7 @@ class LinksCatcher {
     }
 
     if ((scrollX != 0) || (scrollY != 0)) {
-      debugSample('scroll')('[LinksCacther] Scroll x=<%d> y=<%d>', scrollX, scrollY);
+      debugSample('scroll')(`[LinksCacther] Scroll x=<${scrollX}> y=<${scrollY}>`);
       window.scrollBy(scrollX, scrollY);
       this.refreshLinksPosition();
     }
@@ -632,8 +632,8 @@ class LinksCatcher {
       if (top - LINKS_COUNT_MARGIN < window.scrollY) {
         top = window.scrollY + LINKS_COUNT_MARGIN;
       }
-      this.linksCount.node.style.left = left + 'px';
-      this.linksCount.node.style.top = top + 'px';
+      this.linksCount.node.style.left = `${left}px`;
+      this.linksCount.node.style.top = `${top}px`;
       this.linksCount.node.style.display = 'block';
     } else {
       this.linksCount.node.style.display = 'none';
@@ -821,10 +821,10 @@ class LinksCatcher {
   listenEvent(kind) {
     let handler = this.eventHandlers[kind];
     if (handler) {
-      debug('[LinksCatcher] Listen event=<%s>', kind);
+      debug(`[LinksCatcher] Listen event=<${kind}>`);
       document.addEventListener(kind, handler, true);
     } else {
-      console.error('[LinksCatcher] No handler to listen to event=<%s>', kind);
+      console.error(`[LinksCatcher] No handler to listen to event=<${kind}>`);
     }
   }
 
@@ -832,7 +832,7 @@ class LinksCatcher {
   unlistenEvent(kind) {
     let handler = this.eventHandlers[kind];
     if (handler) {
-      debug('[LinksCatcher] Unlisten event=<%s>', kind);
+      debug(`[LinksCatcher] Unlisten event=<${kind}>`);
       document.removeEventListener(kind, handler, true);
     }
   }

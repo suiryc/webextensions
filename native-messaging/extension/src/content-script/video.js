@@ -195,9 +195,9 @@ function processVideo(node) {
 
   function unobserve(reason) {
     if (settings.debug.video) {
-      if (nonEmpty('src')) console.log('Finished observing video source=<%o>: src=<%s> known upon %s', node, node.src, reason);
-      else if (nonEmpty('currentSrc')) console.log('Finished observing video source=<%o>: currentSrc=<%s> known upon %s', node, node.currentSrc, reason);
-      else console.log('Finished observing video source=<%o>: still no src upon final %s', node, node.src, reason);
+      if (nonEmpty('src')) console.log(`Finished observing video source=<%o>: src=<${node.src}> known upon ${reason}`, node);
+      else if (nonEmpty('currentSrc')) console.log(`Finished observing video source=<%o>: currentSrc=<${node.currentSrc}> known upon ${reason}`, node);
+      else console.log(`Finished observing video source=<%o>: still no src upon final ${reason}`, node);
     }
     VIDEO_EVENTS.forEach(kind => node.removeEventListener(kind, eventCb));
     sourceObserver.disconnect();

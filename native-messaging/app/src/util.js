@@ -34,10 +34,10 @@ function formatObject(obj, processed, recursiveLoop) {
   // Quote strings.
   if (typeof(obj) == 'string') return `"${obj}"`;
   // Get raw value for non-objects (and null).
-  if ((typeof(obj) != 'object') || (obj === null)) return '' + obj;
+  if ((typeof(obj) != 'object') || (obj === null)) return `${obj}`;
 
   // Handle errors.
-  if (obj instanceof Error) return obj.name + ' message=<' + obj.message + '>';
+  if (obj instanceof Error) return `${obj.name} message=<${obj.message}>`;
 
   // If object has its own representation, use it. Otherwise get its name and
   // content.
