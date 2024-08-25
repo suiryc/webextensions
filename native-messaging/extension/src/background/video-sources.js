@@ -388,10 +388,9 @@ export class VideoSource {
     this.menuEntryTitle = title;
     // Refresh menu entry when applicable.
     if (changes && this.menuEntryId) {
-      browser.contextMenus.update(this.menuEntryId, {
+      await menuHandler.updateEntry(this.menuEntryId, {
         title: this.menuEntryTitle
       });
-      browser.contextMenus.refresh();
     }
 
     return changes;
@@ -708,7 +707,7 @@ class VideoSourceTabHandler {
     // Merge same sources.
     this.mergeSources(source);
 
-    // Refesh source if applicable (will be done elsewhere upon replaying) and
+    // Refresh source if applicable (will be done elsewhere upon replaying) and
     // trigger videos update if we are the active tab.
     if (!this.replaying && (await source.refresh(this.menuHandler))) this.updateVideos();
   }

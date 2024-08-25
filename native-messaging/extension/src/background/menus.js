@@ -64,6 +64,10 @@ import { settings } from '../common/settings.js';
 //      * Download entry N
 //      * (separator)
 //      * Unload tab
+//
+// As a consequence, callers need to exclusively rely on the menu handler and
+// not call 'browser.contextMenus' directly.
+// Caller API: reset, addEntry, updateEntry, removeEntries.
 
 // For now, this menu handler only manages download links.
 // However, for simplicity the root entry and sub-entries (available downloads)
@@ -108,6 +112,8 @@ export class MenuHandler {
     this.shown = undefined;
     this.setup();
   }
+
+  // Inner API
 
   async setup() {
     let self = this;
@@ -269,6 +275,8 @@ export class MenuHandler {
     await this.onShown(shown.data, shown.tab);
   }
 
+  // Outer API: can be used by caller.
+
   async reset() {
     // Empty known entries.
     this.entries = [];
@@ -287,6 +295,24 @@ export class MenuHandler {
     this.entries.push(details);
     await this.rebuild();
     return id;
+  }
+
+  async updateEntry(id, details) {
+    // Search for entry.
+    for (let entry of this.entries) {
+      if (entry.id != id) continue;
+      // Update the details we know.
+      for (let [key, value] of Object.entries(details)) {
+        if ((value !== undefined) && (value !== null)) entry[key] = value;
+        else delete(entry[key]);
+      }
+      // If menu is shown, update entry and refresh.
+      if (this.shown) {
+        await browser.contextMenus.update(id, details);
+        await browser.contextMenus.refresh();
+      }
+      break;
+    }
   }
 
   async removeEntries() {
