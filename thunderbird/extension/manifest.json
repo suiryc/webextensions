@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Suiryc personal TB WebExtension",
+  "version": "0.1.0",
+
+  "description": "Personal WebExtension. Restores proper 'All events' calendar filtering feature.",
+  "author": "Julien Coloos",
+  "homepage_url": "https://github.com/suiryc/webextensions",
+
+  // We use configurable settings, which need the storage permission.
+  "permissions": [
+    "storage"
+  ],
+
+  "icons": {
+    "48": "/resources/icon.svg",
+    "96": "/resources/icon.svg"
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "tb-personal-webext@suiryc",
+      // Personal site with versions and update manifest
+      "update_url": "https://files.suiryc-139.freeddns.org/webext/suiryc_personal_tb_webextension-update.json",
+      "strict_min_version": "128.0"
+    }
+  },
+
+  "background": {
+    "scripts": [ "/src/background.js" ]
+  },
+
+  "experiment_apis": {
+    "SuirycWebExt": {
+      "schema": "/src/experiment/schema.json",
+      "parent": {
+        "scopes": [ "addon_parent" ],
+        "paths": [ [ "SuirycWebExt" ] ],
+        "script": "src/experiment/implementation.js",
+        "events": ["startup"]
+      }
+    }
+  }
+
+}
