@@ -7,13 +7,19 @@
 // Using a closure to not leak anything but the API to the outside world.
 (function (exports) {
 
+  // Whether to log some debugging information.
+  let debug = {
+    setup: false,
+    refresh: false
+  };
+
   // Get 'calFilter', needed to build our own filter.
   Services.scriptloader.loadSubScript('chrome://calendar/content/widgets/calendar-filter.js');
 
   // Get calendar utils.
   let { cal } = ChromeUtils.importESModule('resource:///modules/calendar/calUtils.sys.mjs');
 
-  // Id of the filer node we add.
+  // Id of the filter node we add.
   const FILTER_ALL_ID = 'event-filter-swe-all';
   // Id of the filter menupopup node.
   const EVENT_FILTER_MENUPOPUP_ID = 'event-filter-menupopup';
@@ -167,15 +173,25 @@
 
     #setupWindow(win) {
       // Nothing to do if setup already done here.
-      if (win.swe_setup) return;
+      if (win.swe_setup) {
+        if (debug.setup) console.log('Window already setup:', win);
+        return;
+      }
 
       // Nothing much to do if the menu popup is not there.
       let menupopup = win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID);
-      if (!menupopup) return;
+      if (!menupopup) {
+        if (debug.setup) console.log('Window has no filter menu popup:', win);
+        return;
+      }
 
       // Belt and suspenders: reset anything already setup.
       // Should not be necessary in normal case, as we only setup these once.
-      this.#resetWindow(win);
+      try {
+        this.#resetWindow(win);
+      } catch (error) {
+        console.log('Failed to reset window before setup:', error, win);
+      }
 
       // Add '*' entry.
       let node = menupopup.firstChild.cloneNode(true);
@@ -188,17 +204,8 @@
 
       // Override the concerned methods.
       // (see below for details)
-      let filteredView = win.getUnifinderView();
-      if (filteredView) {
-        // Don't forget to 'bind' so 'this' is as expected.
-        filteredView.swe_bkp_refreshItems = filteredView.refreshItems.bind(filteredView);
-        filteredView.refreshItems = refreshItems.bind(filteredView);
-      }
-      if (!win.swe_bkp_refreshUnifinderFilterInterval) {
-        win.swe_bkp_refreshUnifinderFilterInterval = win.refreshUnifinderFilterInterval;
-        // Bind the window to the method, so that we know which one to work on.
-        win.refreshUnifinderFilterInterval = refreshUnifinderFilterInterval.bind(win);
-      }
+      new SWE_CalendarFilteredTreeView(win.getUnifinderView());
+      new SWE_Window(win);
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
       // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l67
@@ -222,7 +229,8 @@
       // Thus, replace the listener callback with ours.
       let viewBox = win.getViewBox()
       if (viewBox) {
-        viewBox.removeEventListener('dayselect', win.swe_bkp_refreshUnifinderFilterInterval);
+        if (debug.setup) console.log('Replacing ViewBox listener:', win);
+        viewBox.removeEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
         viewBox.addEventListener('dayselect', win.refreshUnifinderFilterInterval);
       }
 
@@ -230,7 +238,10 @@
       win.swe_setup = true;
 
       // Select our node when appropriate, so that events filtering takes place.
-      if (chosen) node.click();
+      if (chosen) {
+        if (debug.setup) console.log('Auto-selecting * entry:', win);
+        node.click();
+      }
     }
 
     #resetWindow(win) {
@@ -238,26 +249,23 @@
       let menupopup = win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID);
       if (menupopup) {
         for (let node of win.document.querySelectorAll(`[id="${FILTER_ALL_ID}"]`)) {
+          if (debug.setup) console.log(`Removing filter menu popup entry=<${FILTER_ALL_ID}>:`, win);
           menupopup.removeChild(node);
         }
       }
 
-      if (win.swe_bkp_refreshUnifinderFilterInterval) {
+      if (win.__swe__) {
         let viewBox = win.getViewBox()
         if (viewBox) {
+          if (debug.setup) console.log('Restoring ViewBox listener:', win);
           viewBox.removeEventListener('dayselect', win.refreshUnifinderFilterInterval);
-          viewBox.addEventListener('dayselect', win.swe_bkp_refreshUnifinderFilterInterval);
+          viewBox.addEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
         }
 
-        win.refreshUnifinderFilterInterval = win.swe_bkp_refreshUnifinderFilterInterval;
-        delete(win.swe_bkp_refreshUnifinderFilterInterval);
+        Override.reset(win);
       }
 
-      let filteredView = win.getUnifinderView();
-      if (filteredView && filteredView.swe_bkp_refreshItems) {
-        filteredView.refreshItems = filteredView.swe_bkp_refreshItems;
-        delete(filteredView.swe_bkp_refreshItems);
-      }
+      Override.reset(win.getUnifinderView());
 
       delete(win.swe_setup);
     }
@@ -278,121 +286,245 @@
   // The other important method is 'CalendarFilteredTreeView.refreshItems', as
   // is called in many situations (refreshUnifinderFilterInterval included).
 
-  // Override the original method in charge of getting filtered events from
-  // calendars.
-  // Part of the 'CalendarFilteredTreeView' class:
-  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l58
-  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter-tree-view.js#l7
-  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1209
-  function refreshItems() {
-    let self = this;
+  class Override {
 
-    // Use the original method when applicable.
-    if (!chosen) return self.swe_bkp_refreshItems(arguments);
-
-    // Don't bother if inactive, or not prepared to show any event.
-    if (!Boolean(self.isActive && self.itemType)) {
-      return Promise.resolve();
+    constructor(wrapped) {
+      if (!wrapped || wrapped.__swe__) return;
+      this.className = this.constructor.name;
+      if (debug.setup) console.log(`[${this.className}] Setup override`);
+      this.wrapped = wrapped;
+      wrapped.__swe__ = this;
+      this.overridden = [];
+      this.setup();
     }
 
-    // Unlike original code, we cannot properly create a refresh job.
-    // We can only create our own filter (the main purpose of this extension),
-    // get matching events (*without* occurrences) from calendars, and add them
-    // in the view.
-    let filter = new calFilter();
-    // We filter events, as original code.
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
-    filter.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
-
-    // Prepare today 'date' (we want the whole day, not an exact time).
-    let today = cal.dtz.now();
-    today.isDate = true;
-
-    // Get events from 100 years past and future around today.
-    filter.startDate = today.clone();
-    filter.startDate.year -= 100;
-    filter.startDate.makeImmutable();
-    filter.endDate = today.clone();
-    filter.endDate.year += 100;
-    filter.endDate.makeImmutable();
-    // Most importantly: *DO NOT* get occurrences, only the base events.
-    // Setting 'occurrences' in filter properties overrides default behaviour
-    // which is to get occurrences.
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
-    // e.g. see in-memory usage of this property:
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
-    filter.mFilterProperties.occurrences = filter.mFilterProperties.FILTER_OCCURRENCES_NONE;
-
-    // Now, we basically do the same as original code, but with our own filter.
-    // See:
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1227
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1286
-
-    // Clear the view.
-    self.clearItems();
-    // Loop on calendars.
-    let promises = [];
-    for (let calendar of cal.manager.getCalendars()) {
-      // Skip non-existing/disabled calendars.
-      if (!calendar) continue;
-      if (calendar.getProperty('disabled') || !calendar.getProperty('calendar-main-in-composite')) continue;
-      // Filter items in calendar, and populate view.
-      let iterator = cal.iterate.streamValues(filter.getItems(calendar));
-      let p = Array.fromAsync(iterator).then(items => {
-        self.addItems(items.flat());
-      });
-      promises.push(p);
-    }
-    // Return promise completed when done with calendars.
-    return Promise.all(promises);
-  }
-
-  // Override the original method used when changing the selected event filter
-  // (start/end date selection).
-  // Original method is a global one:
-  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l251
-  function refreshUnifinderFilterInterval() {
-    let win = this;
-
-    // Don't bother if the view is inactive.
-    let filteredView = win.getUnifinderView();
-    if (!filteredView || !filteredView.isActive) return;
-
-    // Ensure the filter view is invalidated.
-    // Even though *we* will clear and populate when our entry is selected, we
-    // need to ensure that the original view will get refreshed if another
-    // filter is selected: this is done by modifying either start/end date in a
-    // way that selecting any normal entry will see a change in the value, hence
-    // triggering a refresh of the items.
-    if (filteredView) {
-      let startDate = filteredView.startDate;
-      if (startDate) {
-        // Modify start date.
-        startDate.clone();
-        startDate.day -= 1;
-        filteredView.startDate = startDate;
-      } else {
-        // Set start and end date.
-        let today = cal.dtz.now();
-        today.isDate = true;
-        filteredView.startDate = today;
-        filteredView.endDate = today;
+    override(name, target, originalUnbound) {
+      let self = this;
+      let wrapped = self.wrapped;
+      let original = wrapped[name];
+      if (debug.setup) console.log(`[${this.className}] Override method=<${name}> (original exists=<${!!original}> unbound=<${!!originalUnbound}>)`);
+      // Don't forget to 'bind' so 'this' is as expected.
+      // Don't do it on original method when asked.
+      try {
+        if (original) self[name] = originalUnbound ? original : original.bind(wrapped);
+        wrapped[name] = target[name].bind(wrapped);
+        self.overridden.push(name);
+      } catch(error) {
+        console.log(`[${this.className}] Failed to override method=<${name}>:`, error);
       }
     }
 
-    let intervalSelectionElem = win.document.getElementById('event-filter-menulist').selectedItem;
-    if (intervalSelectionElem.id == FILTER_ALL_ID) {
-      // We were chosen.
-      filterListener.trigger(true);
-      // We only need to refresh items: the overridden method will do the rest.
-      filteredView.refreshItems();
-    } else {
-      // Another entry was selected.
-      filterListener.trigger(false);
-      // Use original method.
-      win.swe_bkp_refreshUnifinderFilterInterval();
+    reset() {
+      let self = this;
+      let wrapped = self.wrapped;
+      for (let name of self.overridden) {
+        let original = self[name];
+        if (debug.setup) console.log(`[${this.className}] Reset method=<${name}> (exists=${!!original}) override`);
+        if (original) {
+          wrapped[name] = original;
+        } else {
+          delete(wrapped[name]);
+        }
+      }
+      self.overridden = [];
+      delete(wrapped.__swe__);
     }
+
+    static reset(wrapped) {
+      if (!wrapped || !wrapped.__swe__) return;
+      wrapped.__swe__.reset();
+    }
+
+  }
+
+  class SWE_CalendarFilteredTreeView extends Override {
+
+    constructor(wrapped) {
+      super(wrapped);
+      this.cleared = false;
+    }
+
+    setup() {
+      this.override('invalidate', SWE_CalendarFilteredTreeView);
+      this.override('refreshItems', SWE_CalendarFilteredTreeView);
+      this.override('clearItems', SWE_CalendarFilteredTreeView);
+    }
+
+    // Inject helper method to invalidate view.
+    static invalidate() {
+      // The easiest way to invalidate the view is to change (then reset) the
+      // filtered item type.
+      let itemType = this.itemType;
+      this.itemType = 0;
+      this.itemType = itemType;
+      if (debug.refresh) console.log('Invalidated event filter view');
+    }
+
+    // Override the original method in charge of getting filtered events from
+    // calendars.
+    // Part of the 'CalendarFilteredTreeView' class:
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l58
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter-tree-view.js#l7
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1209
+    static refreshItems() {
+      let self = this;
+      let swe = self.__swe__;
+
+      // Unlike original code, we cannot properly create a refresh job.
+      // We can only create our own filter (the main purpose of this extension),
+      // get matching events (*without* occurrences) from calendars, and add
+      // them in the viewed list.
+      // But simply doing this triggers undesirable side-effects: when selecting
+      // an event in the list, if the associated date is not visible in the
+      // current calendar view, it will be refreshed to show the correct day,
+      // and 'refreshItems' will be called again.
+      // The original code handles multiple situation (refresh already ongoing,
+      // etc.) through private state fields. To piggy-back original behaviour
+      // as much as possible:
+      // 1. Call original code unconditionally
+      // 2. If our entry was not chosen, do nothing more, or
+      // 3. If we detect list was not refreshed, do nothing more either, or
+      // 4. Wait for current refresh to finish, then do our filtering to
+      //    populate the list, and return this promise to caller
+      //
+      // This allows us to somehow ride on the inner job created for a normal
+      // refresh. We simply ensure that only one day (the current one) is
+      // selected so that original code is quickly done and we can do ours
+      // without too much visual glitches.
+
+      // We will detect whether items were cleared: that's the sign an actual
+      // refresh job was triggered.
+      this.cleared = false;
+      let p0 = swe.refreshItems(...arguments);
+      if (!chosen || !self.cleared) {
+        if (debug.refresh) console.log(`Using only nominal refresh: chosen=<${chosen}> cleared=<${self.cleared}>`);
+        return p0;
+      }
+      if (debug.refresh) console.log('Performing non-occurrences event filtering');
+
+      let filter = new calFilter();
+      // We filter events, as original code.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
+      filter.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
+
+      // Prepare today 'date' (we want the whole day, not an exact time).
+      let today = cal.dtz.now();
+      today.isDate = true;
+
+      // Get events from 100 years past and future around today.
+      filter.startDate = today.clone();
+      filter.startDate.year -= 100;
+      filter.startDate.makeImmutable();
+      filter.endDate = today.clone();
+      filter.endDate.year += 100;
+      filter.endDate.makeImmutable();
+      // Most importantly: *DO NOT* get occurrences, only the base events.
+      // Setting 'occurrences' in filter properties overrides default behaviour
+      // which is to get occurrences.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
+      // e.g. see in-memory usage of this property:
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
+      filter.mFilterProperties.occurrences = filter.mFilterProperties.FILTER_OCCURRENCES_NONE;
+
+      // Now, we basically do the same as original code, but with our own filter.
+      // See:
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1227
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1286
+
+      // Wait for the current job to be done (it is adding items in the list).
+      return p0.then(() => {
+        // Clear the list.
+        self.clearItems();
+        // Loop on calendars.
+        let promises = [];
+        for (let calendar of cal.manager.getCalendars()) {
+          // Skip non-existing/disabled calendars.
+          if (!calendar) continue;
+          if (calendar.getProperty('disabled') || !calendar.getProperty('calendar-main-in-composite')) continue;
+          // Filter items in calendar, and populate list.
+          let iterator = cal.iterate.streamValues(filter.getItems(calendar));
+          let p = Array.fromAsync(iterator).then(items => {
+            self.addItems(items.flat());
+          });
+          promises.push(p);
+        }
+        // Return promise completed when done with calendars.
+        return Promise.all(promises);
+      });
+    }
+
+    static clearItems() {
+      this.cleared = true;
+      return this.__swe__.clearItems();
+    }
+
+  }
+
+  class SWE_Window extends Override {
+
+    setup() {
+      // Binds the window to the method, so that we know which one to work on.
+      // But DO NOT bind original method, because we need it untouched to be
+      // able to remove it from a listener.
+      this.override('refreshUnifinderFilterInterval', SWE_Window, true);
+    }
+
+    // Override the original method used when changing the selected event filter
+    // (start/end date selection).
+    // Original method is a global one:
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l251
+    static refreshUnifinderFilterInterval() {
+      let win = this;
+      let swe = win.__swe__;
+
+      // Don't bother if the view is not present.
+      let filteredView = win.getUnifinderView();
+      if (!filteredView) {
+        if (debug.refresh) console.log('Skipping filtering refresh: unexsinting filtered view');
+        return;
+      }
+
+      let intervalSelectionElem = win.document.getElementById('event-filter-menulist').selectedItem;
+      if (intervalSelectionElem.id == FILTER_ALL_ID) {
+        if (debug.refresh) console.log(`Triggered * event filter (switch=<${!chosen}>)`);
+        // We were chosen.
+        if (!chosen || !filteredView.isActive) {
+          // Reset start/end date to today.
+          // We do this only when switching (from nominal filtering) or when
+          // the view is actually inactive.
+          // In any case, this is because refreshing will first do a nominal
+          // start/end date filtering: we limit it to the bare minimum. These
+          // dates won't change until another event filter is selected.
+          // The latter case is useful when the window is created: start/end are
+          // initially undefined, and until set 'refreshItems' will no nothing.
+          // As for invalidation, we *MUST NOT* do it unconditionally because
+          // each time a different day is selected in the calendar, we are
+          // called again: original code does nothing because nothing was
+          // invalided in-between.
+          let today = cal.dtz.now();
+          today.isDate = true;
+          filteredView.startDate = today;
+          filteredView.endDate = today;
+          // Also ensure the view is invalidated.
+          filteredView.invalidate();
+        }
+        filterListener.trigger(true);
+        // We only need to refresh items: the overridden method will do the rest.
+        filteredView.refreshItems();
+      } else {
+        if (debug.refresh) console.log(`Triggered nominal=<${intervalSelectionElem.value}> event filter (switch=<${chosen}>)`);
+        // Another entry was selected.
+        if (chosen) {
+          // Ensure the filter view is invalidated.
+          filteredView.invalidate();
+        }
+        filterListener.trigger(false);
+        // Use original method.
+        swe.refreshUnifinderFilterInterval();
+      }
+    }
+
   }
 
   // Export the api by assigning in to the exports parameter of the anonymous
