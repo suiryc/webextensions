@@ -261,6 +261,11 @@
       // Select our node when appropriate, so that events filtering takes place.
       if (chosen) {
         if (debug.setup) console.log('Auto-selecting * entry:', win);
+        // Invalidating right now is useful if calendar tab is already opened
+        // upon startup, otherwise often the list won't be refreshed: the view
+        // is already 'active' so the overridden code (see below) won't
+        // invalidate it there.
+        filteredView.invalidate();
         node.click();
       }
     }
