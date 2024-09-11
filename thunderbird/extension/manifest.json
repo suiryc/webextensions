@@ -4,7 +4,7 @@
   // Code, ready for version 3, also works in version 2.
   "manifest_version": 2,
   "name": "Suiryc personal TB WebExtension",
-  "version": "0.1.0",
+  "version": "0.2.0",
 
   "description": "Personal WebExtension. Restores proper 'All events' calendar filtering feature.",
   "author": "Julien Coloos",
