@@ -1,5 +1,8 @@
 {
-  "manifest_version": 3,
+  // Remain in version 2.
+  // Background script does not start automatically in version 3.
+  // Code, ready for version 3, also works in version 2.
+  "manifest_version": 2,
   "name": "Suiryc personal TB WebExtension",
   "version": "0.1.0",
 
