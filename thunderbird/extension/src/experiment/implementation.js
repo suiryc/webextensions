@@ -171,7 +171,9 @@
     close() {
     }
 
-    #setupWindow(win) {
+    #setupWindow(win, attempt=1) {
+      let self = this;
+
       // Nothing to do if setup already done here.
       if (win.swe_setup) {
         if (debug.setup) console.log('Window already setup:', win);
@@ -179,16 +181,35 @@
       }
 
       // Nothing much to do if the menu popup is not there.
+      // And if the calendar tab is opened upon startup (that is it was left
+      // opened at latest shutdown), sometimes the filtered view has not been
+      // created yet.
+      // Retry a few times in this case.
       let menupopup = win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID);
+      let filteredView = win.getUnifinderView();
+      function retry() {
+        if (attempt < 10) {
+          if (debug.setup) console.log('Retrying later ...');
+          setTimer(() => {
+            self.#setupWindow(win, attempt + 1);
+          }, 300);
+        }
+      }
       if (!menupopup) {
         if (debug.setup) console.log('Window has no filter menu popup:', win);
+        retry();
+        return;
+      }
+      if (!filteredView) {
+        if (debug.setup) console.log('Window has no filtered view:', win);
+        retry();
         return;
       }
 
       // Belt and suspenders: reset anything already setup.
       // Should not be necessary in normal case, as we only setup these once.
       try {
-        this.#resetWindow(win);
+        self.#resetWindow(win);
       } catch (error) {
         console.log('Failed to reset window before setup:', error, win);
       }
@@ -204,7 +225,7 @@
 
       // Override the concerned methods.
       // (see below for details)
-      new SWE_CalendarFilteredTreeView(win.getUnifinderView());
+      new SWE_CalendarFilteredTreeView(filteredView);
       new SWE_Window(win);
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
