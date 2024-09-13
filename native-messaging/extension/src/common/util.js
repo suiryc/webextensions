@@ -537,7 +537,7 @@ export class Deferred {
     // Reminder: function given to Promise constructor is executed before the
     // Promise object is actually built.
     // So: we cannot add fields to the promise object from within, but we are
-    // sure than once we have the Promise object, the code has been executed.
+    // sure that once we have the Promise object, the code has been executed.
     this.promise = new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;
