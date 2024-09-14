@@ -540,7 +540,7 @@
       filter.endDate = today.clone();
       filter.endDate.year += 100;
       filter.endDate.makeImmutable();
-      // Most importantly: *DO NOT* get occurrences, only the base events.
+      // Most importantly: *DO NOT* get occurrences, only the parent events.
       // Setting 'occurrences' in filter properties overrides default behaviour
       // which is to get occurrences.
       // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
