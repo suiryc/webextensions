@@ -19,10 +19,38 @@
   // Get calendar utils.
   let { cal } = ChromeUtils.importESModule('resource:///modules/calendar/calUtils.sys.mjs');
 
+  // 'event-filter-' node id prefix.
+  const EVENT_FILTER_ID_PREFIX = 'event-filter-';
+  const buildEventFilterId = suffix => `${EVENT_FILTER_ID_PREFIX}${suffix}`;
   // Id of the filter node we add.
-  const FILTER_ALL_ID = 'event-filter-swe-all';
+  const EVENT_FILTER_SWE_ALL_ID_SUFFIX = 'swe-all';
+  const EVENT_FILTER_SWE_ALL_ID = buildEventFilterId(EVENT_FILTER_SWE_ALL_ID_SUFFIX);
+  // Id of the filter menulist node.
+  const EVENT_FILTER_MENULIST_ID = buildEventFilterId('menulist');
   // Id of the filter menupopup node.
-  const EVENT_FILTER_MENUPOPUP_ID = 'event-filter-menupopup';
+  const EVENT_FILTER_MENUPOPUP_ID = buildEventFilterId('menupopup');
+  // Ids (suffix) to keep (in order) in filter menupop node.
+  // Original order:
+  //  - past
+  //  - today
+  //  - next7days
+  //  - next14Days
+  //  - next31Days
+  //  - next6Months
+  //  - next12Months
+  //  - thisCalendarMonth
+  //  - current: selected day
+  //  - currentview: calendar view
+  //  - all
+  const EVENT_FILTER_MENUPOPUP_IDS = [
+    EVENT_FILTER_SWE_ALL_ID_SUFFIX,
+    'today',
+    'next7days',
+    'next31Days',
+    'next12Months',
+    'current',
+    'currentview'
+  ];
 
   // Context passed to experiment.
   // Gives access to some useful tools.
@@ -230,17 +258,9 @@
         console.log(`Failed to reset window=<${windowId}> before setup:`, error);
       }
 
-      // Add '*' entry.
-      let node = menupopup.firstChild.cloneNode(true);
-      node.id = FILTER_ALL_ID;
-      node.value = 'swe-all';
-      node.setAttribute('data-l10n-id', 'calendar-event-listing-interval-item');
-      node.label = '*';
-      node.firstChild.nextSibling.value = '*';
-      menupopup.appendChild(node);
-
       // Override the concerned objects/methods.
       // (see below for details)
+      new SWE_MenuPopup(menupopup, windowId).setup();
       new SWE_CalendarFilteredTreeView(filteredView, windowId).setup();
       new SWE_Window(win, windowId).setup();
       // It happens that the original method 'refreshUnifinderFilterInterval'
@@ -282,21 +302,13 @@
         // is already 'active' so the overridden code (see below) won't
         // invalidate it there.
         filteredView.invalidate();
-        node.click();
+        menupopup.__swe__.nodes[EVENT_FILTER_SWE_ALL_ID].click();
       }
     }
 
     #resetWindow(win) {
       // Remove entries we setup, and restore original methods/listeners.
       let windowId = ctx.extension.windowManager.getWrapper(win).id;
-      let menupopup = win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID);
-      if (menupopup) {
-        for (let node of win.document.querySelectorAll(`[id="${FILTER_ALL_ID}"]`)) {
-          if (debug.setup) console.log(`Removing window=<${windowId}> filter menu popup entry=<${FILTER_ALL_ID}>`);
-          menupopup.removeChild(node);
-        }
-      }
-
       if (win.__swe__) {
         let viewBox = win.getViewBox()
         if (viewBox) {
@@ -309,6 +321,7 @@
       }
 
       Override.reset(win.getUnifinderView());
+      Override.reset(win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID));
 
       delete(win.swe_setup);
     }
@@ -378,6 +391,66 @@
     static reset(wrapped) {
       if (!wrapped || !wrapped.__swe__) return;
       wrapped.__swe__.reset();
+    }
+
+  }
+
+  class SWE_MenuPopup extends Override {
+
+    constructor(wrapped, windowId) {
+      super(wrapped);
+      this.windowId = windowId;
+    }
+
+    setup() {
+      let self = this;
+      let menupopup = self.wrapped;
+
+      // Backup original nodes before removing them.
+      self.nodesBackup = [];
+      self.nodes = {};
+      Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
+        self.nodesBackup.push(node);
+        self.nodes[node.id] = node;
+        if (debug.setup) console.log(`Removing windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        menupopup.removeChild(node);
+      });
+
+      // Prepare our node.
+      let node = self.nodesBackup[0].cloneNode(true);
+      node.id = EVENT_FILTER_SWE_ALL_ID;
+      node.value = EVENT_FILTER_SWE_ALL_ID_SUFFIX;
+      node.setAttribute('data-l10n-id', `calendar-event-listing-interval-item-${EVENT_FILTER_SWE_ALL_ID_SUFFIX}`);
+      node.label = '*';
+      node.firstChild.nextSibling.value = '*';
+      self.nodes[node.id] = node;
+
+      // Set nodes in wanted order.
+      for (let suffix of EVENT_FILTER_MENUPOPUP_IDS) {
+        node = self.nodes[buildEventFilterId(suffix)];
+        if (!node) continue;
+        if (debug.setup) console.log(`Adding windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        menupopup.appendChild(node);
+      }
+    }
+
+    reset() {
+      let self = this;
+      let menupopup = self.wrapped;
+
+      // Restore original nodes.
+      Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
+        if (debug.setup) console.log(`Removing windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        menupopup.removeChild(node);
+      });
+      for (let node of self.nodesBackup) {
+        if (debug.setup) console.log(`Restoring windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        menupopup.appendChild(node);
+      }
+      self.nodesBackup = [];
+      self.nodes = {};
+
+      super.reset();
     }
 
   }
@@ -539,8 +612,8 @@
         return;
       }
 
-      let intervalSelectionElem = win.document.getElementById('event-filter-menulist').selectedItem;
-      if (intervalSelectionElem.id == FILTER_ALL_ID) {
+      let intervalSelectionElem = win.document.getElementById(EVENT_FILTER_MENULIST_ID).selectedItem;
+      if (intervalSelectionElem.id == EVENT_FILTER_SWE_ALL_ID) {
         if (debug.refresh) console.log(`Triggered windowId=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
         // We were chosen.
         if (!chosen || !filteredView.isActive) {
