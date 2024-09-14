@@ -65,22 +65,30 @@ class Deferred {
 }
 
 // Wait for local storage to be read before working on windows.
+// Once ready, first setup experiment.
 let chosen = new Deferred().promise;
+let ready = chosen.then(v => {
+  try {
+    messenger.SuirycWebExt.setup(v);
+  } catch (error) {
+    console.log(`Failed to setup:`, error);
+  }
+});
 
-function setup(win) {
+function setupWindow(win) {
   if (win && (win.type != 'normal')) return;
-  return chosen.then(v => {
+  return ready.then(() => {
     try {
-      messenger.SuirycWebExt.setup(v);
+      messenger.SuirycWebExt.setupWindow(win.id);
     } catch (error) {
-      console.log(`Failed to setup windows:`, error);
+      console.log(`Failed to setup window=<${win.id}>:`, error);
     }
   });
 }
 
-// Initiai setup, re-done when a new window is created.
-messenger.windows.onCreated.addListener(setup);
-setup();
+// Handle current window, and each created window.
+messenger.windows.onCreated.addListener(setupWindow);
+messenger.windows.getCurrent().then(setupWindow);
 
 // Get the settings from storage.
 messenger.storage.local.get('chosen').then(settings => {

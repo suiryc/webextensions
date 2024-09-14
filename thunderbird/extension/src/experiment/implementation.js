@@ -24,6 +24,10 @@
   // Id of the filter menupopup node.
   const EVENT_FILTER_MENUPOPUP_ID = 'event-filter-menupopup';
 
+  // Context passed to experiment.
+  // Gives access to some useful tools.
+  // See: https://webextension-api.thunderbird.net/en/128-esr-mv3/experiments/tabs_and_windows.html
+  let ctx = undefined;
   // Whether our entry is chosen by default.
   let chosen = undefined;
 
@@ -65,6 +69,14 @@
   // The variable for our FilterListener instance.
   // Since we need the extension object, we cannot create it here directly.
   let filterListener;
+
+  function getWindow(windowId) {
+    try {
+      return ctx.extension.windowManager.get(windowId)?.window;
+    } catch (error) {
+      console.log(`Failed to get window=<${windowId}>:`, error);
+    }
+  }
 
   function processWindows(callback) {
     // Process all normal windows (i.e. 'mail:3pane').
@@ -117,6 +129,7 @@
 
     getAPI(context) {
       let self = this;
+      ctx = context;
       // See: https://developer.thunderbird.net/add-ons/mailextensions/experiments#managing-your-experiments-lifecycle
       context.callOnClose(self);
       return {
@@ -124,13 +137,13 @@
 
           setup: function(v) {
             // Get 'chosen' state the first time we are called.
-            // Later, we are the one indicating whether it changes, so we are
-            // more up-to-date than the background script.
+            // If we are called later, we are the one indicating whether it
+            // changes, so we are more up-to-date than the background script.
             if (chosen === undefined) chosen = v;
-            // Setup all windows.
-            processWindows(win => {
-              self.#setupWindow(win);
-            });
+          },
+
+          setupWindow: function(windowId) {
+            self.#setupWindow(windowId);
           },
 
           onFilterChanged: new ExtensionCommon.EventManager({
@@ -171,14 +184,17 @@
     close() {
     }
 
-    #setupWindow(win, attempt=1) {
+    #setupWindow(windowId, attempt=1) {
       let self = this;
 
       // Nothing to do if setup already done here.
+      let win = getWindow(windowId);
+      if (!win) return;
       if (win.swe_setup) {
-        if (debug.setup) console.log('Window already setup:', win);
+        if (debug.setup) console.log(`Window=<${windowId}> already setup:`, win);
         return;
       }
+      if (debug.setup) console.log(`Setup window=<${windowId}>:`, win);
 
       // Nothing much to do if the menu popup is not there.
       // And if the calendar tab is opened upon startup (that is it was left
@@ -189,19 +205,19 @@
       let filteredView = win.getUnifinderView();
       function retry() {
         if (attempt < 10) {
-          if (debug.setup) console.log('Retrying later ...');
+          if (debug.setup) console.log(`Retrying window=<${windowId}> (attempt=${attempt+1}) later ...`);
           setTimer(() => {
-            self.#setupWindow(win, attempt + 1);
+            self.#setupWindow(windowId, attempt + 1);
           }, 300);
         }
       }
       if (!menupopup) {
-        if (debug.setup) console.log('Window has no filter menu popup:', win);
+        if (debug.setup) console.log(`Window=<${windowId}> has no filter menu popup`);
         retry();
         return;
       }
       if (!filteredView) {
-        if (debug.setup) console.log('Window has no filtered view:', win);
+        if (debug.setup) console.log(`Window=<${windowId}> has no filtered view`);
         retry();
         return;
       }
@@ -211,7 +227,7 @@
       try {
         self.#resetWindow(win);
       } catch (error) {
-        console.log('Failed to reset window before setup:', error, win);
+        console.log(`Failed to reset window=<${windowId}> before setup:`, error);
       }
 
       // Add '*' entry.
@@ -223,10 +239,10 @@
       node.firstChild.nextSibling.value = '*';
       menupopup.appendChild(node);
 
-      // Override the concerned methods.
+      // Override the concerned objects/methods.
       // (see below for details)
-      new SWE_CalendarFilteredTreeView(filteredView);
-      new SWE_Window(win);
+      new SWE_CalendarFilteredTreeView(filteredView, windowId).setup();
+      new SWE_Window(win, windowId).setup();
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
       // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l67
@@ -250,7 +266,7 @@
       // Thus, replace the listener callback with ours.
       let viewBox = win.getViewBox()
       if (viewBox) {
-        if (debug.setup) console.log('Replacing ViewBox listener:', win);
+        if (debug.setup) console.log(`Replacing window=<${windowId}> ViewBox listener`);
         viewBox.removeEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
         viewBox.addEventListener('dayselect', win.refreshUnifinderFilterInterval);
       }
@@ -260,7 +276,7 @@
 
       // Select our node when appropriate, so that events filtering takes place.
       if (chosen) {
-        if (debug.setup) console.log('Auto-selecting * entry:', win);
+        if (debug.setup) console.log(`Auto-selecting window=<${windowId}> '*' entry`);
         // Invalidating right now is useful if calendar tab is already opened
         // upon startup, otherwise often the list won't be refreshed: the view
         // is already 'active' so the overridden code (see below) won't
@@ -272,10 +288,11 @@
 
     #resetWindow(win) {
       // Remove entries we setup, and restore original methods/listeners.
+      let windowId = ctx.extension.windowManager.getWrapper(win).id;
       let menupopup = win.document.getElementById(EVENT_FILTER_MENUPOPUP_ID);
       if (menupopup) {
         for (let node of win.document.querySelectorAll(`[id="${FILTER_ALL_ID}"]`)) {
-          if (debug.setup) console.log(`Removing filter menu popup entry=<${FILTER_ALL_ID}>:`, win);
+          if (debug.setup) console.log(`Removing window=<${windowId}> filter menu popup entry=<${FILTER_ALL_ID}>`);
           menupopup.removeChild(node);
         }
       }
@@ -283,7 +300,7 @@
       if (win.__swe__) {
         let viewBox = win.getViewBox()
         if (viewBox) {
-          if (debug.setup) console.log('Restoring ViewBox listener:', win);
+          if (debug.setup) console.log(`Restoring window=<${windowId}> ViewBox listener`);
           viewBox.removeEventListener('dayselect', win.refreshUnifinderFilterInterval);
           viewBox.addEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
         }
@@ -321,7 +338,6 @@
       this.wrapped = wrapped;
       wrapped.__swe__ = this;
       this.overridden = [];
-      this.setup();
     }
 
     override(name, target, originalUnbound) {
@@ -338,6 +354,9 @@
       } catch(error) {
         console.log(`[${this.className}] Failed to override method=<${name}>:`, error);
       }
+    }
+
+    setup() {
     }
 
     reset() {
@@ -365,8 +384,9 @@
 
   class SWE_CalendarFilteredTreeView extends Override {
 
-    constructor(wrapped) {
+    constructor(wrapped, windowId) {
       super(wrapped);
+      this.windowId = windowId;
       this.cleared = false;
     }
 
@@ -378,12 +398,15 @@
 
     // Inject helper method to invalidate view.
     static invalidate() {
+      let self = this;
+      let swe = self.__swe__;
+
       // The easiest way to invalidate the view is to change (then reset) the
       // filtered item type.
-      let itemType = this.itemType;
-      this.itemType = 0;
-      this.itemType = itemType;
-      if (debug.refresh) console.log('Invalidated event filter view');
+      let itemType = self.itemType;
+      self.itemType = 0;
+      self.itemType = itemType;
+      if (debug.refresh) console.log(`Invalidated windowId=<${swe.windowId}> event filter view`);
     }
 
     // Override the original method in charge of getting filtered events from
@@ -420,13 +443,13 @@
 
       // We will detect whether items were cleared: that's the sign an actual
       // refresh job was triggered.
-      this.cleared = false;
+      self.cleared = false;
       let p0 = swe.refreshItems(...arguments);
       if (!chosen || !self.cleared) {
-        if (debug.refresh) console.log(`Using only nominal refresh: chosen=<${chosen}> cleared=<${self.cleared}>`);
+        if (debug.refresh) console.log(`Using only nominal refresh: windowId=<${swe.windowId}> chosen=<${chosen}> cleared=<${self.cleared}>`);
         return p0;
       }
-      if (debug.refresh) console.log('Performing non-occurrences event filtering');
+      if (debug.refresh) console.log(`Performing windowId=<${swe.windowId}> non-occurrences event filtering`);
 
       let filter = new calFilter();
       // We filter events, as original code.
@@ -489,6 +512,11 @@
 
   class SWE_Window extends Override {
 
+    constructor(wrapped, windowId) {
+      super(wrapped);
+      this.windowId = windowId;
+    }
+
     setup() {
       // Binds the window to the method, so that we know which one to work on.
       // But DO NOT bind original method, because we need it untouched to be
@@ -507,13 +535,13 @@
       // Don't bother if the view is not present.
       let filteredView = win.getUnifinderView();
       if (!filteredView) {
-        if (debug.refresh) console.log('Skipping filtering refresh: unexsinting filtered view');
+        if (debug.refresh) console.log(`Skipping windowId=<${swe.windowId}> filtering refresh: unexsinting filtered view`);
         return;
       }
 
       let intervalSelectionElem = win.document.getElementById('event-filter-menulist').selectedItem;
       if (intervalSelectionElem.id == FILTER_ALL_ID) {
-        if (debug.refresh) console.log(`Triggered * event filter (switch=<${!chosen}>)`);
+        if (debug.refresh) console.log(`Triggered windowId=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
         // We were chosen.
         if (!chosen || !filteredView.isActive) {
           // Reset start/end date to today.
@@ -539,7 +567,7 @@
         // We only need to refresh items: the overridden method will do the rest.
         filteredView.refreshItems();
       } else {
-        if (debug.refresh) console.log(`Triggered nominal=<${intervalSelectionElem.value}> event filter (switch=<${chosen}>)`);
+        if (debug.refresh) console.log(`Triggered windowId=<${swe.windowId}> nominal=<${intervalSelectionElem.value}> event filter (switch=<${chosen}>)`);
         // Another entry was selected.
         if (chosen) {
           // Ensure the filter view is invalidated.

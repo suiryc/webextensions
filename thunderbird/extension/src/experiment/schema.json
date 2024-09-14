@@ -6,11 +6,21 @@
       "name": "setup",
       "async": false,
       "type": "function",
-      "description": "Add '*' calendar filter menu item",
+      "description": "Setup extension settings",
       "parameters": [{
         "name": "chosen",
         "type": "boolean",
         "description": "whether our entry is chosen by default"
+      }]
+    }, {
+      "name": "setupWindow",
+      "async": false,
+      "type": "function",
+      "description": "Setup window calendar filter menu items",
+      "parameters": [{
+        "name": "windowId",
+        "type": "number",
+        "description": "Window id (webextension side)"
       }]
     }],
 
