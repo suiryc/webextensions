@@ -18,6 +18,7 @@
 
   // Get calendar utils.
   let { cal } = ChromeUtils.importESModule('resource:///modules/calendar/calUtils.sys.mjs');
+  let { setTimeout } = ChromeUtils.importESModule('resource://gre/modules/Timer.sys.mjs');
 
   // 'event-filter-' node id prefix.
   const EVENT_FILTER_ID_PREFIX = 'event-filter-';
@@ -234,7 +235,7 @@
       function retry() {
         if (attempt < 10) {
           if (debug.setup) console.log(`Retrying window=<${windowId}> (attempt=${attempt+1}) later ...`);
-          setTimer(() => {
+          setTimeout(() => {
             self.#setupWindow(windowId, attempt + 1);
           }, 300);
         }
