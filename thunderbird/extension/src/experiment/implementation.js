@@ -478,6 +478,22 @@
       let swe = this;
       swe.windowId = windowId;
       swe.cleared = false;
+
+      // Prepare our filter instance here.
+      let filter = new calFilter();
+      // We filter events, as original code.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
+      filter.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
+
+      // Most importantly: *DO NOT* get occurrences, only the parent events.
+      // Setting 'occurrences' in filter properties overrides default behaviour
+      // which is to get occurrences.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
+      // e.g. see in-memory usage of this property:
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
+      filter.mFilterProperties.occurrences = filter.mFilterProperties.FILTER_OCCURRENCES_NONE;
+      swe.filter = filter;
     }
 
     setup() {
@@ -572,11 +588,7 @@
       }
       if (debug.refresh) console.log(`Performing window=<${swe.windowId}> non-occurrences event filtering`);
 
-      let filter = new calFilter();
-      // We filter events, as original code.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
-      filter.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
-
+      let filter = swe.filter;
       // Prepare today 'date' (we want the whole day, not an exact time).
       let today = cal.dtz.now();
       today.isDate = true;
@@ -588,14 +600,6 @@
       filter.endDate = today.clone();
       filter.endDate.year += 100;
       filter.endDate.makeImmutable();
-      // Most importantly: *DO NOT* get occurrences, only the parent events.
-      // Setting 'occurrences' in filter properties overrides default behaviour
-      // which is to get occurrences.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
-      // e.g. see in-memory usage of this property:
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
-      filter.mFilterProperties.occurrences = filter.mFilterProperties.FILTER_OCCURRENCES_NONE;
 
       // Now, we basically do the same as original code, but with our own filter.
       // See:
