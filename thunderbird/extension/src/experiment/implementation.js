@@ -355,16 +355,16 @@
     }
 
     override(name, target, originalUnbound) {
-      let self = this;
-      let wrapped = self.wrapped;
+      let swe = this;
+      let wrapped = swe.wrapped;
       let original = wrapped[name];
       if (debug.setup) console.log(`[${this.className}] Override method=<${name}> (original exists=<${!!original}> unbound=<${!!originalUnbound}>)`);
       // Don't forget to 'bind' so 'this' is as expected.
       // Don't do it on original method when asked.
       try {
-        if (original) self[name] = originalUnbound ? original : original.bind(wrapped);
+        if (original) swe[name] = originalUnbound ? original : original.bind(wrapped);
         wrapped[name] = target[name].bind(wrapped);
-        self.overridden.push(name);
+        swe.overridden.push(name);
       } catch(error) {
         console.log(`[${this.className}] Failed to override method=<${name}>:`, error);
       }
@@ -374,10 +374,10 @@
     }
 
     reset() {
-      let self = this;
-      let wrapped = self.wrapped;
-      for (let name of self.overridden) {
-        let original = self[name];
+      let swe = this;
+      let wrapped = swe.wrapped;
+      for (let name of swe.overridden) {
+        let original = swe[name];
         if (debug.setup) console.log(`[${this.className}] Reset method=<${name}> (exists=${!!original}) override`);
         if (original) {
           wrapped[name] = original;
@@ -385,7 +385,7 @@
           delete(wrapped[name]);
         }
       }
-      self.overridden = [];
+      swe.overridden = [];
       delete(wrapped.__swe__);
     }
 
@@ -398,58 +398,58 @@
 
   class SWE_MenuPopup extends Override {
 
-    constructor(wrapped, windowId) {
-      super(wrapped);
+    constructor(menupopup, windowId) {
+      super(menupopup);
       this.windowId = windowId;
     }
 
     setup() {
-      let self = this;
-      let menupopup = self.wrapped;
+      let swe = this;
+      let menupopup = swe.wrapped;
 
       // Backup original nodes before removing them.
-      self.nodesBackup = [];
-      self.nodes = {};
+      swe.nodesBackup = [];
+      swe.nodes = {};
       Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
-        self.nodesBackup.push(node);
-        self.nodes[node.id] = node;
-        if (debug.setup) console.log(`Removing windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        swe.nodesBackup.push(node);
+        swe.nodes[node.id] = node;
+        if (debug.setup) console.log(`Removing windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.removeChild(node);
       });
 
       // Prepare our node.
-      let node = self.nodesBackup[0].cloneNode(true);
+      let node = swe.nodesBackup[0].cloneNode(true);
       node.id = EVENT_FILTER_SWE_ALL_ID;
       node.value = EVENT_FILTER_SWE_ALL_ID_SUFFIX;
       node.setAttribute('data-l10n-id', `calendar-event-listing-interval-item-${EVENT_FILTER_SWE_ALL_ID_SUFFIX}`);
       node.label = '*';
       node.firstChild.nextSibling.value = '*';
-      self.nodes[node.id] = node;
+      swe.nodes[node.id] = node;
 
       // Set nodes in wanted order.
       for (let suffix of EVENT_FILTER_MENUPOPUP_IDS) {
-        node = self.nodes[buildEventFilterId(suffix)];
+        node = swe.nodes[buildEventFilterId(suffix)];
         if (!node) continue;
-        if (debug.setup) console.log(`Adding windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Adding windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.appendChild(node);
       }
     }
 
     reset() {
-      let self = this;
-      let menupopup = self.wrapped;
+      let swe = this;
+      let menupopup = swe.wrapped;
 
       // Restore original nodes.
       Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
-        if (debug.setup) console.log(`Removing windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Removing windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.removeChild(node);
       });
-      for (let node of self.nodesBackup) {
-        if (debug.setup) console.log(`Restoring windowId=<${self.windowId}> filter menu popup entry=<${node.id}>`);
+      for (let node of swe.nodesBackup) {
+        if (debug.setup) console.log(`Restoring windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.appendChild(node);
       }
-      self.nodesBackup = [];
-      self.nodes = {};
+      swe.nodesBackup = [];
+      swe.nodes = {};
 
       super.reset();
     }
@@ -458,28 +458,31 @@
 
   class SWE_CalendarFilteredTreeView extends Override {
 
-    constructor(wrapped, windowId) {
-      super(wrapped);
-      this.windowId = windowId;
-      this.cleared = false;
+    constructor(filteredView, windowId) {
+      super(filteredView);
+      let swe = this;
+      swe.windowId = windowId;
+      swe.cleared = false;
     }
 
     setup() {
-      this.override('invalidate', SWE_CalendarFilteredTreeView);
-      this.override('refreshItems', SWE_CalendarFilteredTreeView);
-      this.override('clearItems', SWE_CalendarFilteredTreeView);
+      let swe = this;
+
+      swe.override('invalidate', SWE_CalendarFilteredTreeView);
+      swe.override('refreshItems', SWE_CalendarFilteredTreeView);
+      swe.override('clearItems', SWE_CalendarFilteredTreeView);
     }
 
     // Inject helper method to invalidate view.
     static invalidate() {
-      let self = this;
-      let swe = self.__swe__;
+      let filteredView = this;
+      let swe = filteredView.__swe__;
 
       // The easiest way to invalidate the view is to change (then reset) the
       // filtered item type.
-      let itemType = self.itemType;
-      self.itemType = 0;
-      self.itemType = itemType;
+      let itemType = filteredView.itemType;
+      filteredView.itemType = 0;
+      filteredView.itemType = itemType;
       if (debug.refresh) console.log(`Invalidated windowId=<${swe.windowId}> event filter view`);
     }
 
@@ -490,8 +493,8 @@
     // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter-tree-view.js#l7
     // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1209
     static refreshItems() {
-      let self = this;
-      let swe = self.__swe__;
+      let filteredView = this;
+      let swe = filteredView.__swe__;
 
       // Unlike original code, we cannot properly create a refresh job.
       // We can only create our own filter (the main purpose of this extension),
@@ -517,10 +520,10 @@
 
       // We will detect whether items were cleared: that's the sign an actual
       // refresh job was triggered.
-      self.cleared = false;
+      filteredView.cleared = false;
       let p0 = swe.refreshItems(...arguments);
-      if (!chosen || !self.cleared) {
-        if (debug.refresh) console.log(`Using only nominal refresh: windowId=<${swe.windowId}> chosen=<${chosen}> cleared=<${self.cleared}>`);
+      if (!chosen || !filteredView.cleared) {
+        if (debug.refresh) console.log(`Using only nominal refresh: windowId=<${swe.windowId}> chosen=<${chosen}> cleared=<${filteredView.cleared}>`);
         return p0;
       }
       if (debug.refresh) console.log(`Performing windowId=<${swe.windowId}> non-occurrences event filtering`);
@@ -558,7 +561,7 @@
       // Wait for the current job to be done (it is adding items in the list).
       return p0.then(() => {
         // Clear the list.
-        self.clearItems();
+        filteredView.clearItems();
         // Loop on calendars.
         let promises = [];
         for (let calendar of cal.manager.getCalendars()) {
@@ -568,7 +571,7 @@
           // Filter items in calendar, and populate list.
           let iterator = cal.iterate.streamValues(filter.getItems(calendar));
           let p = Array.fromAsync(iterator).then(items => {
-            self.addItems(items.flat());
+            filteredView.addItems(items.flat());
           });
           promises.push(p);
         }
@@ -578,24 +581,29 @@
     }
 
     static clearItems() {
-      this.cleared = true;
-      return this.__swe__.clearItems();
+      let filteredView = this;
+      let swe = filteredView.__swe__;
+
+      filteredView.cleared = true;
+      return swe.clearItems();
     }
 
   }
 
   class SWE_Window extends Override {
 
-    constructor(wrapped, windowId) {
-      super(wrapped);
+    constructor(win, windowId) {
+      super(win);
       this.windowId = windowId;
     }
 
     setup() {
+      let swe = this;
+
       // Binds the window to the method, so that we know which one to work on.
       // But DO NOT bind original method, because we need it untouched to be
       // able to remove it from a listener.
-      this.override('refreshUnifinderFilterInterval', SWE_Window, true);
+      swe.override('refreshUnifinderFilterInterval', SWE_Window, true);
     }
 
     // Override the original method used when changing the selected event filter
