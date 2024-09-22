@@ -261,9 +261,9 @@
 
       // Override the concerned objects/methods.
       // (see below for details)
-      new SWE_MenuPopup(menupopup, windowId).setup();
+      let swe_menupopup = new SWE_MenuPopup(menupopup, windowId).setup();
       new SWE_CalendarFilteredTreeView(filteredView, windowId).setup();
-      new SWE_Window(win, windowId).setup();
+      let swe_win = new SWE_Window(win, windowId).setup();
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
       // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l67
@@ -288,7 +288,7 @@
       let viewBox = win.getViewBox()
       if (viewBox) {
         if (debug.setup) console.log(`Replacing window=<${windowId}> ViewBox listener`);
-        viewBox.removeEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
+        viewBox.removeEventListener('dayselect', swe_win.refreshUnifinderFilterInterval);
         viewBox.addEventListener('dayselect', win.refreshUnifinderFilterInterval);
       }
 
@@ -303,19 +303,20 @@
         // is already 'active' so the overridden code (see below) won't
         // invalidate it there.
         filteredView.invalidate();
-        menupopup.__swe__.nodes[EVENT_FILTER_SWE_ALL_ID].click();
+        swe_menupopup.nodes[EVENT_FILTER_SWE_ALL_ID].click();
       }
     }
 
     #resetWindow(win) {
       // Remove entries we setup, and restore original methods/listeners.
       let windowId = ctx.extension.windowManager.getWrapper(win).id;
-      if (win.__swe__) {
+      let swe_win = win.__swe__;
+      if (swe_win) {
         let viewBox = win.getViewBox()
         if (viewBox) {
           if (debug.setup) console.log(`Restoring window=<${windowId}> ViewBox listener`);
           viewBox.removeEventListener('dayselect', win.refreshUnifinderFilterInterval);
-          viewBox.addEventListener('dayselect', win.__swe__.refreshUnifinderFilterInterval);
+          viewBox.addEventListener('dayselect', swe_win.refreshUnifinderFilterInterval);
         }
 
         Override.reset(win);
@@ -371,6 +372,7 @@
     }
 
     setup() {
+      return this;
     }
 
     reset() {
@@ -433,6 +435,8 @@
         if (debug.setup) console.log(`Adding window=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.appendChild(node);
       }
+
+      return swe;
     }
 
     reset() {
@@ -471,6 +475,8 @@
       swe.override('invalidate', SWE_CalendarFilteredTreeView);
       swe.override('refreshItems', SWE_CalendarFilteredTreeView);
       swe.override('clearItems', SWE_CalendarFilteredTreeView);
+
+      return swe;
     }
 
     // Inject helper method to invalidate view.
@@ -604,6 +610,8 @@
       // But DO NOT bind original method, because we need it untouched to be
       // able to remove it from a listener.
       swe.override('refreshUnifinderFilterInterval', SWE_Window, true);
+
+      return swe;
     }
 
     // Override the original method used when changing the selected event filter
