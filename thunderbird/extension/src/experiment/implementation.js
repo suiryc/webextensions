@@ -619,7 +619,8 @@
           // Filter items in calendar, and populate list.
           let iterator = cal.iterate.streamValues(filter.getItems(calendar));
           let p = Array.fromAsync(iterator).then(items => {
-            filteredView.addItems(items.flat());
+            // Select the most appropriate occurrence for each event.
+            filteredView.addItems(swe.selectItemsOccurrence(items.flat()));
           });
           promises.push(p);
         }
@@ -634,6 +635,36 @@
 
       swe.cleared = true;
       return swe.clearItems();
+    }
+
+    selectItemsOccurrence(items) {
+      let swe = this;
+
+      for (let idx=0; idx<items.length; idx++) {
+        // Select occurrence if applicable.
+        items[idx] = swe.selectItemOccurrence(items[idx]);
+      }
+      return items;
+    }
+
+    selectItemOccurrence(item, dayOffset=0) {
+      // There must be recurrence.
+      // Items returned by filter have 'mRecurrenceInfo'.
+      let recurrenceInfo = item.mRecurrenceInfo;
+      if (!recurrenceInfo) return item;
+      // We must be able to determine next or previous occurrence.
+      if (!recurrenceInfo.getNextOccurrence || !recurrenceInfo.getPreviousOccurrence) return item;
+
+      // First try to get next occurrence.
+      let date = cal.dtz.now();
+      date.day += dayOffset;
+      date.isDate = true;
+      let occurrence = recurrenceInfo.getNextOccurrence(date);
+      if (occurrence) return occurrence;
+      // Otherwise, try previous occurrence.
+      occurrence = recurrenceInfo.getPreviousOccurrence(date);
+      if (occurrence) return occurrence;
+      return item;
     }
 
   }
