@@ -310,7 +310,7 @@
     #resetWindow(win) {
       // Remove entries we setup, and restore original methods/listeners.
       let windowId = ctx.extension.windowManager.getWrapper(win).id;
-      let swe_win = win.__swe__;
+      let swe_win = SWE(win, false);
       if (swe_win) {
         let viewBox = win.getViewBox()
         if (viewBox) {
@@ -396,6 +396,15 @@
       wrapped.__swe__.reset();
     }
 
+  }
+
+  function SWE(obj, mandatory=true) {
+    let swe = obj.__swe__;
+    if (!swe && mandatory) {
+      console.trace('Object instance was not overridden:', obj);
+      throw new Error('Object instance was not overridden');
+    }
+    return swe;
   }
 
   class SWE_MenuPopup extends Override {
@@ -499,7 +508,7 @@
     // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1209
     static refreshItems() {
       let filteredView = this;
-      let swe = filteredView.__swe__;
+      let swe = SWE(filteredView);
 
       // Unlike original code, we cannot properly create a refresh job.
       // We can only create our own filter (the main purpose of this extension),
@@ -587,7 +596,7 @@
 
     static clearItems() {
       let filteredView = this;
-      let swe = filteredView.__swe__;
+      let swe = SWE(filteredView);
 
       swe.cleared = true;
       return swe.clearItems();
@@ -619,7 +628,7 @@
     // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l251
     static refreshUnifinderFilterInterval() {
       let win = this;
-      let swe = win.__swe__;
+      let swe = SWE(win);
 
       // Don't bother if the view is not present.
       let filteredView = win.getUnifinderView();
@@ -628,7 +637,7 @@
         return;
       }
 
-      let swe_filteredView = filteredView.__swe__;
+      let swe_filteredView = SWE(filteredView);
       let intervalSelectionElem = win.document.getElementById(EVENT_FILTER_MENULIST_ID).selectedItem;
       if (intervalSelectionElem.id == EVENT_FILTER_SWE_ALL_ID) {
         if (debug.refresh) console.log(`Triggered window=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
