@@ -479,7 +479,12 @@
       swe.windowId = windowId;
       swe.cleared = false;
 
-      // Prepare our filter instance here.
+      // Remember 'today' (useful if application runs during more than one day).
+      swe.startRunDate = cal.dtz.now();
+      swe.startRunDate.isDate = true;
+
+      // Prepare our filter instance here, as it will be used by our calendar
+      // observer too.
       let filter = new calFilter();
       // We filter events, as original code.
       // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
@@ -498,11 +503,35 @@
 
     setup() {
       let swe = this;
+      let filteredView = this.wrapped;
 
+      swe.override('activate', SWE_CalendarFilteredTreeView);
+      swe.override('deactivate', SWE_CalendarFilteredTreeView);
       swe.override('refreshItems', SWE_CalendarFilteredTreeView);
       swe.override('clearItems', SWE_CalendarFilteredTreeView);
 
+      // Since we are setup on an already created object, don't forget to
+      // register our calendar observer if activated.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1169
+      swe.#calendarObserver.filteredView = filteredView;
+      if (filteredView.isActive) {
+        cal.manager.addCalendarObserver(swe.#calendarObserver);
+      }
+
       return swe;
+    }
+
+    reset() {
+      let swe = this;
+      let filteredView = this.wrapped;
+
+      // Don't forget to unregister our calendar observer.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1185
+      if (filteredView.isActive) {
+        cal.manager.removeCalendarObserver(swe.#calendarObserver);
+      }
+
+      super.reset();
     }
 
     voidDateRange() {
@@ -544,6 +573,40 @@
       filteredView.itemType = 0;
       filteredView.itemType = itemType;
       if (debug.refresh) console.log(`Invalidated window=<${swe.windowId}> event filter view`);
+    }
+
+    static activate() {
+      let filteredView = this;
+      let swe = SWE(filteredView);
+      let isActive = filteredView.isActive;
+
+      let r = swe.activate(...arguments);
+      // As original code, register our calendar observer.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1169
+      if (!isActive) {
+        if (debug.refresh) console.log(`Activating window=<${swe.windowId}> filtered view`);
+        swe.#calendarObserver.filteredView = filteredView;
+        cal.manager.addCalendarObserver(swe.#calendarObserver);
+      }
+
+      return r;
+    }
+
+    static deactivate() {
+      let filteredView = this;
+      let swe = SWE(filteredView);
+      let isActive = filteredView.isActive;
+
+      let r = swe.deactivate(...arguments);
+      // As original code, unregister our calendar observer.
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1185
+      if (isActive) {
+        if (debug.refresh) console.log(`Deactivating window=<${swe.windowId}> filtered view`);
+        swe.#calendarObserver.filteredView = filteredView;
+        cal.manager.removeCalendarObserver(swe.#calendarObserver);
+      }
+
+      return r;
     }
 
     // Override the original method in charge of getting filtered events from
@@ -651,6 +714,8 @@
       // There must be recurrence.
       // Items returned by filter have 'mRecurrenceInfo'.
       let recurrenceInfo = item.mRecurrenceInfo;
+      // Items passed to calendar observers have 'recurrenceInfo'.
+      if (!recurrenceInfo) recurrenceInfo = item.recurrenceInfo;
       if (!recurrenceInfo) return item;
       // We must be able to determine next or previous occurrence.
       if (!recurrenceInfo.getNextOccurrence || !recurrenceInfo.getPreviousOccurrence) return item;
@@ -666,6 +731,137 @@
       if (occurrence) return occurrence;
       return item;
     }
+
+    // Re-implement original (private) method.
+    // Used in our calendar observer.
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1268
+    isCalendarVisible(calendar) {
+      return (calendar && !calendar.getProperty('disabled') && calendar.getProperty('calendar-main-in-composite'));
+    }
+
+    async refreshCalendar(calendar) {
+      let swe = this;
+      let filteredView = swe.wrapped;
+
+      if (!filteredView.isActive || !swe.isCalendarVisible(calendar)) return;
+      const iterator = cal.iterate.streamValues(swe.filter.getItems(calendar));
+      const items = await Array.fromAsync(iterator);
+      // Select the most appropriate occurrence for each event.
+      filteredView.addItems(swe.selectItemsOccurrence(items.flat()));
+    }
+
+    // Our calendar observer.
+    // The original observer works with the (private) original filter, and
+    // won't properly behave with our filtering.
+    // We basically do the same thing that original code, with our filter.
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1328
+    //
+    // Notes:
+    // An event occurrence computed yesterday may differ from one computed today,
+    // especially with daily events.
+    // When we want to remove one, if we want to handle cases when application
+    // is running for more than one day, we need to compute occurrence from
+    // wanted days.
+    #calendarObserver = {
+      QueryInterface: ChromeUtils.generateQI(['calIObserver']),
+
+      // Helper to get item filtered occurrence as an array.
+      getFilterOccurrences(item, removing) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        let arr = [];
+        if (removing) {
+          // Compute occurrences for today, and each day until we reach the day
+          // we started running the application.
+          // This is needed to ensure we will remove any event occurrence that
+          // was actually shown in the filtered view.
+          let date = cal.dtz.now();
+          date.isDate = true;
+          let dayOffset = 0;
+          while (date.compare(swe.startRunDate) >= 0) {
+            arr.push(swe.selectItemOccurrence(item, dayOffset));
+            date.day -= 1;
+            dayOffset -= 1;
+          }
+        } else {
+          // Like original code, we can check the item does match our filter.
+          // Note: does not seem strictly necessary.
+          if (swe.filter.isItemInFilters(item)) {
+            arr.push(swe.selectItemOccurrence(item));
+          }
+        }
+        return arr;
+      },
+
+      onStartBatch() {},
+      onEndBatch() {},
+      onLoad(calendar) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        if (debug.refresh) console.log(`Loading window=<${swe.windowId}> calendar:`, calendar);
+        // Notes:
+        // Original code only does something for ICS calendars, by first
+        // clearing the view. There is no way to ensure we are called *after*
+        // original observer does its job. At best we could set a timer to
+        // populate with our filter 'later'. So don't bother.
+      },
+      onAddItem(item) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        // Don't bother for nominal filtering or if calendar is not visible.
+        if (!chosen || !swe.isCalendarVisible(item.calendar)) return;
+        if (debug.refresh) console.log(`Adding window=<${swe.windowId}> calendar item:`, item);
+
+        filteredView.addItems(this.getFilterOccurrences(item));
+      },
+      onModifyItem(newItem, oldItem) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        // Don't bother for nominal filtering or if calendar is not visible.
+        if (!chosen || !swe.isCalendarVisible(newItem.calendar)) return;
+        if (debug.refresh) console.log(`Modifying window=<${swe.windowId}> calendar item:`, oldItem, newItem);
+
+        filteredView.removeItems(this.getFilterOccurrences(oldItem, true));
+        filteredView.addItems(this.getFilterOccurrences(newItem));
+      },
+      onDeleteItem(deletedItem) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        // Don't bother for nominal filtering or if calendar is not visible.
+        if (!chosen || !swe.isCalendarVisible(deletedItem.calendar)) return;
+        if (debug.refresh) console.log(`Deleting window=<${swe.windowId}> calendar item:`, deletedItem);
+
+        filteredView.removeItems(this.getFilterOccurrences(deletedItem, true));
+      },
+      onError() {},
+      onPropertyChanged(calendar, name, newValue) {
+        let filteredView = this.filteredView;
+        let swe = SWE(filteredView);
+
+        // Don't bother for nominal filtering.
+        if (!chosen) return;
+
+        if (!['calendar-main-in-composite', 'disabled'].includes(name)) return;
+
+        if (
+          (name == 'disabled' && newValue) ||
+          (name == 'calendar-main-in-composite' && !newValue)
+        ) {
+          // Original code already does remove items from calendar.
+          if (debug.refresh) console.log(`Hiding window=<${swe.windowId}> calendar:`, calendar, name, newValue);
+          return;
+        }
+
+        if (debug.refresh) console.log(`Showing window=<${swe.windowId}> calendar:`, calendar, name, newValue);
+        swe.refreshCalendar(calendar);
+      },
+      onPropertyDeleting() {},
+    };
 
   }
 
