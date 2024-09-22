@@ -302,7 +302,9 @@
         // upon startup, otherwise often the list won't be refreshed: the view
         // is already 'active' so the overridden code (see below) won't
         // invalidate it there.
-        swe_filteredView.invalidate();
+        // It is also useful to change the original filter start/end dates.
+        // (see comments in method)
+        swe_filteredView.voidDateRange();
         swe_menupopup.nodes[EVENT_FILTER_SWE_ALL_ID].click();
       }
     }
@@ -487,6 +489,34 @@
       return swe;
     }
 
+    voidDateRange() {
+      let swe = this;
+      let filteredView = this.wrapped;
+
+      // Reset start/end date to today.
+      // Useful when switching (from nominal filtering) or when the view is
+      // actually inactive.
+      // Also useful upon initial setup, as original code defaults to 'all past'
+      // events (meaning last 100 years) filtering: without changing this, even
+      // if our filter is automatically enabled, this original filter would
+      // trigger undesirable side effects:
+      //  - since our code needs to rely on native behaviour, which uses the
+      //    native filter before we can do our job, this would add inefficient
+      //    and useless processing before ours
+      //  - since native code relies on it when calendar events are added or
+      //    modified, it would add unwanted entries in the list
+      // In any case, this is because refreshing will first do a nominal
+      // start/end date filtering: we void it (end = start date). These
+      // dates won't change until another event filter is selected.
+      // The latter case is useful when the window is created: start/end are
+      // initially undefined, and until set 'refreshItems' will no nothing.
+      let today = cal.dtz.now();
+      today.isDate = true;
+      filteredView.setDateRange(today, today);
+      // Also ensure the view is invalidated.
+      swe.invalidate();
+    }
+
     // Helper method to invalidate view.
     invalidate() {
       let swe = this;
@@ -646,21 +676,11 @@
           // Reset start/end date to today.
           // We do this only when switching (from nominal filtering) or when
           // the view is actually inactive.
-          // In any case, this is because refreshing will first do a nominal
-          // start/end date filtering: we limit it to the bare minimum. These
-          // dates won't change until another event filter is selected.
-          // The latter case is useful when the window is created: start/end are
-          // initially undefined, and until set 'refreshItems' will no nothing.
           // As for invalidation, we *MUST NOT* do it unconditionally because
           // each time a different day is selected in the calendar, we are
           // called again: original code does nothing because nothing was
           // invalided in-between.
-          let today = cal.dtz.now();
-          today.isDate = true;
-          filteredView.startDate = today;
-          filteredView.endDate = today;
-          // Also ensure the view is invalidated.
-          swe_filteredView.invalidate();
+          swe_filteredView.voidDateRange();
         }
         filterListener.trigger(true);
         // We only need to refresh items: the overridden method will do the rest.
