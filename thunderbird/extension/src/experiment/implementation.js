@@ -262,7 +262,7 @@
       // Override the concerned objects/methods.
       // (see below for details)
       let swe_menupopup = new SWE_MenuPopup(menupopup, windowId).setup();
-      new SWE_CalendarFilteredTreeView(filteredView, windowId).setup();
+      let swe_filteredView = new SWE_CalendarFilteredTreeView(filteredView, windowId).setup();
       let swe_win = new SWE_Window(win, windowId).setup();
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
@@ -302,7 +302,7 @@
         // upon startup, otherwise often the list won't be refreshed: the view
         // is already 'active' so the overridden code (see below) won't
         // invalidate it there.
-        filteredView.invalidate();
+        swe_filteredView.invalidate();
         swe_menupopup.nodes[EVENT_FILTER_SWE_ALL_ID].click();
       }
     }
@@ -472,17 +472,16 @@
     setup() {
       let swe = this;
 
-      swe.override('invalidate', SWE_CalendarFilteredTreeView);
       swe.override('refreshItems', SWE_CalendarFilteredTreeView);
       swe.override('clearItems', SWE_CalendarFilteredTreeView);
 
       return swe;
     }
 
-    // Inject helper method to invalidate view.
-    static invalidate() {
-      let filteredView = this;
-      let swe = filteredView.__swe__;
+    // Helper method to invalidate view.
+    invalidate() {
+      let swe = this;
+      let filteredView = this.wrapped;
 
       // The easiest way to invalidate the view is to change (then reset) the
       // filtered item type.
@@ -526,10 +525,10 @@
 
       // We will detect whether items were cleared: that's the sign an actual
       // refresh job was triggered.
-      filteredView.cleared = false;
+      swe.cleared = false;
       let p0 = swe.refreshItems(...arguments);
-      if (!chosen || !filteredView.cleared) {
-        if (debug.refresh) console.log(`Using only nominal refresh: window=<${swe.windowId}> chosen=<${chosen}> cleared=<${filteredView.cleared}>`);
+      if (!chosen || !swe.cleared) {
+        if (debug.refresh) console.log(`Using only nominal refresh: window=<${swe.windowId}> chosen=<${chosen}> cleared=<${swe.cleared}>`);
         return p0;
       }
       if (debug.refresh) console.log(`Performing window=<${swe.windowId}> non-occurrences event filtering`);
@@ -590,7 +589,7 @@
       let filteredView = this;
       let swe = filteredView.__swe__;
 
-      filteredView.cleared = true;
+      swe.cleared = true;
       return swe.clearItems();
     }
 
@@ -629,6 +628,7 @@
         return;
       }
 
+      let swe_filteredView = filteredView.__swe__;
       let intervalSelectionElem = win.document.getElementById(EVENT_FILTER_MENULIST_ID).selectedItem;
       if (intervalSelectionElem.id == EVENT_FILTER_SWE_ALL_ID) {
         if (debug.refresh) console.log(`Triggered window=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
@@ -651,7 +651,7 @@
           filteredView.startDate = today;
           filteredView.endDate = today;
           // Also ensure the view is invalidated.
-          filteredView.invalidate();
+          swe_filteredView.invalidate();
         }
         filterListener.trigger(true);
         // We only need to refresh items: the overridden method will do the rest.
@@ -661,7 +661,7 @@
         // Another entry was selected.
         if (chosen) {
           // Ensure the filter view is invalidated.
-          filteredView.invalidate();
+          swe_filteredView.invalidate();
         }
         filterListener.trigger(false);
         // Use original method.
