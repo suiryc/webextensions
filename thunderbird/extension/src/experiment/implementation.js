@@ -43,6 +43,7 @@
   //  - current: selected day
   //  - currentview: calendar view
   //  - all
+  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-tab-panels.inc.xhtml#l137
   const EVENT_FILTER_MENUPOPUP_IDS = [
     EVENT_FILTER_SWE_ALL_ID_SUFFIX,
     'today',
@@ -266,20 +267,20 @@
       let swe_win = new SWE_Window(win, windowId).setup();
       // It happens that the original method 'refreshUnifinderFilterInterval'
       // was already registered as 'dayselect' event listener callback.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l67
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-unifinder.js#l67
       //
       // This is important e.g., when switching a tab to a new window, then
       // opening the calendar tab in this new window:
       // 1. The code switches to calendar mode
-      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-tabs.js#l52
+      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-tabs.js#l52
       // 2. Which wants to re-set the last calendar view mode (month, week, ...)
-      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-modes.js#l88
+      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-modes.js#l88
       // 3. Which does want to select the current day
-      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-views-utils.js#l291
+      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-views-utils.js#l291
       // 4. Which changes the calendar selected day
-      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-views.js#l175
+      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-views.js#l175
       // 5. Which does trigger the 'dayselect' event
-      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-month-view.js#l566
+      //   https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-month-view.js#l566
       // 6. Which does call the listener callback, and trigger an error because
       //    since our entry is selected, the original code will try to set an
       //    undefined 'startDate'.
@@ -334,7 +335,7 @@
 
   // The original code does create a private filter instance, then use it to
   // get matching events from calendars.
-  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1036
+  // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1036
   // While the start/end date parameters can be set through the parent view
   // object, other inner properties cannot.
   // In order to prevent event occurrences to be returned, we need to set a
@@ -487,16 +488,16 @@
       // observer too.
       let filter = new calFilter();
       // We filter events, as original code.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-unifinder.js#l59
       filter.itemType = Ci.calICalendar.ITEM_FILTER_TYPE_EVENT;
 
       // Most importantly: *DO NOT* get occurrences, only the parent events.
       // Setting 'occurrences' in filter properties overrides default behaviour
       // which is to get occurrences.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l122
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l981
       // e.g. see in-memory usage of this property:
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/providers/memory/CalMemoryCalendar.sys.mjs#l368
       filter.mFilterProperties.occurrences = filter.mFilterProperties.FILTER_OCCURRENCES_NONE;
       swe.filter = filter;
     }
@@ -512,7 +513,7 @@
 
       // Since we are setup on an already created object, don't forget to
       // register our calendar observer if activated.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1169
+      // (as in 'activate' method below)
       swe.#calendarObserver.filteredView = filteredView;
       if (filteredView.isActive) {
         cal.manager.addCalendarObserver(swe.#calendarObserver);
@@ -526,7 +527,7 @@
       let filteredView = this.wrapped;
 
       // Don't forget to unregister our calendar observer.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1185
+      // (as in 'deactivate' method below)
       if (filteredView.isActive) {
         cal.manager.removeCalendarObserver(swe.#calendarObserver);
       }
@@ -582,7 +583,7 @@
 
       let r = swe.activate(...arguments);
       // As original code, register our calendar observer.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1169
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1198
       if (!isActive) {
         if (debug.refresh) console.log(`Activating window=<${swe.windowId}> filtered view`);
         swe.#calendarObserver.filteredView = filteredView;
@@ -599,7 +600,7 @@
 
       let r = swe.deactivate(...arguments);
       // As original code, unregister our calendar observer.
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1185
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1214
       if (isActive) {
         if (debug.refresh) console.log(`Deactivating window=<${swe.windowId}> filtered view`);
         swe.#calendarObserver.filteredView = filteredView;
@@ -612,9 +613,9 @@
     // Override the original method in charge of getting filtered events from
     // calendars.
     // Part of the 'CalendarFilteredTreeView' class:
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l58
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter-tree-view.js#l7
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1209
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-unifinder.js#l58
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter-tree-view.js#l7
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1238
     static refreshItems() {
       let filteredView = this;
       let swe = SWE(filteredView);
@@ -666,8 +667,8 @@
 
       // Now, we basically do the same as original code, but with our own filter.
       // See:
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1227
-      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1286
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1256
+      // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1315
 
       // Wait for the current job to be done (it is adding items in the list).
       return p0.then(() => {
@@ -734,7 +735,7 @@
 
     // Re-implement original (private) method.
     // Used in our calendar observer.
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1268
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1297
     isCalendarVisible(calendar) {
       return (calendar && !calendar.getProperty('disabled') && calendar.getProperty('calendar-main-in-composite'));
     }
@@ -754,7 +755,7 @@
     // The original observer works with the (private) original filter, and
     // won't properly behave with our filtering.
     // We basically do the same thing that original code, with our filter.
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1328
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/widgets/calendar-filter.js#l1356
     //
     // Notes:
     // An event occurrence computed yesterday may differ from one computed today,
@@ -886,7 +887,7 @@
     // Override the original method used when changing the selected event filter
     // (start/end date selection).
     // Original method is a global one:
-    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_0esr_RELEASE/calendar/base/content/calendar-unifinder.js#l251
+    // https://hg.mozilla.org/comm-unified/file/THUNDERBIRD_128_2_3esr_RELEASE/calendar/base/content/calendar-unifinder.js#l251
     static refreshUnifinderFilterInterval() {
       let win = this;
       let swe = SWE(win);
