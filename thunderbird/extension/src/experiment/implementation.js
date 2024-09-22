@@ -413,7 +413,7 @@
       Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
         swe.nodesBackup.push(node);
         swe.nodes[node.id] = node;
-        if (debug.setup) console.log(`Removing windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Removing window=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.removeChild(node);
       });
 
@@ -430,7 +430,7 @@
       for (let suffix of EVENT_FILTER_MENUPOPUP_IDS) {
         node = swe.nodes[buildEventFilterId(suffix)];
         if (!node) continue;
-        if (debug.setup) console.log(`Adding windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Adding window=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.appendChild(node);
       }
     }
@@ -441,11 +441,11 @@
 
       // Restore original nodes.
       Array.from(menupopup.getElementsByTagName('menuitem')).forEach(node => {
-        if (debug.setup) console.log(`Removing windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Removing window=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.removeChild(node);
       });
       for (let node of swe.nodesBackup) {
-        if (debug.setup) console.log(`Restoring windowId=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
+        if (debug.setup) console.log(`Restoring window=<${swe.windowId}> filter menu popup entry=<${node.id}>`);
         menupopup.appendChild(node);
       }
       swe.nodesBackup = [];
@@ -483,7 +483,7 @@
       let itemType = filteredView.itemType;
       filteredView.itemType = 0;
       filteredView.itemType = itemType;
-      if (debug.refresh) console.log(`Invalidated windowId=<${swe.windowId}> event filter view`);
+      if (debug.refresh) console.log(`Invalidated window=<${swe.windowId}> event filter view`);
     }
 
     // Override the original method in charge of getting filtered events from
@@ -523,10 +523,10 @@
       filteredView.cleared = false;
       let p0 = swe.refreshItems(...arguments);
       if (!chosen || !filteredView.cleared) {
-        if (debug.refresh) console.log(`Using only nominal refresh: windowId=<${swe.windowId}> chosen=<${chosen}> cleared=<${filteredView.cleared}>`);
+        if (debug.refresh) console.log(`Using only nominal refresh: window=<${swe.windowId}> chosen=<${chosen}> cleared=<${filteredView.cleared}>`);
         return p0;
       }
-      if (debug.refresh) console.log(`Performing windowId=<${swe.windowId}> non-occurrences event filtering`);
+      if (debug.refresh) console.log(`Performing window=<${swe.windowId}> non-occurrences event filtering`);
 
       let filter = new calFilter();
       // We filter events, as original code.
@@ -617,13 +617,13 @@
       // Don't bother if the view is not present.
       let filteredView = win.getUnifinderView();
       if (!filteredView) {
-        if (debug.refresh) console.log(`Skipping windowId=<${swe.windowId}> filtering refresh: unexsinting filtered view`);
+        if (debug.refresh) console.log(`Skipping window=<${swe.windowId}> filtering refresh: non-existing filtered view`);
         return;
       }
 
       let intervalSelectionElem = win.document.getElementById(EVENT_FILTER_MENULIST_ID).selectedItem;
       if (intervalSelectionElem.id == EVENT_FILTER_SWE_ALL_ID) {
-        if (debug.refresh) console.log(`Triggered windowId=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
+        if (debug.refresh) console.log(`Triggered window=<${swe.windowId}> '*' event filter (switch=<${!chosen}>)`);
         // We were chosen.
         if (!chosen || !filteredView.isActive) {
           // Reset start/end date to today.
@@ -649,7 +649,7 @@
         // We only need to refresh items: the overridden method will do the rest.
         filteredView.refreshItems();
       } else {
-        if (debug.refresh) console.log(`Triggered windowId=<${swe.windowId}> nominal=<${intervalSelectionElem.value}> event filter (switch=<${chosen}>)`);
+        if (debug.refresh) console.log(`Triggered window=<${swe.windowId}> nominal=<${intervalSelectionElem.value}> event filter (switch=<${chosen}>)`);
         // Another entry was selected.
         if (chosen) {
           // Ensure the filter view is invalidated.
