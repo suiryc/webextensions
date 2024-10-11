@@ -541,7 +541,7 @@ export class HeaderParser {
     this.skipChar();
     let subType = this.parseToken();
     if (!subType) return;
-    return `${mainType}/${subType}`;
+    return `${mainType}/${subType}`.toLowerCase();
   }
 
 }

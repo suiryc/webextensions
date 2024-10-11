@@ -250,6 +250,13 @@ describe('HeaderParser', function() {
       assert.equal(parser.value, '');
     });
 
+    it('should lower-case value', function() {
+      let parser = new http.HeaderParser(mediaType.toUpperCase());
+      let r = parser.parseMediaType();
+      assert.equal(r, mediaType);
+      assert.equal(parser.value, '');
+    });
+
     it('should skip whitespaces around media type', function() {
       let parser = new http.HeaderParser(` \r\n\t ${mediaType} \r\n\t ;`);
       let r = parser.parseMediaType();
