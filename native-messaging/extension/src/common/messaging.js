@@ -321,6 +321,7 @@ export class WebExtension {
   sendMessage(msg) {
     // Include the sender information we have right now.
     msg.sender = {
+      kind: this.params.target,
       frame: {
         url: location.href,
         id: browser.runtime.getFrameId(window)
