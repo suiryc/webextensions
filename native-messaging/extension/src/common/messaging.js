@@ -40,18 +40,40 @@ import { settings } from '../common/settings.js';
 export class WebExtension {
 
   constructor(params) {
+    let self = this;
     if (!params.target) throw new Error('The target parameter is mandatory');
-    this.params = params;
+    self.params = params;
     // Properties managed by the extension.
-    this.extensionProperties = new util.PropertiesHandler(this, params.tabsHandler);
-    this.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
+    self.extensionProperties = new util.PropertiesHandler(self, params.tabsHandler);
+    self.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
+
+    // Create console to log messages in background script.
+    // Brower action and options ui script already are visible along background
+    // script logs: the console shows the log origin page.
+    // Only content scripts console is associated to the viewed page.
+    self.console = {};
+    for (let level of ['log', 'debug', 'info', 'warn', 'error']) {
+      if (params.target != constants.TARGET_CONTENT_SCRIPT) {
+        self.console[level] = console[level].bind(console);
+      } else {
+        self.console[level] = function (...args) {
+          self.sendMessage({
+            target: constants.TARGET_BACKGROUND_PAGE,
+            kind: constants.KIND_CONSOLE,
+            level: level,
+            args: util.tryStructuredClone(args)
+          });
+        }
+      }
+    }
+
     // Notes:
     // More than one listener can be added.
     // Caller is expected to manage whether to use one listener and dispatch
     // responses, or add multiple listeners for each dedicated feature.
-    browser.runtime.onMessage.addListener(this.onMessage.bind(this));
-    if (this.isBackground) this.listenConnections();
-    else this.connect();
+    browser.runtime.onMessage.addListener(self.onMessage.bind(self));
+    if (self.isBackground) self.listenConnections();
+    else self.connect();
   }
 
   getNotif(source, defaults) {

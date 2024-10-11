@@ -109,6 +109,10 @@ async function onMessage(extension, msg, sender) {
       return dl_addVideoSource(msg, sender);
       break;
 
+    case constants.KIND_CONSOLE:
+      return ext_console(msg, sender);
+      break;
+
     case constants.KIND_NOTIFICATION:
       return await notification(msg.details || {}, sender);
       break;
@@ -258,6 +262,23 @@ function app_console(app, msg) {
   // to the string itself. Otherwise prepend to the arguments array.
   if (typeof(args[0]) == 'string') args[0] = `[${app.appId}] ${args[0]}`;
   else args.unshift(`[${app.appId}]`);
+  console[level].apply(console, args);
+}
+
+// Logs webext message.
+function ext_console(msg, sender) {
+  let level = msg.level || 'log';
+  if (!(level in console)) level = 'log';
+  let args = ('args' in msg) ? msg.args : [ msg.content ];
+  // Prepend the sender to distinguish its logs from the webextension ones.
+  // If first argument is a string, assume it can be a format, and thus prepend
+  // to the string itself. Otherwise prepend to the arguments array.
+  let senderId = msg.sender.kind;
+  if (senderId == constants.TARGET_CONTENT_SCRIPT) {
+    senderId = `win=${sender.tab.windowId},tab=${sender.tab.id},frame=${sender.frameId}`
+  }
+  if (typeof(args[0]) == 'string') args[0] = `[${senderId}] ${args[0]}`;
+  else args.unshift(`[${senderId}]`);
   console[level].apply(console, args);
 }
 
