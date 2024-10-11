@@ -2,6 +2,8 @@
 
 // Define dummy classes not existing in Node.js.
 if (!('Event' in global)) global.Event = class {};
+if (!('Element' in global)) global.Element = class {};
+if (!('Document' in global)) global.Document = class {};
 if (!('XMLHttpRequest' in global)) global.XMLHttpRequest = class {};
 
 import * as assert from 'assert';
@@ -9,6 +11,84 @@ import * as util from '../common/util.js';
 
 
 describe('util', function() {
+
+  describe('tryStructuredClone', function() {
+
+    function test(v, expected) {
+      if (expected === undefined) expected = v;
+      assert.deepEqual(util.tryStructuredClone(v), expected);
+    }
+
+    it('should handle primitive values', function() {
+      test(undefined);
+      test(null);
+      test(true);
+      test(false);
+      test(0);
+      test(1);
+      test(-1);
+      test(1.234);
+      test('');
+      test('Some Value');
+    });
+
+    it('should handle arrays', function() {
+      test([]);
+      test([undefined, null, true, 1, 'value']);
+    });
+
+    it('should handle objects', function() {
+      test({});
+      test({
+        u: undefined,
+        n: null,
+        b: true,
+        i: 1,
+        f: 1.234,
+        s: 'value'
+      });
+    });
+
+    it('should handle recursive arrays and objects', function() {
+      test([undefined, null, [true, [1, {
+        a: [{
+          o: {
+            b: true
+          }
+        }]
+      }], {}], 'value']);
+      test({
+        u: undefined,
+        n: null,
+        o: {
+          b: true,
+          i: 1,
+          f: 1.234,
+          s: 'value',
+          a: [-1, 'other', [], {}, {b: false}]
+        }
+      });
+    });
+
+    it('should ignore functions', function() {
+      assert.deepEqual(util.tryStructuredClone(test), undefined);
+      test([test], [undefined]);
+      test({
+        f: test
+      }, {});
+      test({
+        f: test,
+        s: 'value'
+      }, {s: 'value'});
+      test([test, 1, test, {
+        f: test
+      }, {
+        f: test,
+        s: 'value'
+      }], [undefined, 1, undefined, {}, {s: 'value'}]);
+    });
+
+  });
 
   describe('formatObject', function() {
 

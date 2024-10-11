@@ -89,6 +89,61 @@ export function epoch() {
   return Math.round(getTimestamp() / 1000);
 }
 
+// Clone object structure.
+// Handles failures by ignoring/transfomring unhandled values.
+export function tryStructuredClone(obj, processed) {
+  // Try native structured clone.
+  try {
+    return structuredClone(obj);
+  } catch { }
+  // Clean/sanitize value if it failed.
+
+  // Ignore functions.
+  if (typeof(obj) == 'function') return undefined;
+
+  // Handle recursion:
+  // Remember the current object in order to prevent infinite loops (object
+  // which directly - field - or indirectly - child field - points back to
+  // itself).
+  let recurse = function(child) {
+    processed = processed || new Set();
+    processed.add(obj);
+    return processed.has(child)
+      ? undefined
+      : tryStructuredClone(child, processed);
+  };
+
+  // Handle arrays.
+  if (Array.isArray(obj)) {
+    let r = [];
+    obj.forEach(v => {
+      r.push(recurse(v));
+    });
+    return r;
+  }
+
+  // Stringify non-objects.
+  if (typeof(obj) != 'object') return `${obj}`;
+
+  // Handle some web nodes.
+  if (obj instanceof Element) {
+    return obj.outerHTML;
+  }
+  if (obj instanceof Document) {
+    return recurse(obj.body);
+  }
+
+  // Handle objects.
+  let r = {};
+  Object.keys(obj).forEach(f => {
+    let v = obj[f];
+    // Don't include functions.
+    if (typeof(v) == 'function') return;
+    r[f] = recurse(v);
+  });
+  return r;
+}
+
 // Formats object to string.
 export function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:
@@ -113,7 +168,7 @@ export function formatObject(obj, processed, recursiveLoop) {
     let idx = 0;
     obj.forEach(v => {
       s += (idx++ ? ', ' : ' ') + recurse(v);
-    })
+    });
     s += ' ]';
     return s;
   }
