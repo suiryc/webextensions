@@ -329,6 +329,7 @@ describe('ContentType', function() {
     guess(ct, 'test.html', 'text/html');
     guess(ct, 'test.jpg', 'image/jpeg');
     guess(ct, 'test.mp3', 'audio/mpeg');
+    guess(ct, 'test.mpa', 'audio/mpeg');
   });
 
   it('should not guess mime type if not needed', function() {

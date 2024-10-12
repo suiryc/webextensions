@@ -121,6 +121,26 @@ export class RequestDetails {
 }
 
 
+// We mainly care about text, images and audio.
+const mimeTypesExt = {
+  'text/plain': ['txt'],
+  'text/css': ['css'],
+  'text/csv': ['csv'],
+  'text/html': [/^html?$/],
+  'text/javascript': [/^m?js$/],
+  'text/xml': ['xml'],
+  'image/jpeg': [/^jpe?g$/],
+  'image/png': ['png'],
+  'image/webp': ['webp'],
+  'image/gif': ['gif'],
+  'image/bmp': ['bmp'],
+  'image/tiff': [/^tiff?$/],
+  'audio/mpeg': [/^mp[1-3]$/, /^m[12p]a$/],
+  'audio/mp4': ['m4a'],
+  'audio/webm': ['weba'],
+  'audio/ogg': ['opus']
+};
+
 export class ContentType {
 
   constructor(raw) {
@@ -158,25 +178,17 @@ export class ContentType {
     if (!filename) return;
     let extension = util.getFilenameExtension(filename).extension || '';
 
-    // We mainly care about text, images and audio.
     let guessed;
-    if ('txt' == extension) guessed = 'text/plain';
-    else if ('css' == extension) guessed = 'text/css';
-    else if ('csv' == extension) guessed = 'text/csv';
-    else if (/^html?$/.test(extension)) guessed = 'text/html';
-    else if (/^m?js$/.test(extension)) guessed = 'text/javascript';
-    else if ('xml' == extension) guessed = 'text/xml';
-    else if (/^jpe?g$/.test(extension)) guessed = 'image/jpeg';
-    else if ('png' == extension) guessed = 'image/png';
-    else if ('webp' == extension) guessed = 'image/webp';
-    else if ('gif' == extension) guessed = 'image/gif';
-    else if ('bmp' == extension) guessed = 'image/bmp';
-    else if (/^tiff?$/.test(extension)) guessed = 'image/tiff';
-    else if (/^mp[1-3]$/.test(extension)) guessed = 'audio/mpeg';
-    else if (/^m[12p]a$/.test(extension)) guessed = 'audio/mpeg';
-    else if ('m4a' == extension) guessed = 'audio/mp4';
-    else if ('weba' == extension) guessed = 'audio/webm';
-    else if ('opus' == extension) guessed = 'audio/ogg';
+    mtLoop: for (let [mt, matchers] of Object.entries(mimeTypesExt)) {
+      for (let matcher of matchers) {
+        if (matcher instanceof RegExp) {
+          if (matcher.test(extension)) guessed = mt;
+        } else if (matcher == extension) {
+          guessed = mt;
+        }
+        if (guessed !== undefined) break mtLoop;
+      }
+    }
 
     if (guessed) {
       this.raw = guessed;
