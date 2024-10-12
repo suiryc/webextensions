@@ -79,6 +79,7 @@
   },
 
   "options_ui": {
-    "page": "/resources/options-ui.html"
+    "page": "/resources/options-ui.html",
+    "open_in_tab": true
   }
 }
