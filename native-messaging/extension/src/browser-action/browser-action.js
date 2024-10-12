@@ -179,6 +179,7 @@ let activeMessagesItemNode = document.querySelector('#messages-active-item');
 let activeMessagesNode = document.querySelector('#messages-active');
 let otherMessagesItemNode = document.querySelector('#messages-other-item');
 let otherMessagesNode = document.querySelector('#messages-other');
+let optionsItemNode = document.querySelector('#options-item');
 let iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
 let iconInfoCircle = document.querySelector('#icon-info-circle');
 let listItemNode = document.querySelector('#list-item');
@@ -347,6 +348,11 @@ clearOtherMessagesButton.addEventListener('click', () => {
     });
     updateMessagesBadges();
   });
+});
+
+// Open options page in browser tab when double-clicking 'Options' item.
+optionsItemNode.addEventListener('dblclick', () => {
+  browser.runtime.openOptionsPage();
 });
 
 // Get+add videos and application messages.
