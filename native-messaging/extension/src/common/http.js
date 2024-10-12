@@ -101,20 +101,7 @@ export class RequestDetails {
     this.contentType = new ContentType(findHeaderValue(responseHeaders, 'Content-Type'));
 
     // Get content disposition.
-    this.contentDisposition = {
-      raw: findHeaderValue(responseHeaders, 'Content-Disposition'),
-      params: {}
-    }
-    if (this.contentDisposition.raw) {
-      // See: https://tools.ietf.org/html/rfc6266
-      // Examples:
-      //  attachment
-      //  inline; param1=value1; param2=value2 ...
-      // Note: no 'comment' is expected in the value.
-      let parser = new HeaderParser(this.contentDisposition.raw);
-      this.contentDisposition.kind = parser.parseToken();
-      this.contentDisposition.params = parser.parseParameters(true);
-    }
+    this.contentDisposition = new ContentDisposition(findHeaderValue(responseHeaders, 'Content-Disposition'));
 
     // Determine filename if given (i.e. not from URL).
     // Content-Disposition 'filename' is preferred over Content-Type 'name'.
@@ -230,6 +217,36 @@ export class ContentType {
     //  - it *is* text.
     //  - there is a charset associated (why else give a charset ?).
     return this.isText() || !!this.params.charset;
+  }
+
+}
+
+
+export class ContentDisposition {
+
+  constructor(raw) {
+    this.raw = raw || '';
+    this.params = {};
+    this.parse();
+  }
+
+  parse() {
+    if (!this.raw) return;
+
+    // See: https://tools.ietf.org/html/rfc6266
+    // Examples:
+    //  attachment
+    //  inline; param1=value1; param2=value2 ...
+    // Note: no 'comment' is expected in the value.
+    let parser = new HeaderParser(this.raw);
+    this.kind = parser.parseToken();
+    // Special case: some servers don't return a disposition type, but only
+    // parameters (without leading ';').
+    if (parser.value && (parser.value[0] == '=')) {
+      parser.value = `;${this.kind}${parser.value}`;
+      this.kind = '';
+    }
+    this.params = parser.parseParameters(true);
   }
 
 }

@@ -384,6 +384,29 @@ describe('ContentType', function() {
 
 });
 
+describe('ContentDisposition', function() {
+
+  // ContentDisposition relies on HeaderParser.
+  // We just need to check it properly handles a full header value.
+  it('should parse content disposition header', function() {
+    let cd = new http.ContentDisposition('inline');
+    assert.equal(cd.kind, 'inline');
+    assert.deepEqual(cd.params, {});
+
+    cd = new http.ContentDisposition('attachment');
+    assert.equal(cd.kind, 'attachment');
+    assert.deepEqual(cd.params, {});
+
+    cd = new http.ContentDisposition('attachment; param1=value1 ; param2=value2');
+    assert.equal(cd.kind, 'attachment');
+    assert.deepEqual(cd.params, {param1: 'value1', param2: 'value2'});
+
+    cd = new http.ContentDisposition('param1=value1 ; param2=value2');
+    assert.equal(cd.kind, '');
+    assert.deepEqual(cd.params, {param1: 'value1', param2: 'value2'});
+  });
+
+});
 
 describe('Cookie', function() {
 
