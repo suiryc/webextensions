@@ -102,23 +102,23 @@ export function tryStructuredClone(obj, processed) {
   if (typeof(obj) == 'function') return undefined;
 
   // Handle recursion:
-  // Remember the current object in order to prevent infinite loops (object
-  // which directly - field - or indirectly - child field - points back to
-  // itself).
+  // Remember the current object in order to detect circular recursion.
+  // Prepare a variable to hold the cloned object.
+  // Create a Map upon first recursion, and share it: remember all cloned
+  // objects by strict equality, to reuse them and clone the circular recursion.
+  let r;
   let recurse = function(child) {
-    processed = processed || new Set();
-    processed.add(obj);
+    processed = processed || new Map();
+    processed.set(obj, r);
     return processed.has(child)
-      ? undefined
+      ? processed.get(child)
       : tryStructuredClone(child, processed);
   };
 
   // Handle arrays.
   if (Array.isArray(obj)) {
-    let r = [];
-    obj.forEach(v => {
-      r.push(recurse(v));
-    });
+    r = [];
+    obj.forEach(v => r.push(recurse(v)));
     return r;
   }
 
@@ -130,11 +130,11 @@ export function tryStructuredClone(obj, processed) {
     return obj.outerHTML;
   }
   if (obj instanceof Document) {
-    return recurse(obj.body);
+    return tryStructuredClone(obj.body, processed);
   }
 
   // Handle objects.
-  let r = {};
+  r = {};
   Object.keys(obj).forEach(f => {
     let v = obj[f];
     // Don't include functions.
@@ -147,12 +147,13 @@ export function tryStructuredClone(obj, processed) {
 // Formats object to string.
 export function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:
-  // Remember the current object in order to prevent infinite loops (object
-  // which directly - field - or indirectly - child field - points back to
-  // itself).
+  // Remember the current object in order to detect circular recursion.
+  // Create a Set in first recursion level, and duplicate it in each recursion
+  // because we want to clone sibling values separately: remember all cloned
+  // objects by strict equality.
   // Re-use formatting code to at least get the object kind.
   let recurse = function(child) {
-    processed = processed || new Set();
+    processed = new Set(processed || []);
     processed.add(obj);
     return processed.has(child)
       ? `(recursive) ${formatObject(child, processed, true)}`
@@ -263,21 +264,43 @@ export function cleanupFields(obj) {
 }
 
 // Prepares value for JSON encoding.
-export function toJSON(v) {
+export function toJSON(obj, processed) {
   // JSON.parse(JSON.stringify(arg)) would be too consuming for our need.
+  // Ignore functions.
+  if (typeof(obj) == 'function') return undefined;
+
   // Keep non-object values as-is.
-  if (!v || (typeof(v) != 'object')) return v;
-  // Recursively process arrays.
-  if (Array.isArray(v)) return v.map(e => toJSON(e));
-  // Recursively process objects.
+  if (!obj || (typeof(obj) != 'object')) return obj;
+
+  // Handle recursion:
+  // Remember the current object in order to detect circular recursion.
+  // Create a Set in first recursion level, and duplicate it in each recursion
+  // because we want to clone sibling values separately: remember all cloned
+  // objects by strict equality.
+  let recurse = function(child) {
+    processed = new Set(processed || []);
+    processed.add(obj);
+    return processed.has(child)
+      ? undefined
+      : toJSON(child, processed);
+  };
+
+  // Handle arrays.
+  if (Array.isArray(obj)) {
+    let r = [];
+    obj.forEach(v => r.push(recurse(v)));
+    return r;
+  }
+
+  // Handle objects.
   // Check whether 'toJSON' has been defined to get a lighter version of
   // the object.
-  v = v.toJSON ? v.toJSON() : Object.assign({}, v);
-  for (let [key, value] of Object.entries(v)) {
-    if (typeof(value) == 'function') delete(v[key]);
-    else v[key] = toJSON(value);
+  let r = obj.toJSON ? obj.toJSON() : Object.assign({}, obj);
+  for (let [key, value] of Object.entries(r)) {
+    if (typeof(value) == 'function') delete(r[key]);
+    else r[key] = recurse(value);
   }
-  return v;
+  return r;
 }
 
 export function hasMethod(obj, m) {

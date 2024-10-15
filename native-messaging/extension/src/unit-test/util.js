@@ -12,11 +12,10 @@ import * as util from '../common/util.js';
 
 describe('util', function() {
 
-  describe('tryStructuredClone', function() {
-
+  function testCloning(cloningF) {
     function test(v, expected) {
       if (expected === undefined) expected = v;
-      assert.deepEqual(util.tryStructuredClone(v), expected);
+      assert.deepEqual(cloningF(v), expected);
     }
 
     it('should handle primitive values', function() {
@@ -49,7 +48,7 @@ describe('util', function() {
       });
     });
 
-    it('should handle recursive arrays and objects', function() {
+    it('should handle recursion', function() {
       test([undefined, null, [true, [1, {
         a: [{
           o: {
@@ -71,7 +70,7 @@ describe('util', function() {
     });
 
     it('should ignore functions', function() {
-      assert.deepEqual(util.tryStructuredClone(test), undefined);
+      assert.deepEqual(cloningF(test), undefined);
       test([test], [undefined]);
       test({
         f: test
@@ -86,6 +85,145 @@ describe('util', function() {
         f: test,
         s: 'value'
       }], [undefined, 1, undefined, {}, {s: 'value'}]);
+    });
+  }
+
+  describe('tryStructuredClone', function() {
+
+    testCloning(util.tryStructuredClone);
+
+    it('should clone circular recursion', function() {
+      // Prepare data with multiple circular recursion.
+      let obj = {};
+      obj.circularObj = obj;
+      obj.recursion = {
+        circularObj: obj
+      };
+      let arr = [];
+      arr.push(obj);
+      arr.push(arr);
+      arr.push([arr, obj]);
+      obj.arr = arr;
+      obj.recursion.arr = arr;
+
+      let testCircular = function() {
+        let r = util.tryStructuredClone(arr);
+        // Delete the offending field if any.
+        delete(obj['f']);
+        // Clone content should be equal.
+        assert.deepEqual(r, arr);
+        // Cloned array should not be original.
+        assert.notStrictEqual(r, arr);
+        // Nor cloned object.
+        assert.notStrictEqual(r[0], arr[0]);
+        // Array clones should be strictly equal.
+        assert.strictEqual(r, r[1]);
+        assert.strictEqual(r, r[2][0]);
+        assert.strictEqual(r, r[0].arr);
+        assert.strictEqual(r, r[0].recursion.arr);
+        // Object clones should be strictly equal.
+        assert.strictEqual(r[0], r[0].circularObj);
+        assert.strictEqual(r[0], r[0].recursion.circularObj);
+        assert.strictEqual(r[0], r[1][0]);
+        assert.strictEqual(r[0], r[2][1]);
+      }
+      // Structured clone will work on this data, and handles circual recursion.
+      testCircular();
+      // So do a second test that will trigger our recursion handling, to ensure
+      // we properly clone circular recursion too.
+      obj.f = testCircular;
+      testCircular();
+
+      // Now do the same when root is an object instead of array.
+      testCircular = function() {
+        let r = util.tryStructuredClone(obj);
+        // Delete the offending field if any.
+        delete(obj['f']);
+        // Clone content should be equal.
+        assert.deepEqual(r, obj);
+        // Cloned object should not be original.
+        assert.notStrictEqual(r, obj);
+        // Nor cloned array.
+        assert.notStrictEqual(r.arr, arr);
+        // Object clones should be strictly equal.
+        assert.strictEqual(r, r.circularObj);
+        assert.strictEqual(r, r.recursion.circularObj);
+        assert.strictEqual(r, r.arr[0]);
+        assert.strictEqual(r, r.arr[2][1]);
+        // Array clones should be strictly equal.
+        assert.strictEqual(r.arr, r.recursion.arr);
+        assert.strictEqual(r.arr, r.arr[1]);
+        assert.strictEqual(r.arr, r.arr[2][0]);
+      }
+      testCircular();
+      obj.f = testCircular;
+      testCircular();
+    });
+
+  });
+
+  describe('toJSON', function() {
+
+    testCloning(util.toJSON);
+
+    it('should use object.toJSON when present', function() {
+      let obj1 = {
+        b: true,
+        s: 'value'
+      };
+      let obj2 ={
+        b: false,
+        s: 'other value',
+        i: -1
+      };
+      assert.deepEqual(util.toJSON(obj1), obj1);
+      obj1.toJSON = function() {
+        return obj2;
+      };
+      assert.deepEqual(util.toJSON(obj1), obj2);
+    });
+
+    it('should break circular recursion', function() {
+      // Prepare data with multiple circular recursion.
+      let obj = {};
+      obj.circularObj = obj;
+      obj.recursion = {
+        circularObj: obj
+      };
+      // Duplicate reference to an object at the same level.
+      obj.recursion2 = obj.recursion;
+      let arr = [];
+      arr.push(obj);
+      arr.push(arr);
+      arr.push([arr, obj]);
+      // Duplicate reference to an object at the same level.
+      arr.push(obj);
+      obj.arr = arr;
+      obj.recursion.arr = arr;
+
+      let expectedObj = {};
+      expectedObj.circularObj = undefined;
+      expectedObj.recursion = {
+        circularObj: undefined
+      };
+      expectedObj.recursion2 = expectedObj.recursion;
+      let expectedArr = [];
+      expectedArr.push(expectedObj);
+      expectedArr.push(undefined);
+      expectedArr.push([undefined, expectedObj]);
+      expectedArr.push(expectedObj);
+      expectedObj.arr = undefined;
+      expectedObj.recursion.arr = undefined;
+      assert.deepEqual(util.toJSON(arr), expectedArr);
+
+      expectedArr = [];
+      expectedArr.push(undefined);
+      expectedArr.push(undefined);
+      expectedArr.push([undefined, undefined]);
+      expectedArr.push(undefined);
+      expectedObj.arr = expectedArr;
+      expectedObj.recursion.arr = expectedArr;
+      assert.deepEqual(util.toJSON(obj), expectedObj);
     });
 
   });
@@ -155,13 +293,21 @@ describe('util', function() {
       assert.strictEqual(util.formatObject(new A()), 'A a=<[ false, 0, "", Object a=<false> b=<[ 1 ]> ]>');
     });
 
-    it('should detect resursive object', function() {
+    it('should detect recursion and circular recursion object', function() {
       let a = {};
       a.b = {};
       a.b.c = {};
       a.b.c.d = a;
       a.b.c.e = a.b;
       assert.strictEqual(util.formatObject(a), 'Object b=<Object c=<Object d=<(recursive) Object> e=<(recursive) Object>>>');
+
+      let b = [];
+      let c = {b};
+      b.push(b);
+      b.push([b]);
+      b.push(c);
+      b.push(c);
+      assert.strictEqual(util.formatObject(b), '[ (recursive) Array(4), [ (recursive) Array(4) ], Object b=<(recursive) Array(4)>, Object b=<(recursive) Array(4)> ]');
     });
 
   });

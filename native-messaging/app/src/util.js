@@ -6,12 +6,13 @@ const child_process = require('child_process');
 // Formats object to string.
 function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:
-  // Remember the current object in order to prevent infinite loops (object
-  // which directly - field - or indirectly - child field - points back to
-  // itself).
+  // Remember the current object in order to detect circular recursion.
+  // Create a Set in first recursion level, and duplicate it in each recursion
+  // because we want to clone sibling values separately: remember all cloned
+  // objects by strict equality.
   // Re-use formatting code to at least get the object kind.
   let recurse = function(child) {
-    processed = processed || new Set();
+    processed = new Set(processed || []);
     processed.add(obj);
     return processed.has(child)
       ? `(recursive) ${formatObject(child, processed, true)}`
@@ -27,7 +28,7 @@ function formatObject(obj, processed, recursiveLoop) {
     let idx = 0;
     obj.forEach(v => {
       s += (idx++ ? ', ' : ' ') + recurse(v);
-    })
+    });
     s += ' ]';
     return s;
   }
