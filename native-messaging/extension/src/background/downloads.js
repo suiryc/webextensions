@@ -156,7 +156,7 @@ class DlMngrClient {
 // Background script will set it up.
 export let dlMngr = new DlMngrClient();
 
-export class RequestsHandler {
+export class RequestsHandler extends http.RequestsHandler {
 
   // When requested, monitors requests and downloads to intercept.
   //
@@ -212,12 +212,12 @@ export class RequestsHandler {
   //    complete in a short time (due to the interception minimum size)
 
   constructor(webext) {
+    super();
     let self = this;
+    self.RequestDetails = RequestDetails;
     self.webext = webext;
-    self.requests = {};
     self.unintercepted = {};
     self.requestsCompleted = {};
-    self.lastJanitoring = util.getTimestamp();
     // Listen changes in interception settings to apply them.
     [settings.inner.interceptRequests, settings.inner.interceptDownloads].forEach(setting => {
       setting.addListener((setting, oldValue, newValue) => {
@@ -362,7 +362,7 @@ export class RequestsHandler {
     base[key] = entries;
   }
 
-  removeRequestdetails(base, key) {
+  removeRequestDetails(base, key) {
     let entries = base[key];
     if (!entries) return;
     let removed = entries.shift();
@@ -378,7 +378,7 @@ export class RequestsHandler {
   }
 
   removeUnintercepted(key) {
-    return this.removeRequestdetails(this.unintercepted, key);
+    return this.removeRequestDetails(this.unintercepted, key);
   }
 
   cleanupUnintercepted() {
@@ -398,7 +398,7 @@ export class RequestsHandler {
   }
 
   removeCompletedRequest(key) {
-    return this.removeRequestdetails(this.requestsCompleted, key);
+    return this.removeRequestDetails(this.requestsCompleted, key);
   }
 
   cleanupCompletedRequests() {
@@ -413,11 +413,7 @@ export class RequestsHandler {
 
   onRequest(request) {
     if (!http.canDownload(request.url)) return;
-    this.janitoring();
-    // Remember this new request (to correlate with corresponding to-be response)
-    // Note: if the content is in the browser cache, there still is a (fake)
-    // request generated, and the response will have 'fromCache=true'.
-    this.requests[request.requestId] = request;
+    this.addRequest(request);
   }
 
   onRequestError(request) {
@@ -449,7 +445,7 @@ export class RequestsHandler {
   }
 
   onResponse(response) {
-    let requestDetails = new RequestDetails(response);
+    let requestDetails = this.newRequestDetails(response);
     // Delegate decision to dedicated class.
     return requestDetails.manage(this);
   }
@@ -698,16 +694,10 @@ export class RequestsHandler {
   }
 
   janitoring() {
-    if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return;
-    for (let request of Object.values(this.requests)) {
-      if (util.getTimestamp() - request.timeStamp > constants.REQUESTS_TTL) {
-        console.warn('Dropping incomplete request %o: TTL reached', request);
-        delete(this.requests[request.requestId]);
-      }
-    }
+    if (!super.janitoring()) return false;
     this.cleanupUnintercepted();
     this.cleanupCompletedRequests();
-    this.lastJanitoring = util.getTimestamp();
+    return true;
   }
 
 }
@@ -742,10 +732,9 @@ class RequestDetails extends http.RequestDetails {
     // This request shall be remembered if not intercepted.
     this.remember = true;
 
-    // Find the corresponding request.
-    this.sent = handler.requests[response.requestId];
+    // Note: caller already did set associated request if any.
     if (!this.sent) return handler.manageRequest(this, false, 'No matching request');
-    delete(handler.requests[response.requestId]);
+    handler.removeRequest(this.sent);
 
     // Special case (Firefox):
     // Response comes from cache if either:

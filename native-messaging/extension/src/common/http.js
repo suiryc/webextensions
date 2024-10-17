@@ -1,5 +1,6 @@
 'use strict';
 
+import { constants } from '../common/constants.js';
 import * as util from './util.js';
 import { browserInfo, settings } from './settings.js';
 
@@ -116,6 +117,57 @@ export class RequestDetails {
     // Note: we don't guess filename from URL because we wish to know - for
     // later conditions testing - there was no explicit filename.
     // The external download application will do it anyway.
+  }
+
+}
+
+
+// Requests handler.
+// Remember request by id, and associate to response once received.
+export class RequestsHandler {
+
+  constructor() {
+    this.RequestDetails = RequestDetails;
+    this.requests = {};
+    this.lastJanitoring = util.getTimestamp();
+  }
+
+  addRequest(request) {
+    this.janitoring();
+    // Remember this new request (to correlate with corresponding to-be response)
+    // Note: if the content is in the browser cache, there still is a (fake)
+    // request generated, and the response will have 'fromCache=true'.
+    this.requests[request.requestId] = request;
+  }
+
+  removeRequest(request) {
+    delete(this.requests[request.requestId]);
+  }
+
+  newRequestDetails(response, remove) {
+    let requestDetails = new this.RequestDetails(response);
+    requestDetails.sent = this.requests[response.requestId];
+    if (remove && requestDetails.sent) {
+      this.removeRequest(requestDetails.sent);
+    }
+    // else: caller will manage removal.
+    return requestDetails;
+  }
+
+  clear() {
+    this.requests = {};
+  }
+
+  janitoring() {
+    if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return false;
+    for (let request of Object.values(this.requests)) {
+      if (util.getTimestamp() - request.timeStamp > constants.REQUESTS_TTL) {
+        console.warn('Dropping incomplete request %o: TTL reached', request);
+        delete(this.requests[request.requestId]);
+      }
+    }
+    this.lastJanitoring = util.getTimestamp();
+    return true;
   }
 
 }
