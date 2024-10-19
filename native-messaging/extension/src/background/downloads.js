@@ -212,9 +212,11 @@ export class RequestsHandler extends http.RequestsHandler {
   //    complete in a short time (due to the interception minimum size)
 
   constructor(webext) {
-    super();
+    super({
+      RequestDetails,
+      linkRedirections: false
+    });
     let self = this;
-    self.RequestDetails = RequestDetails;
     self.webext = webext;
     self.unintercepted = {};
     self.requestsCompleted = {};
@@ -282,7 +284,7 @@ export class RequestsHandler extends http.RequestsHandler {
     }
     // Cleanup resources when applicable.
     if (!this.interceptRequests) {
-      this.requests = {};
+      this.clear();
       this.unintercepted = {};
       this.requestsCompleted = {};
     }
@@ -357,7 +359,6 @@ export class RequestsHandler extends http.RequestsHandler {
     if (!requestDetails) return;
     let key = requestDetails.url;
     let entries = base[key] || [];
-    requestDetails.timestamp = util.getTimestamp();
     entries.push(requestDetails);
     base[key] = entries;
   }
@@ -383,7 +384,7 @@ export class RequestsHandler extends http.RequestsHandler {
 
   cleanupUnintercepted() {
     for (let [key, unintercepted] of Object.entries(this.unintercepted)) {
-      while (unintercepted.length && (util.getTimestamp() - unintercepted[0].timestamp > constants.REQUESTS_TTL)) {
+      while (unintercepted.length && (util.getTimestamp() - unintercepted[0].timeStamp > constants.REQUESTS_TTL)) {
         console.warn('Dropping incomplete unintercepted download %o: TTL reached', unintercepted[0]);
         this.removeUnintercepted(key);
         // Note: we share the array with removeUnintercepted.
@@ -403,7 +404,7 @@ export class RequestsHandler extends http.RequestsHandler {
 
   cleanupCompletedRequests() {
     for (let [key, completed] of Object.entries(this.requestsCompleted)) {
-      while (completed.length && (util.getTimestamp() - completed[0].timestamp > constants.REQUESTS_TTL)) {
+      while (completed.length && (util.getTimestamp() - completed[0].timeStamp > constants.REQUESTS_TTL)) {
         if (settings.debug.downloads) console.log('Dropping completed request %o: TTL reached', completed[0]);
         this.removeCompletedRequest(key);
         // Note: we share the array with removeCompletedRequest.
@@ -427,7 +428,7 @@ export class RequestsHandler extends http.RequestsHandler {
     //  - the request triggered a download which is paused/cancelled before completion ('NS_BINDING_ABORTED')
     // Only the first kind really matters for us since in other cases the
     // corresponding 'requests'/'unintercepted' entry was already removed.
-    delete(this.requests[request.requestId]);
+    this.remove(request.requestId);
     this.removeUnintercepted(request.url);
     // Note: per definition the request was not completed, thus at best it was
     // in 'unintercepted' but cannot possibly be in 'requestsCompleted'.
@@ -445,7 +446,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   onResponse(response) {
-    let requestDetails = this.newRequestDetails(response);
+    let requestDetails = this.addResponse(response);
     // Delegate decision to dedicated class.
     return requestDetails.manage(this);
   }
@@ -705,8 +706,8 @@ export class RequestsHandler extends http.RequestsHandler {
 
 class RequestDetails extends http.RequestDetails {
 
-  constructor(response) {
-    super(response);
+  constructor(params) {
+    super(params);
     // Whether to remember the request if unintercepted.
     this.remember = false;
   }
@@ -726,15 +727,15 @@ class RequestDetails extends http.RequestDetails {
     // *do not* remember as 'unintercepted'.
     // Note: the requestId being re-used, the new HTTP request will replace the
     // original one in our 'requests'.
-    let statusCode = response.statusCode;
-    if (Math.floor(statusCode / 100) == 3) return handler.manageRequest(this, false, `Skip intermediate response code=<${statusCode}>`);
+    let statusCode = this.statusCode;
+    if (this.isRedirection()) return handler.manageRequest(this, false, `Skip intermediate response code=<${statusCode}>`);
 
     // This request shall be remembered if not intercepted.
     this.remember = true;
 
     // Note: caller already did set associated request if any.
     if (!this.sent) return handler.manageRequest(this, false, 'No matching request');
-    handler.removeRequest(this.sent);
+    handler.removeRequestDetails(this);
 
     // Special case (Firefox):
     // Response comes from cache if either:

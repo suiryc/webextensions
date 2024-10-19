@@ -42,20 +42,33 @@ export function getCookie(url) {
 
 export class RequestDetails {
 
-  constructor(response) {
-    this.received = response;
-    this.url = response.url;
+  constructor() {
+    // In case of redirection, there may be multiple requests/responses (all
+    // with the same id, at least in Firefox).
+    // For conveniency, we remember them all, and also expose the very first
+    // request ('sent') and very last response ('received').
+    // Caller may decide to not gather redirections in the same RequestDetails
+    // though.
+    this.requests = [];
+    this.responses = [];
   }
 
-  hasSize() {
-    return Number.isInteger(this.contentLength);
-  }
+  update(isResponse) {
+    // Get requestId.
+    if (this.requestId === undefined) {
+      this.requestId = this.received?.requestId || this.sent?.requestId;
+    }
+    // Get (first, non-redirection) URL.
+    if (!this.url) {
+      this.url = this.received?.url || this.sent?.url;
+    }
+    // Get first timestamp.
+    if (!this.timeStamp) {
+      this.timeStamp = this.received?.timeStamp || this.sent?.timeStamp || util.getTimestamp();
+    }
 
-  hasFilename() {
-    return !!this.filename;
-  }
-
-  parseResponse(interceptSize) {
+    // Extract latest response status code and headers.
+    if (!isResponse) return;
     const response = this.received;
     let statusCode;
     let responseHeaders;
@@ -75,6 +88,49 @@ export class RequestDetails {
       statusCode = response.statusCode;
       responseHeaders = response.responseHeaders;
     }
+    Object.assign(this, {
+      statusCode,
+      responseHeaders
+    });
+  }
+
+  hasSize() {
+    return Number.isInteger(this.contentLength);
+  }
+
+  hasFilename() {
+    return !!this.filename;
+  }
+
+  addRequest(request) {
+    this.requests.push(request);
+    if (!this.sent) this.sent = request;
+    this.update();
+    return this;
+  }
+
+  addResponse(response) {
+    this.responses.push(response);
+    this.received = response;
+    this.update(true);
+    return this;
+  }
+
+  // Whether there was a redirection.
+  isRedirected() {
+    return (this.requests.length > 1) || (this.responses.length > 1);
+  }
+
+  // Whether this (last response) is a redirection.
+  isRedirection() {
+    // Note: in the case of '304' ('not modified') response, we get a 'cached'
+    // response right after (at least in Firefox).
+    return (Math.floor(this.statusCode / 100) == 3);
+  }
+
+  parseResponse(interceptSize) {
+    const response = this.received;
+    let { statusCode, responseHeaders } = this;
 
     let contentLength;
     if (statusCode == 200) {
@@ -126,9 +182,11 @@ export class RequestDetails {
 // Remember request by id, and associate to response once received.
 export class RequestsHandler {
 
-  constructor() {
+  constructor(params) {
     this.RequestDetails = RequestDetails;
-    this.requests = {};
+    this.linkRedirections = true;
+    Object.assign(this, params);
+    this.requestsDetails = {};
     this.lastJanitoring = util.getTimestamp();
   }
 
@@ -137,33 +195,46 @@ export class RequestsHandler {
     // Remember this new request (to correlate with corresponding to-be response)
     // Note: if the content is in the browser cache, there still is a (fake)
     // request generated, and the response will have 'fromCache=true'.
-    this.requests[request.requestId] = request;
+    return this.getRequestDetails(request.requestId).addRequest(request);
   }
 
-  removeRequest(request) {
-    delete(this.requests[request.requestId]);
-  }
-
-  newRequestDetails(response, remove) {
-    let requestDetails = new this.RequestDetails(response);
-    requestDetails.sent = this.requests[response.requestId];
-    if (remove && requestDetails.sent) {
-      this.removeRequest(requestDetails.sent);
+  addResponse(response, remove) {
+    let requestDetails = this.getRequestDetails(response.requestId).addResponse(response);
+    // Remove if request *and* response is not a redirection or caller don't
+    // want to link redirected responses.
+    if (remove && (!this.linkRedirections || !requestDetails.isRedirection())) {
+      this.removeRequestDetails(requestDetails);
     }
     // else: caller will manage removal.
     return requestDetails;
   }
 
+  getRequestDetails(requestId) {
+    let requestDetails = this.requestsDetails[requestId];
+    if (!requestDetails) {
+      requestDetails = this.requestsDetails[requestId] = new this.RequestDetails();
+    }
+    return requestDetails;
+  }
+
+  removeRequestDetails(requestDetails) {
+    this.remove(requestDetails.requestId);
+  }
+
+  remove(requestId) {
+    delete(this.requestsDetails[requestId]);
+  }
+
   clear() {
-    this.requests = {};
+    this.requestsDetails = {};
   }
 
   janitoring() {
     if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return false;
-    for (let request of Object.values(this.requests)) {
-      if (util.getTimestamp() - request.timeStamp > constants.REQUESTS_TTL) {
-        console.warn('Dropping incomplete request %o: TTL reached', request);
-        delete(this.requests[request.requestId]);
+    for (let requestDetails of Object.values(this.requestsDetails)) {
+      if (util.getTimestamp() - requestDetails.timeStamp > constants.REQUESTS_TTL) {
+        console.warn('Dropping incomplete request %o: TTL reached', requestDetails);
+        this.removeRequestDetails(requestDetails);
       }
     }
     this.lastJanitoring = util.getTimestamp();

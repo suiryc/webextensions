@@ -689,7 +689,7 @@ class VideoSourceTabHandler {
     }
     source.setCompleted();
 
-    let requestDetails = new http.RequestDetails(response);
+    let requestDetails = new http.RequestDetails().addResponse(response);
     requestDetails.parseResponse();
     // Keep filename if given.
     source.setFilename(requestDetails.filename);
