@@ -172,9 +172,14 @@ export class RequestDetails {
       // given explicit filename extension here.
       this.contentType.guess(this.filename, false);
     }
-    // Note: we don't guess filename from URL because we wish to know - for
-    // later conditions testing - there was no explicit filename.
-    // The external download application will do it anyway.
+
+    // Now determine actual filename, from URL if not known yet.
+    this.actualFilename = util.getFilename(this.url, this.filename);
+    // And guess content type if needed: here we prefer any given or already
+    // guessed type over possibly flaky URL filename extension.
+    if (this.actualFilename) {
+      this.contentType.guess(this.actualFilename, true);
+    }
   }
 
 }

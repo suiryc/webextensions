@@ -467,7 +467,7 @@ export class RequestsHandler extends http.RequestsHandler {
       util.browserNotification({
         'type': 'basic',
         'title': 'Download (request)',
-        'message': `${util.getFilename(url, requestDetails.filename)}\n${url}`
+        'message': `${requestDetails.actualFilename}\n${url}`
       }, settings.notifyTtl);
     }
 
@@ -482,7 +482,7 @@ export class RequestsHandler extends http.RequestsHandler {
       referrer: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Referer'),
       cookie: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Cookie'),
       userAgent: http.findHeaderValue(requestDetails.sent.requestHeaders, 'User-Agent'),
-      file: requestDetails.filename,
+      file: requestDetails.actualFilename,
       size: requestDetails.contentLength
     }, {
       addComment: true,
