@@ -58,14 +58,10 @@ export class RequestDetails {
     if (this.requestId === undefined) {
       this.requestId = this.received?.requestId || this.sent?.requestId;
     }
-    // Get (first, non-redirection) URL.
-    if (!this.url) {
-      this.url = this.received?.url || this.sent?.url;
-    }
-    // Get first timestamp.
-    if (!this.timeStamp) {
-      this.timeStamp = this.received?.timeStamp || this.sent?.timeStamp || util.getTimestamp();
-    }
+    // Get current URL.
+    this.url = this.received?.url || this.sent?.url;
+    // Get current timestamp.
+    this.timeStamp = this.received?.timeStamp || this.sent?.timeStamp || util.getTimestamp();
 
     // Extract latest response status code and headers.
     if (!isResponse) return;
