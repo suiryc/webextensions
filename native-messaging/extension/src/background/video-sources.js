@@ -723,14 +723,17 @@ class VideoSourceTabHandler {
     else [details, reason] = args;
 
     if (source) this.ignoreUrls(source.getUrls());
-    else {
-      this.ignoreUrl(details.url);
-      // Also drop buffered requests if any, and ignore associated urls: useful
-      // when we already received redirection responses.
-      let buffered = this.getBufferedRequests(details.url, true);
-      if (buffered) this.ignoreUrls(buffered.getUrls());
-    }
+    else this.discardUrl(details.url);
     if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> video url=<${details.url}>: ${reason}`);
+  }
+
+  discardUrl(url) {
+    // First ingore url.
+    this.ignoreUrl(url);
+    // Also drop buffered requests if any, and ignore associated urls: useful
+    // when we already received redirection responses.
+    let buffered = this.getBufferedRequests(url, true);
+    if (buffered) this.ignoreUrls(buffered.getUrls());
   }
 
   updateVideos() {
