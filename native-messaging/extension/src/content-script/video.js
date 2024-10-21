@@ -97,9 +97,14 @@ function processVideo(node) {
   // Notes:
   // Page can add 'source' tags children to the video. Its purpose is to let
   // the browser use the first one (listed in order of priority) it can handle.
-  // Example: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+  // Examples:
+  //  - https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video
+  //  - https://www.w3schools.com/html/html5_video.asp
+  //  - https://scottjehl.com/posts/using-responsive-video/: selected source
+  //    depends on browser view size (desktop/mobile)
   // Usually there should be no need to look for (+ observe mutations) those
-  // tags.
+  // tags: the source selected by the browser will end up in 'currentSrc' video
+  // field.
   // If the browser actually does not handle the first one, and if we wanted to
   // take this into account, it would require managing multiple source urls for
   // the same video: we cannot assume that the sources filtered out by the
@@ -154,7 +159,7 @@ function processVideo(node) {
     webext.sendMessage(Object.assign({
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_ADD_VIDEO_SOURCE,
-      src
+      url: src
     }, scriptResult));
   }
 
