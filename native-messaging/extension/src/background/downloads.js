@@ -355,7 +355,7 @@ export class RequestsHandler extends http.RequestsHandler {
     return true;
   }
 
-  addRequestDetails(base, requestDetails) {
+  addToBase(base, requestDetails) {
     if (!requestDetails) return;
     let key = requestDetails.url;
     let entries = base[key] || [];
@@ -363,7 +363,7 @@ export class RequestsHandler extends http.RequestsHandler {
     base[key] = entries;
   }
 
-  removeRequestDetails(base, key) {
+  removeFromBase(base, key) {
     let entries = base[key];
     if (!entries) return;
     let removed = entries.shift();
@@ -375,11 +375,11 @@ export class RequestsHandler extends http.RequestsHandler {
   addUnintercepted(requestDetails) {
     // Nothing to remember if we are not intercepting downloads
     if (!this.interceptDownloads) return;
-    this.addRequestDetails(this.unintercepted, requestDetails);
+    this.addToBase(this.unintercepted, requestDetails);
   }
 
   removeUnintercepted(key) {
-    return this.removeRequestDetails(this.unintercepted, key);
+    return this.removeFromBase(this.unintercepted, key);
   }
 
   cleanupUnintercepted() {
@@ -395,11 +395,11 @@ export class RequestsHandler extends http.RequestsHandler {
   addCompletedRequest(requestDetails) {
     // Nothing to remember if we are not intercepting requests
     if (!this.interceptRequests) return;
-    this.addRequestDetails(this.requestsCompleted, requestDetails);
+    this.addToBase(this.requestsCompleted, requestDetails);
   }
 
   removeCompletedRequest(key) {
-    return this.removeRequestDetails(this.requestsCompleted, key);
+    return this.removeFromBase(this.requestsCompleted, key);
   }
 
   cleanupCompletedRequests() {
