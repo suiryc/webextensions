@@ -47,8 +47,8 @@ export class RequestDetails {
     // with the same id, at least in Firefox).
     // For conveniency, we remember them all, and also expose the very first
     // request ('sent') and very last response ('received').
-    // Caller may decide to not gather redirections in the same RequestDetails
-    // though.
+    // Note: at least in Firefox, there is actually only one request and
+    // multiple responses upon redirection.
     this.requests = [];
     this.responses = [];
   }
@@ -180,7 +180,6 @@ export class RequestsHandler {
 
   constructor(params) {
     this.RequestDetails = RequestDetails;
-    this.linkRedirections = true;
     Object.assign(this, params);
     this.requestsDetails = {};
     this.lastJanitoring = util.getTimestamp();
@@ -196,9 +195,8 @@ export class RequestsHandler {
 
   addResponse(response, remove) {
     let requestDetails = this.getRequestDetails(response.requestId).addResponse(response);
-    // Remove if request *and* response is not a redirection or caller don't
-    // want to link redirected responses.
-    if (remove && (!this.linkRedirections || !requestDetails.isRedirection())) {
+    // Remove if request *and* response is not a redirection.
+    if (remove && !requestDetails.isRedirection()) {
       this.remove(requestDetails);
     }
     // else: caller will manage removal.

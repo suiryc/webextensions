@@ -212,10 +212,7 @@ export class RequestsHandler extends http.RequestsHandler {
   //    complete in a short time (due to the interception minimum size)
 
   constructor(webext) {
-    super({
-      RequestDetails,
-      linkRedirections: false
-    });
+    super({ RequestDetails });
     let self = this;
     self.webext = webext;
     self.unintercepted = {};
