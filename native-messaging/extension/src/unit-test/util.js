@@ -515,13 +515,24 @@ describe('util', function() {
       assert.equal(util.getFilename('http://server/%3C%23%3Epath%E2%82%AC/%3C%23%3Esub%E2%82%AC/%3C%23%3Efile%E2%82%AC.ext'), '<#>file€.ext');
     });
 
-    it('should handle filename fallback', function() {
+    it('should handle explicit filename', function() {
+      // Test bad URLs (fail to parse).
       [undefined, null, '', 'http://server', 'http://server:port', 'http://server/', 'http://server/file%E2%AC.ext'].forEach(url => {
+        // Test empty filenames.
         [undefined, null, ''].forEach(filename => {
           assert.strictEqual(util.getFilename(undefined, filename), '');
+          assert.strictEqual(util.getFilename(url, filename), '');
         });
-        assert.equal(util.getFilename(undefined, '0'), '0');
       });
+      // URL shall be ignored if filename is present.
+      assert.equal(util.getFilename(undefined, '0'), '0');
+      assert.equal(util.getFilename('http://server/file.ext', '0'), '0');
+    });
+
+    it('should trim filename', function() {
+      assert.equal(util.getFilename('http://server/path/sub/  \t  file.ext  \r\n'), 'file.ext');
+      assert.equal(util.getFilename('http://server/file.ext', '    \t  0  \r\n'), '0');
+      assert.equal(util.getFilename('http://server/file.ext', '    \t   \r\n'), 'file.ext');
     });
 
   });

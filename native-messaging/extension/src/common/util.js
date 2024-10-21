@@ -363,14 +363,14 @@ export function getFilename(url, filename) {
   // Deduce filename from URL when necessary.
   // Note: we could do normalizeUrl(url).split('?').shift().split('/').pop(),
   // but using URL is more standard, and handle more cases.
-  if (!filename) {
+  if (!filename || !filename.trim().length) {
     try {
       filename = decodeURIComponent(new URL(url).pathname.split('/').pop());
     } catch (error) {
     }
   }
   // Normalize: empty value if needed.
-  return filename || '';
+  return (filename || '').trim();
 }
 
 // Gets file name and extension.
