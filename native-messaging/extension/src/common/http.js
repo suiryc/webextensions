@@ -58,6 +58,9 @@ export class RequestDetails {
     if (this.requestId === undefined) {
       this.requestId = this.received?.requestId || this.sent?.requestId;
     }
+    if (!this.type) {
+      this.type = this.received?.type || this.sent?.type;
+    }
     // Get current URL.
     this.url = this.received?.url || this.sent?.url;
     // Get current timestamp.
