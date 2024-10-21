@@ -98,6 +98,11 @@ export class RequestDetails {
     return !!this.filename;
   }
 
+  setFilename(filename) {
+    if (filename) filename = filename.trim();
+    this.filename = filename;
+  }
+
   addRequest(request) {
     this.requests.push(request);
     if (!this.sent) this.sent = request;
@@ -158,12 +163,13 @@ export class RequestDetails {
 
     // Determine filename if given (i.e. not from URL).
     // Content-Disposition 'filename' is preferred over Content-Type 'name'.
-    this.filename = this.contentDisposition.params.filename;
-    if (!this.hasFilename()) this.filename = this.contentType.params.name;
+    this.setFilename(this.contentDisposition.params.filename);
+    if (!this.hasFilename()) this.setFilename(this.contentType.params.name);
     // Make sure to only keep filename (and no useless folder hierarchy).
     if (this.hasFilename()) {
-      this.filename = this.filename.split(/\/|\\/).pop();
-      // And guess mime type when necessary.
+      this.setFilename(this.filename.split(/\/|\\/).pop());
+      // And guess mime type: we ignore any given type and prefer relying on
+      // given explicit filename extension here.
       this.contentType.guess(this.filename, false);
     }
     // Note: we don't guess filename from URL because we wish to know - for
