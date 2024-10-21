@@ -193,7 +193,7 @@ export class RequestsHandler {
     return this.getRequestDetails(request.requestId).addRequest(request);
   }
 
-  addResponse(response, remove) {
+  addResponse(response, remove=true) {
     let requestDetails = this.getRequestDetails(response.requestId).addResponse(response);
     // Remove if request *and* response is not a redirection.
     if (remove && !requestDetails.isRedirection()) {
