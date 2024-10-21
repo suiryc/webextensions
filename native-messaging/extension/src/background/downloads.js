@@ -735,7 +735,7 @@ class RequestDetails extends http.RequestDetails {
 
     // Note: caller already did set associated request if any.
     if (!this.sent) return handler.manageRequest(this, false, 'No matching request');
-    handler.removeRequestDetails(this);
+    handler.remove(this);
 
     // Special case (Firefox):
     // Response comes from cache if either:

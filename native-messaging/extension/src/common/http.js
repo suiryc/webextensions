@@ -199,7 +199,7 @@ export class RequestsHandler {
     // Remove if request *and* response is not a redirection or caller don't
     // want to link redirected responses.
     if (remove && (!this.linkRedirections || !requestDetails.isRedirection())) {
-      this.removeRequestDetails(requestDetails);
+      this.remove(requestDetails);
     }
     // else: caller will manage removal.
     return requestDetails;
@@ -213,11 +213,9 @@ export class RequestsHandler {
     return requestDetails;
   }
 
-  removeRequestDetails(requestDetails) {
-    this.remove(requestDetails.requestId);
-  }
-
-  remove(requestId) {
+  remove(arg) {
+    let requestId = arg;
+    if (typeof(arg) === 'object') requestId = arg.requestId;
     delete(this.requestsDetails[requestId]);
   }
 
@@ -230,7 +228,7 @@ export class RequestsHandler {
     for (let requestDetails of Object.values(this.requestsDetails)) {
       if (util.getTimestamp() - requestDetails.timeStamp > constants.REQUESTS_TTL) {
         console.warn('Dropping incomplete request %o: TTL reached', requestDetails);
-        this.removeRequestDetails(requestDetails);
+        this.remove(requestDetails);
       }
     }
     this.lastJanitoring = util.getTimestamp();
