@@ -107,7 +107,9 @@ export class MenuHandler {
   constructor(tabSuccessor, requestsHandler) {
     this.tabSuccessor = tabSuccessor;
     this.requestsHandler = requestsHandler;
+    // MenuEntry we manage.
     this.entries = [];
+    // Menu entry ids that were created in context menu.
     this.ids = [];
     this.shown = undefined;
     this.setup();
@@ -187,7 +189,7 @@ export class MenuHandler {
       await self.createSeparator({});
     }
     for (let entry of self.entries) {
-      await self.createEntry(entry);
+      await self.createEntry(entry.details);
     }
 
     // 'Unload tab' entry.
@@ -235,6 +237,9 @@ export class MenuHandler {
     await browser.contextMenus.update(id, details);
   }
 
+  // Creates a context menu entry, from given details.
+  // If needed details are enriched.
+  // Actual details used for creation are returned.
   async createEntry(details) {
     // Get or generate id.
     let id = details['id'];
@@ -285,41 +290,63 @@ export class MenuHandler {
   }
 
   async addEntry(details) {
-    details = Object.assign({
+    let entry = new MenuEntry(this, details);
+    this.entries.push(entry);
+    await this.rebuild();
+    return entry;
+  }
+
+  hasEntry(entry) {
+    // Search for entry.
+    for (let known of this.entries) {
+      if (known === entry) return entry;
+    }
+  }
+
+  async updateEntry(entry, details) {
+    // Ensure this entry exists.
+    if (!this.hasEntry(entry)) return;
+
+    // If menu is shown, refresh.
+    if (this.shown) {
+      await browser.contextMenus.update(entry.id, details);
+      await browser.contextMenus.refresh();
+    }
+  }
+
+  async removeEntries() {
+    for (let entry of [...arguments]) {
+      this.entries = this.entries.filter(el => el !== entry);
+    }
+    await this.rebuild();
+  }
+
+}
+
+class MenuEntry {
+
+  constructor(menu, details) {
+    this.menu = menu;
+    this.details = Object.assign({
       id: util.uuidv4(),
       parentId: ID_ROOT,
       icons: { '16': '/resources/icon.svg' },
       contexts: ['all'],
     }, details);
-    let id = details.id;
-    this.entries.push(details);
-    await this.rebuild();
-    return id;
   }
 
-  async updateEntry(id, details) {
-    // Search for entry.
-    for (let entry of this.entries) {
-      if (entry.id != id) continue;
-      // Update the details we know.
-      for (let [key, value] of Object.entries(details)) {
-        if ((value !== undefined) && (value !== null)) entry[key] = value;
-        else delete(entry[key]);
-      }
-      // If menu is shown, update entry and refresh.
-      if (this.shown) {
-        await browser.contextMenus.update(id, details);
-        await browser.contextMenus.refresh();
-      }
-      break;
+  update(details) {
+    // Update the details we know.
+    for (let [key, value] of Object.entries(details)) {
+      if ((value !== undefined) && (value !== null)) this.details[key] = value;
+      else delete(this.details[key]);
     }
+    // Delegate refreshing to owner.
+    this.menu.updateEntry(this, details);
   }
 
-  async removeEntries() {
-    for (let id of [...arguments]) {
-      this.entries = this.entries.filter(el => el.id !== id);
-    }
-    await this.rebuild();
+  remove() {
+    this.menu.removeEntries(this);
   }
 
 }

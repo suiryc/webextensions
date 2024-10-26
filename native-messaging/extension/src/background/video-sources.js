@@ -210,7 +210,8 @@ export class VideoSource {
     return Object.assign({}, this, {
       parent: undefined,
       webext: undefined,
-      tabHandler: undefined
+      tabHandler: undefined,
+      menuEntry: undefined
     });
   }
 
@@ -387,8 +388,8 @@ export class VideoSource {
     changes = changes || (title !== this.menuEntryTitle);
     this.menuEntryTitle = title;
     // Refresh menu entry when applicable.
-    if (changes && this.menuEntryId) {
-      await menuHandler.updateEntry(this.menuEntryId, {
+    if (changes && this.menuEntry) {
+      await this.menuEntry.update({
         title: this.menuEntryTitle
       });
     }
@@ -406,8 +407,8 @@ export class VideoSource {
   async addMenuEntry(menuHandler) {
     let self = this;
     // Nothing to do if already done.
-    if (self.menuEntryId) return;
-    self.menuEntryId = await menuHandler.addEntry({
+    if (self.menuEntry) return;
+    self.menuEntry = await menuHandler.addEntry({
       title: self.menuEntryTitle,
       onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
@@ -422,9 +423,9 @@ export class VideoSource {
   }
 
   async removeMenuEntry(menuHandler) {
-    if (!this.menuEntryId) return;
-    await menuHandler.removeEntries(this.menuEntryId);
-    delete(this.menuEntryId);
+    if (!this.menuEntry) return;
+    await this.menuEntry.remove();
+    delete(this.menuEntry);
   }
 
 }
