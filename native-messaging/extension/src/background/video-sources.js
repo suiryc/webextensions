@@ -561,7 +561,7 @@ class VideoSourceTabHandler {
     }
   }
 
-  findSource(url) {
+  findSource(url, originUrl) {
     for (let source of this.sources) {
       if (source.hasUrl(url)) return source;
     }
@@ -629,7 +629,7 @@ class VideoSourceTabHandler {
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
 
-    let source = this.findSource(url);
+    let source = this.findSource(url, request.originUrl);
     if (!source) {
       this.getBufferedRequests(url).addRequest(request);
       return;
@@ -662,7 +662,7 @@ class VideoSourceTabHandler {
       return;
     }
 
-    let source = this.findSource(url);
+    let source = this.findSource(url, response.originUrl);
     if (!source) {
       this.getBufferedRequests(url).addResponse(response, location);
       return;
