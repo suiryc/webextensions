@@ -61,6 +61,10 @@ export class RequestDetails {
     if (!this.type) {
       this.type = this.received?.type || this.sent?.type;
     }
+    // Get (first) origin URL.
+    if (!this.originUrl) {
+      this.originUrl = this.received?.originUrl || this.sent?.originUrl;
+    }
     // Get current URL.
     this.url = this.received?.url || this.sent?.url;
     // Get current timestamp.
