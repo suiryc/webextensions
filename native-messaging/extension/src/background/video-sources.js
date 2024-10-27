@@ -474,6 +474,7 @@ class VideoSourceTabHandler {
     this.webext = parent.webext;
     this.tabHandler = tabHandler;
     this.menuHandler = parent.menuHandler;
+    self.requestsHandler = new http.RequestsHandler();
     this.sources = [];
     this.ignoredUrls = new Set();
     // Buffered requests, per url.
@@ -502,6 +503,7 @@ class VideoSourceTabHandler {
     // If we remain on the same url, we don't have to forget previous sources
     // or ignored urls.
     if (!details.sameUrl) {
+      this.requestsHandler.clear();
       await this.removeMenuEntries();
       this.sources = [];
       this.ignoredUrls.clear();
@@ -634,6 +636,7 @@ class VideoSourceTabHandler {
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
 
+    this.requestsHandler.addRequest(request);
     let source = this.findSource(url, request.originUrl);
     if (!source) {
       this.getBufferedRequests(url).addRequest(request);
@@ -667,11 +670,19 @@ class VideoSourceTabHandler {
       return;
     }
 
+    let requestDetails = this.requestsHandler.addResponse(response);
+    requestDetails.parseResponse();
+
     let source = this.findSource(url, response.originUrl);
     if (!source) {
+      if (settings.trace.video) console.log('Received non-source response:', requestDetails);
+      // Remember this response, in case an associated video source is added
+      // later.
       this.getBufferedRequests(url).addResponse(response, location);
       return;
     }
+
+    if (settings.trace.video) console.log('Received source response:', requestDetails);
 
     // Remember actual url.
     // Notes:
@@ -694,8 +705,6 @@ class VideoSourceTabHandler {
     }
     source.setCompleted();
 
-    let requestDetails = new http.RequestDetails().addResponse(response);
-    requestDetails.parseResponse();
     // Keep filename if given.
     source.setFilename(requestDetails.filename);
     // Keep content length if known.

@@ -171,6 +171,7 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('debug.linksCatcher', false);
     new ExtensionBooleanSetting('debug.downloads', false);
     new ExtensionBooleanSetting('debug.video', false);
+    new ExtensionBooleanSetting('trace.video', false);
     new ExtensionBooleanSetting('handleTabSuccessor', true);
     new ExtensionBooleanSetting('interceptDownloads', true);
     new ExtensionBooleanSetting('interceptRequests', true);
