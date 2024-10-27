@@ -137,9 +137,22 @@ function processVideo(node) {
     return (node[field] && node[field].trim());
   }
 
-  async function addVideoSource(field) {
-    if (!nonEmpty(field)) return;
-    let src = node[field];
+  function getField(field) {
+    if (nonEmpty(field)) return node[field].trim();
+  }
+
+  function getSources() {
+    let srcs = new Set();
+    // Gather src set in video tag.
+    ['src', 'currentSrc'].forEach(field => {
+      let src = getField(field);
+      if (src) srcs.add(src);
+    });
+    return srcs;
+  }
+
+  async function addVideoSource(src) {
+    if (!src) return;
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
@@ -163,9 +176,10 @@ function processVideo(node) {
     }, scriptResult));
   }
 
-  function processVideoSource() {
-    addVideoSource('src');
-    if (node.currentSrc != node.src) addVideoSource('currentSrc');
+  async function processVideoSource() {
+    for (let src of getSources()) {
+      await addVideoSource(src);
+    }
   }
 
   // 'src' changes observer.
