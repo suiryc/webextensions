@@ -9,6 +9,7 @@ import { settings } from '../common/settings.js';
 
 
 function checkVideoContentType(contentType) {
+  if (contentType.isText()) return 'Text';
   if (contentType.isImage()) return 'Image';
   if (contentType.isAudio()) return 'Audio';
 }
