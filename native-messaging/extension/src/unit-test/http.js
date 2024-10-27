@@ -283,33 +283,38 @@ describe('ContentType', function() {
     assert.equal(ct.subType, ct2.subType);
   }
 
-  function isKind(mimeType, isText, isImage, isAudio, isHLS) {
+  function isKind(mimeType, isText, isImage, isAudio, isHLS, isSubtitle) {
     let ct = new http.ContentType(mimeType);
     assert.equal(ct.isText(), isText);
     assert.equal(ct.maybeText(), isText);
     assert.equal(ct.isImage(), isImage);
     assert.equal(ct.isAudio(), isAudio);
     assert.equal(ct.isHLS(), isHLS);
+    assert.equal(ct.isSubtitle(), isSubtitle);
   }
 
   function isUnknown(mimeType) {
-    isKind(mimeType, false, false, false, false);
+    isKind(mimeType, false, false, false, false, false);
   }
 
   function isText(mimeType) {
-    isKind(mimeType, true, false, false, false);
+    isKind(mimeType, true, false, false, false, false);
   }
 
   function isImage(mimeType) {
-    isKind(mimeType, false, true, false, false);
+    isKind(mimeType, false, true, false, false, false);
   }
 
   function isAudio(mimeType) {
-    isKind(mimeType, false, false, true, false);
+    isKind(mimeType, false, false, true, false, false);
   }
 
   function isHLS(mimeType) {
-    isKind(mimeType, false, false, false, true);
+    isKind(mimeType, false, false, false, true, false);
+  }
+
+  function isSubtitle(mimeType) {
+    isKind(mimeType, false, false, false, false, true);
   }
 
   // ContentType relies on HeaderParser.
@@ -336,6 +341,8 @@ describe('ContentType', function() {
     guess(ct, 'test.mp3', 'audio/mpeg');
     guess(ct, 'test.mpa', 'audio/mpeg');
     guess(ct, 'test.m3u8', 'application/vnd.apple.mpegurl');
+    guess(ct, 'test.srt', 'application/x-subrip');
+    guess(ct, 'test.vtt', 'text/vtt');
   });
 
   it('should not guess mime type if not needed', function() {
@@ -384,6 +391,11 @@ describe('ContentType', function() {
     assert.equal(ct.maybeHLS(), false);
     assert.equal(ct.maybeHLS('file.ext'), false);
     assert.equal(ct.maybeHLS('file.m3u8'), true);
+  });
+
+  it('should know subtitle types', function() {
+    isSubtitle('application/x-subrip');
+    isSubtitle('text/vtt');
   });
 
   it('should not known unknown types', function() {

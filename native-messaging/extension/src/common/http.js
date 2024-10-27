@@ -254,12 +254,13 @@ export class RequestsHandler {
 }
 
 
-// We mainly care about text, images, audio and hls.
+// We mainly care about text, images, audio, hls and subtitles.
 const hlsMimeTypes = new Set([
   'application/vnd.apple.mpegurl', 'application/mpegurl', 'application/x-mpegurl',
   'application/vnd.apple.mpegurl.audio', 'audio/mpegurl', 'audio/x-mpegurl'
 ]);
 const hlsFileExtension = 'm3u8';
+const subtitleMimeTypes = new Set(['application/x-subrip', 'text/vtt']);
 // Mime type per extensions.
 // Note: we only want one type per matching extension here.
 const mimeTypesExt = {
@@ -279,7 +280,9 @@ const mimeTypesExt = {
   'audio/mp4': ['m4a'],
   'audio/webm': ['weba'],
   'audio/ogg': ['opus'],
-  'application/vnd.apple.mpegurl': [hlsFileExtension]
+  'application/vnd.apple.mpegurl': [hlsFileExtension],
+  'application/x-subrip': ['srt'],
+  'text/vtt': ['vtt']
 };
 
 export class ContentType {
@@ -345,8 +348,8 @@ export class ContentType {
 
   isText() {
     // This is text if:
-    // Main-type *is* text.
-    if (this.is('text')) return true;
+    // Main-type *is* text and this is not a subtitle.
+    if (this.is('text') && !this.isSubtitle()) return true;
     // Sub-type starts with a well-known text type.
     if (!this.subType) return false;
     return (this.subType.startsWith('css')) ||
@@ -377,11 +380,16 @@ export class ContentType {
     return extension == hlsFileExtension;
   }
 
+  isSubtitle() {
+    return subtitleMimeTypes.has(this.mimeType);
+  }
+
   maybeText() {
     // This may be text if either:
-    //  - it *is* text.
-    //  - there is a charset associated (why else give a charset ?).
-    return this.isText() || !!this.params.charset;
+    //  - it is not subtitle and either
+    //    - it *is* text
+    //    - there is a charset associated (why else give a charset ?)
+    return !this.isSubtitle() && (this.isText() || !!this.params.charset);
   }
 
 }

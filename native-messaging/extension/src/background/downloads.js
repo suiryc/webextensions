@@ -537,11 +537,11 @@ export class RequestsHandler extends http.RequestsHandler {
         if (contentType.isImage()) return self.manageDownload(download, false, 'Image with unknown size');
       }
 
-      // For text or images, if the URL is actually displayed (i.e. is the URL
-      // of a tab), don't intercept the download and assume that the browser
-      // already has the file we wish to save.
+      // For text/subtitles or images, if the URL is actually displayed (i.e. is
+      // the URL of a tab), don't intercept the download and assume that the
+      // browser already has the file we wish to save.
       let displayed;
-      if (contentType.isText() || contentType.isImage()) {
+      if (contentType.isText() || contentType.isSubtitle() || contentType.isImage()) {
         displayed = browser.tabs.query({url: download.url}).then(tabs => {
           // Note: we could also check whether the tab status is 'complete'.
           // But we assume that it is either the case, or that since the content
