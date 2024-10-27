@@ -198,13 +198,6 @@ export class VideoSource {
     this.addUrl(this.forceUrl);
     this.menuHandler = parent.menuHandler;
     this.needRefresh = true;
-
-    // Get defaults values to pass to notif, if any.
-    this.notifDefaults = {};
-    for (let key of ['windowId', 'tabId', 'frameId']) {
-      this.notifDefaults[key] = details[key];
-    }
-    util.cleanupFields(this.notifDefaults);
   }
 
   // Clone this video source, without fields that cannot be cloned when passing
@@ -316,7 +309,7 @@ export class VideoSource {
         name: 'filename refining',
         args: ['params'],
         setting,
-        notifDefaults: self.notifDefaults
+        notifDefaults: self.parent.notifDefaults
       })
     });
   }
@@ -485,6 +478,13 @@ class VideoSourceTabHandler {
     this.ignoredUrls = new Set();
     // Buffered requests, per url.
     this.bufferedRequests = {};
+
+    // Get defaults values to pass to notif, if any.
+    this.notifDefaults = {
+      windowId: tabHandler.windowId,
+      tabId: tabHandler.id
+    };
+    util.cleanupFields(this.notifDefaults);
   }
 
   async tabUpdated(details) {
