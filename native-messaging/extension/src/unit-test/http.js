@@ -283,28 +283,33 @@ describe('ContentType', function() {
     assert.equal(ct.subType, ct2.subType);
   }
 
-  function isKind(mimeType, isText, isImage, isAudio) {
+  function isKind(mimeType, isText, isImage, isAudio, isHLS) {
     let ct = new http.ContentType(mimeType);
     assert.equal(ct.isText(), isText);
     assert.equal(ct.maybeText(), isText);
     assert.equal(ct.isImage(), isImage);
     assert.equal(ct.isAudio(), isAudio);
+    assert.equal(ct.isHLS(), isHLS);
   }
 
   function isUnknown(mimeType) {
-    isKind(mimeType, false, false, false);
+    isKind(mimeType, false, false, false, false);
   }
 
   function isText(mimeType) {
-    isKind(mimeType, true, false, false);
+    isKind(mimeType, true, false, false, false);
   }
 
   function isImage(mimeType) {
-    isKind(mimeType, false, true, false);
+    isKind(mimeType, false, true, false, false);
   }
 
   function isAudio(mimeType) {
-    isKind(mimeType, false, false, true);
+    isKind(mimeType, false, false, true, false);
+  }
+
+  function isHLS(mimeType) {
+    isKind(mimeType, false, false, false, true);
   }
 
   // ContentType relies on HeaderParser.
@@ -330,6 +335,7 @@ describe('ContentType', function() {
     guess(ct, 'test.jpg', 'image/jpeg');
     guess(ct, 'test.mp3', 'audio/mpeg');
     guess(ct, 'test.mpa', 'audio/mpeg');
+    guess(ct, 'test.m3u8', 'application/vnd.apple.mpegurl');
   });
 
   it('should not guess mime type if not needed', function() {
@@ -363,6 +369,21 @@ describe('ContentType', function() {
 
   it('should know audio types', function() {
     isAudio('audio/whatever');
+  });
+
+  it('should know HLS types', function() {
+    isHLS('application/vnd.apple.mpegurl');
+    isHLS('application/mpegurl');
+    isHLS('application/x-mpegurl');
+    isHLS('application/vnd.apple.mpegurl.audio');
+    isHLS('audio/mpegurl');
+    isHLS('audio/x-mpegurl');
+
+    let ct = new http.ContentType('video/mp2t');
+    assert.equal(ct.isHLS(), false);
+    assert.equal(ct.maybeHLS(), false);
+    assert.equal(ct.maybeHLS('file.ext'), false);
+    assert.equal(ct.maybeHLS('file.m3u8'), true);
   });
 
   it('should not known unknown types', function() {

@@ -254,7 +254,14 @@ export class RequestsHandler {
 }
 
 
-// We mainly care about text, images and audio.
+// We mainly care about text, images, audio and hls.
+const hlsMimeTypes = new Set([
+  'application/vnd.apple.mpegurl', 'application/mpegurl', 'application/x-mpegurl',
+  'application/vnd.apple.mpegurl.audio', 'audio/mpegurl', 'audio/x-mpegurl'
+]);
+const hlsFileExtension = 'm3u8';
+// Mime type per extensions.
+// Note: we only want one type per matching extension here.
 const mimeTypesExt = {
   'text/plain': ['txt'],
   'text/css': ['css'],
@@ -271,7 +278,8 @@ const mimeTypesExt = {
   'audio/mpeg': [/^mp[1-3]$/, /^m[12p]a$/],
   'audio/mp4': ['m4a'],
   'audio/webm': ['weba'],
-  'audio/ogg': ['opus']
+  'audio/ogg': ['opus'],
+  'application/vnd.apple.mpegurl': [hlsFileExtension]
 };
 
 export class ContentType {
@@ -354,7 +362,19 @@ export class ContentType {
   }
 
   isAudio() {
-    return this.is('audio');
+    return this.is('audio') && !this.isHLS();
+  }
+
+  isHLS() {
+    return hlsMimeTypes.has(this.mimeType);
+  }
+
+  // Some sites return 'video/mp2t' for m3u8 files.
+  // Let caller decide what to do, e.g. based on content size if known.
+  maybeHLS(filename) {
+    if (!this.is('video', 'mp2t') || !filename) return false;
+    let extension = util.getFilenameExtension(filename).extension || '';
+    return extension == hlsFileExtension;
   }
 
   maybeText() {
