@@ -570,7 +570,11 @@ class VideoSourceTabHandler {
 
   findSource(url, originUrl) {
     for (let source of this.sources) {
-      if (source.hasUrl(url)) return source;
+      if (source.hasUrl(url)) {
+        // Set source originUrl if needed.
+        if (!source.originUrl && originUrl) source.originUrl = originUrl;
+        return source;
+      }
     }
   }
 
