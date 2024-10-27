@@ -186,15 +186,17 @@ export class VideoSource {
     // Remember important objects, but don't forget to remove in 'forMessage'
     // those that cannot be cloned.
     // Unit tests will pass an undefined 'parent'.
+    parent ||= {};
     this.parent = parent;
-    this.webext = (parent || {}).webext;
-    this.tabHandler = (parent || {}).tabHandler;
+    this.webext = parent.webext;
+    this.tabHandler = parent.tabHandler;
     // Even though for a single source we should only need to remember the
     // original url and any final redirection location, we manage merging
     // multiple sources when applicable.
     this.urls = new Set();
     this.addUrl(this.url);
     this.addUrl(this.forceUrl);
+    this.menuHandler = parent.menuHandler;
     this.needRefresh = true;
 
     // Get defaults values to pass to notif, if any.
@@ -212,7 +214,8 @@ export class VideoSource {
       parent: undefined,
       webext: undefined,
       tabHandler: undefined,
-      menuEntry: undefined
+      menuEntry: undefined,
+      menuHandler: undefined
     });
   }
 
@@ -318,7 +321,7 @@ export class VideoSource {
     });
   }
 
-  async refresh(menuHandler) {
+  async refresh() {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
 
@@ -405,11 +408,11 @@ export class VideoSource {
   // 'onclick' being a function, it will access up-to-date fields when menu
   // entry is clicked. Only values like 'title' needs to be refreshed when
   // the source is updated.
-  async addMenuEntry(menuHandler) {
+  async addMenuEntry() {
     let self = this;
     // Nothing to do if already done.
     if (self.menuEntry) return;
-    self.menuEntry = await menuHandler.addEntry({
+    self.menuEntry = await self.menuHandler.addEntry({
       title: self.menuEntryTitle,
       onclick: (data, tab) => {
         // Add cookie and user agent unless we saw a request (in which we
@@ -423,7 +426,7 @@ export class VideoSource {
     });
   }
 
-  async removeMenuEntry(menuHandler) {
+  async removeMenuEntry() {
     if (!this.menuEntry) return;
     await this.menuEntry.remove();
     delete(this.menuEntry);
@@ -489,7 +492,7 @@ class VideoSourceTabHandler {
     if (details.tabChanges.title) {
       for (let source of this.sources) {
         source.setTabTitle(details.tabChanges.title);
-        await source.refresh(this.menuHandler);
+        await source.refresh();
         this.updateVideos();
       }
     }
@@ -553,13 +556,13 @@ class VideoSourceTabHandler {
 
   async addMenuEntries() {
     for (let source of this.sources) {
-      await source.addMenuEntry(this.menuHandler);
+      await source.addMenuEntry();
     }
   }
 
   async removeMenuEntries() {
     for (let source of this.sources) {
-      await source.removeMenuEntry(this.menuHandler);
+      await source.removeMenuEntry();
     }
   }
 
@@ -577,7 +580,7 @@ class VideoSourceTabHandler {
       if (matches) {
         if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, other, source);
         source.merge(other);
-        other.removeMenuEntry(this.menuHandler);
+        other.removeMenuEntry();
         return false;
       }
       return true;
@@ -621,8 +624,8 @@ class VideoSourceTabHandler {
 
     // Refresh source, then when applicable add menu entry and trigger videos
     // update.
-    await source.refresh(this.menuHandler);
-    if (tabHandler.isFocused()) await source.addMenuEntry(this.menuHandler);
+    await source.refresh();
+    if (tabHandler.isFocused()) await source.addMenuEntry();
     this.updateVideos();
   }
 
@@ -711,7 +714,7 @@ class VideoSourceTabHandler {
 
     // Refresh source if applicable (will be done elsewhere upon replaying) and
     // trigger videos update if we are the active tab.
-    if (!this.replaying && (await source.refresh(this.menuHandler))) this.updateVideos();
+    if (!this.replaying && (await source.refresh())) this.updateVideos();
   }
 
   // Takes into account given download information to ignore.
