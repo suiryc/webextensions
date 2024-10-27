@@ -88,6 +88,7 @@ html, body {
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
         <input type="radio" id="tab-item-videos-main" name="tabs-videos" class="tab-locator" hidden checked>
         <input type="radio" id="tab-item-videos-download-refining" name="tabs-videos" class="tab-locator" hidden>
+        <input type="radio" id="tab-item-videos-response-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-filename-refining" name="tabs-videos" class="tab-locator" hidden>
 
         <div class="panel-nav tabs-items">
@@ -97,6 +98,9 @@ html, body {
             </li>
             <li class="tab-item">
               <label for="tab-item-videos-download-refining" class="clickable"><a>Download refining</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-videos-response-refining" class="clickable"><a>Response refining</a></label>
             </li>
             <li class="tab-item">
               <label for="tab-item-videos-filename-refining" class="clickable"><a>Filename refining</a></label>
@@ -119,6 +123,11 @@ html, body {
           <div class="tab-content">
             <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.downloadRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
             <textarea class="form-input input-script" id="video.downloadRefining.script" rows="70" spellcheck="false" autocorrect="off"></textarea>
+          </div>
+
+          <div class="tab-content">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.responseRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="video.responseRefining.script" rows="70" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
           <div class="tab-content">

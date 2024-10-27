@@ -186,6 +186,8 @@ class Settings extends SettingsBranch {
     new ExtensionIntSetting('notifyTtl', 4000);
     new ExtensionBooleanSetting('video.downloadRefining.enabled', true);
     new ExtensionScriptSetting('video.downloadRefining.script');
+    new ExtensionBooleanSetting('video.responseRefining.enabled', true);
+    new ExtensionScriptSetting('video.responseRefining.script');
     new ExtensionBooleanSetting('video.filenameRefining.enabled', true);
     new ExtensionScriptSetting('video.filenameRefining.script');
     new ExtensionBooleanSetting('video.intercept', true);

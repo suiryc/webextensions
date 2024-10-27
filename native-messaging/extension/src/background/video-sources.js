@@ -470,22 +470,35 @@ export class VideoSource {
 class VideoSourceTabHandler {
 
   constructor(parent, tabHandler) {
-    this.parent = parent;
-    this.webext = parent.webext;
-    this.tabHandler = tabHandler;
-    this.menuHandler = parent.menuHandler;
+    let self = this;
+    self.parent = parent;
+    self.webext = parent.webext;
+    self.tabHandler = tabHandler;
+    self.menuHandler = parent.menuHandler;
     self.requestsHandler = new http.RequestsHandler();
-    this.sources = [];
-    this.ignoredUrls = new Set();
+    self.sources = [];
+    self.ignoredUrls = new Set();
     // Buffered requests, per url.
-    this.bufferedRequests = {};
+    self.bufferedRequests = {};
 
     // Get defaults values to pass to notif, if any.
-    this.notifDefaults = {
+    self.notifDefaults = {
       windowId: tabHandler.windowId,
       tabId: tabHandler.id
     };
-    util.cleanupFields(this.notifDefaults);
+    util.cleanupFields(self.notifDefaults);
+
+    let setting = settings.video.responseRefining;
+    self.responseRefining = self.tabHandler.extensionProperties.get({
+      key: setting.getKey(),
+      create: tabHandler => new unsafe.CodeExecutor({
+        webext: self.webext,
+        name: 'response refining',
+        args: ['params'],
+        setting,
+        notifDefaults: self.notifDefaults
+      })
+    });
   }
 
   async tabUpdated(details) {
@@ -678,8 +691,16 @@ class VideoSourceTabHandler {
     requestDetails.parseResponse();
 
     let source = this.findSource(url, response.originUrl);
+    let scriptParams = {
+      params: {
+        videoHandler: this,
+        videoSource: source,
+        requestDetails
+      }
+    };
     if (!source) {
       if (settings.trace.video) console.log('Received non-source response:', requestDetails);
+      await this.responseRefining.execute(scriptParams);
       // Remember this response, in case an associated video source is added
       // later.
       this.getBufferedRequests(url).addResponse(response, location);
@@ -687,6 +708,7 @@ class VideoSourceTabHandler {
     }
 
     if (settings.trace.video) console.log('Received source response:', requestDetails);
+    await this.responseRefining.execute(scriptParams);
 
     // Remember actual url.
     // Notes:
