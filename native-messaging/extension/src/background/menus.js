@@ -102,20 +102,163 @@ const ENTRIES_BASE = {
   }
 };
 
-export class MenuHandler {
+class MenuElement {
+
+  constructor(menu) {
+    this.menu = menu;
+    this.attached = true;
+  }
+
+  // API: remove this entry.
+  async remove() {
+    // If no parent or already removed, nothing to do.
+    if (!this.menu || !this.attached) return false;
+
+    await this.menu.removeEntries(this);
+    this.attached = false;
+
+    // Sub-class will do the rest when applicable.
+    return true;
+  }
+
+  // API: add this entry.
+  async add() {
+    // If no parent or already attached, nothing to do.
+    if (!this.menu || this.attached) return false;
+
+    await this.menu.addEntry(this);
+
+    // Sub-class will do the rest when applicable.
+    return true;
+  }
+
+}
+
+class MenuEntry extends MenuElement {
+
+  constructor(menu, details) {
+    super(menu);
+    this.details = Object.assign({
+      id: util.uuidv4(),
+      parentId: ID_ROOT,
+      icons: { '16': '/resources/icon.svg' },
+      contexts: ['all'],
+    }, details);
+  }
+
+  // API: update this entry.
+  async update(details) {
+    // Update the details we know.
+    for (let [key, value] of Object.entries(details)) {
+      if ((value !== undefined) && (value !== null)) this.details[key] = value;
+      else delete(this.details[key]);
+    }
+
+    // If not attached, we are done.
+    if (!this.attached) return;
+
+    // Delegate refreshing to owner.
+    await this.menu.updateEntry(this, details);
+  }
+
+}
+
+// Gathers more than one entry.
+// Can be used to keep multiple entries grouped at the same place in the menu,
+// without creating a sub-menu.
+//
+// Note: removing a menu group only removes the group element, not its entries.
+// This will trigger a rebuild, and all entries still held by the group won't
+// remain in the new menu.
+// This also allows re-adding the group later, which comes back in parent with
+// all the remaining attached sub-entries.
+class MenuGroup extends MenuElement {
+
+  constructor(menu) {
+    super(menu);
+    // MenuEntry/MenuGroup we manage.
+    this.entries = [];
+  }
+
+  // API: reset menu.
+  async reset() {
+    let r = false;
+
+    // Empty known entries.
+    for (let entry of this.entries) {
+      r |= await entry.remove();
+    }
+
+    return r;
+  }
+
+  async rebuild() {
+    // If not attached, nothing to do.
+    if (!this.attached) return;
+
+    // Delegate rebuilding to parent.
+    await this.menu.rebuild(...arguments);
+  }
+
+  countMenuEntries() {
+    return this.entries.reduce((sum, entry) => {
+      return sum + (entry.details ? 1 : entry.countMenuEntries());
+    }, 0);
+  }
+
+  hasEntry(entry) {
+    // Check we own (directly or not) this entry.
+    let menu = entry.menu;
+    while (menu) {
+      if (menu === this) return entry;
+      menu = menu.menu;
+    }
+  }
+
+  async updateEntry(entry, details) {
+    // If not attached, nothing to do.
+    if (!this.attached) return;
+
+    // Delegate updating to parent.
+    await this.menu.updateEntry(...arguments);
+  }
+
+  // API: add new entry.
+  async addEntry(details) {
+    let entry = (details instanceof MenuElement) ? details : new MenuEntry(this, details);
+    this.entries.push(entry);
+    entry.attached = true;
+    await this.rebuild();
+    return entry;
+  }
+
+  // API: remove given entries.
+  async removeEntries() {
+    let entries = new Set([...arguments]);
+    this.entries = this.entries.filter(el => !entries.has(el));
+    await this.rebuild();
+  }
+
+  // API: add group in entries.
+  addGroup() {
+    let group = new MenuGroup(this);
+    this.entries.push(group);
+    return group;
+  }
+
+}
+
+export class MenuHandler extends MenuGroup {
 
   constructor(tabSuccessor, requestsHandler) {
+    super();
     this.tabSuccessor = tabSuccessor;
     this.requestsHandler = requestsHandler;
-    // MenuEntry we manage.
-    this.entries = [];
     // Menu entry ids that were created in context menu.
     this.ids = [];
     this.shown = undefined;
     this.setup();
   }
-
-  // Inner API
 
   async setup() {
     let self = this;
@@ -160,7 +303,8 @@ export class MenuHandler {
       title: 'Download link',
       onclick: self.requestsHandler.manageClick.bind(self.requestsHandler)
     };
-    if (!self.entries.length && isLink) {
+    let entriesCount = self.countMenuEntries();
+    if (!entriesCount && isLink) {
       // Target link without other entries.
       // We don't need/want to show 'Unload tab' in this specific case.
       Object.assign(dlLinkDetails, {
@@ -185,12 +329,10 @@ export class MenuHandler {
     }
 
     // Other entries (added by owner).
-    if (self.entries.length && isLink) {
+    if (entriesCount && isLink) {
       await self.createSeparator({});
     }
-    for (let entry of self.entries) {
-      await self.createEntry(entry.details);
-    }
+    await self.createEntries();
 
     // 'Unload tab' entry.
     let unloadDetails = {
@@ -200,7 +342,7 @@ export class MenuHandler {
         self.tabSuccessor.unloadTabs(tab);
       }
     };
-    if (self.entries.length || isLink) {
+    if (entriesCount || isLink) {
       await self.createSeparator({});
       Object.assign(unloadDetails, {
         parentId: ID_ROOT
@@ -235,6 +377,21 @@ export class MenuHandler {
     // API complains if we pass 'id' in update details.
     delete details.id;
     await browser.contextMenus.update(id, details);
+  }
+
+  async createEntries(entry) {
+    let list = [];
+    function loop(menu) {
+      for (let entry of (menu.entries || [])) {
+        if (entry.details) list.push(entry.details);
+        loop(entry);
+      }
+    }
+    loop(this);
+
+    for (let details of list) {
+      await this.createEntry(details);
+    }
   }
 
   // Creates a context menu entry, from given details.
@@ -280,29 +437,6 @@ export class MenuHandler {
     await this.onShown(shown.data, shown.tab);
   }
 
-  // Outer API: can be used by caller.
-
-  async reset() {
-    // Empty known entries.
-    this.entries = [];
-    // Rebuild.
-    await this.rebuild();
-  }
-
-  async addEntry(details) {
-    let entry = new MenuEntry(this, details);
-    this.entries.push(entry);
-    await this.rebuild();
-    return entry;
-  }
-
-  hasEntry(entry) {
-    // Search for entry.
-    for (let known of this.entries) {
-      if (known === entry) return entry;
-    }
-  }
-
   async updateEntry(entry, details) {
     // Ensure this entry exists.
     if (!this.hasEntry(entry)) return;
@@ -312,41 +446,6 @@ export class MenuHandler {
       await browser.contextMenus.update(entry.id, details);
       await browser.contextMenus.refresh();
     }
-  }
-
-  async removeEntries() {
-    for (let entry of [...arguments]) {
-      this.entries = this.entries.filter(el => el !== entry);
-    }
-    await this.rebuild();
-  }
-
-}
-
-class MenuEntry {
-
-  constructor(menu, details) {
-    this.menu = menu;
-    this.details = Object.assign({
-      id: util.uuidv4(),
-      parentId: ID_ROOT,
-      icons: { '16': '/resources/icon.svg' },
-      contexts: ['all'],
-    }, details);
-  }
-
-  update(details) {
-    // Update the details we know.
-    for (let [key, value] of Object.entries(details)) {
-      if ((value !== undefined) && (value !== null)) this.details[key] = value;
-      else delete(this.details[key]);
-    }
-    // Delegate refreshing to owner.
-    this.menu.updateEntry(this, details);
-  }
-
-  remove() {
-    this.menu.removeEntries(this);
   }
 
 }
