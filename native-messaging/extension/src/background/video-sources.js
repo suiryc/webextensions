@@ -750,7 +750,7 @@ class VideoSourceTabHandler {
 
     // Refresh source if applicable (will be done elsewhere upon replaying) and
     // trigger videos update if we are the active tab.
-    if (!this.replaying && (await source.refresh())) this.updateVideos();
+    if (!response.replayed && (await source.refresh())) this.updateVideos();
   }
 
   // Takes into account given download information to ignore.
@@ -1110,28 +1110,25 @@ class RequestBuffer {
     // requests don't interfere with our replaying.
     let buffer = this.buffer;
     this.clear();
-    target.replaying = true;
-    try {
-      for (let buffered of buffer) {
-        let request = buffered.request;
-        if (request) {
-          try {
-            await target.onRequest(request);
-          } catch (error) {
-            console.log('Failed to replay request=<%o>: %o', request, error);
-          }
-        }
-        let response = buffered.response;
-        if (response) {
-          try {
-            await target.onResponse(response);
-          } catch (error) {
-            console.log('Failed to replay response=<%o>: %o', response, error);
-          }
+    for (let buffered of buffer) {
+      let request = buffered.request;
+      if (request) {
+        try {
+          request.replayed = true;
+          await target.onRequest(request);
+        } catch (error) {
+          console.log('Failed to replay request=<%o>: %o', request, error);
         }
       }
-    } finally {
-      target.replaying = false;
+      let response = buffered.response;
+      if (response) {
+        try {
+          response.replayed = true;
+          await target.onResponse(response);
+        } catch (error) {
+          console.log('Failed to replay response=<%o>: %o', response, error);
+        }
+      }
     }
   }
 
