@@ -66,25 +66,17 @@ function dl_save(app, msg) {
   let deferred = new util.Deferred();
   // We always ask for the WebSocket port, so that next requests can be posted
   // directly from the browser.
-  let args = ['--ws'];
-  [
-    [msg.url, '--url']
-    , [msg.referrer, '--http-referrer']
-    , [msg.file, '--file']
-    , [msg.size, '--size']
-    , [msg.cookie, '--cookie']
-    , [msg.userAgent, '--user-agent']
-    , [msg.comment, '--comment']
-  ].forEach(opt => {
-    // Only keep defined (and non-null) values.
-    if (opt[0] == null) opt[0] = undefined;
-    if (opt[0] !== undefined) args.push(opt[1], opt[0]);
-  });
-  if (msg.auto) args.push('--auto');
+  // Work with JSON format:
+  //  - pass details as one-line JSON through spawned process stdin
+  //  - read response as JSON (WebSocket port) and pass it to caller
+  let args = ['--ws', '--json'];
+  // Note: 'spawn' uses 'pipe' stdio by default, which is what we want here.
   let child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
-    detached: true,
-    stdio: ['ignore', 'pipe', 'pipe']
+    detached: true
   });
+  // Don't forget to end stdin after writing our JSON, so that process sees EOF
+  // and can fully read it.
+  child.stdin.end(JSON.stringify(msg));
 
   // We need to:
   //  - accumulate stdout/stderr data until done
@@ -157,12 +149,10 @@ function dl_save(app, msg) {
       let s;
       try {
         s = stdout.data.toString().trim();
-        let ok = /^\d+$/.test(s);
-        if (ok) {
-          response.wsPort = Number(s);
-          ok = !isNaN(response.wsPort);
-        }
-        if (ok) {
+        // Update our response with process JSON response, but don't overwrite
+        // our fields ('warning' and 'error', if applicable).
+        Object.assign(response, JSON.parse(s), response);
+        if (!isNaN(response.wsPort)) {
           console.log(`Determined WebSocket port=<${response.wsPort}>`)
         } else {
           error.push(`Could not determine WebSocket port: stdout is not a number`);
