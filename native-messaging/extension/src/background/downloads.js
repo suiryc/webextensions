@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import * as http from '../common/http.js';
 import { WebSocketClient } from '../common/websocket.js';
 import { settings } from '../common/settings.js';
@@ -602,7 +603,7 @@ export class RequestsHandler extends http.RequestsHandler {
       // cancellation. Thus if we erase it too fast, those extensions will fail
       // to detect the download has been cancelled. As a workaround, wait a bit
       // before doing so: 2s appears to be enough (1s works in most cases).
-      await util.delayPromise(2000);
+      await asynchronous.delayPromise(2000);
       try {
         await browser.downloads.erase({id: download.id});
       } catch (error) {

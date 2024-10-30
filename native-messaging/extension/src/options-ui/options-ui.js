@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import { settings, trackFields } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
@@ -39,7 +40,7 @@ let resetButton = document.querySelector('#reset');
 function downloadDone(url, id) {
   // Remove download entry when applicable.
   // (id starts at 1, at least in Firefox)
-  let p = id ? browser.downloads.erase({id}) : util.defer;
+  let p = id ? browser.downloads.erase({id}) : asynchronous.defer;
   p.catch(() => {}).then(() => {
     URL.revokeObjectURL(url);
   });

@@ -2,6 +2,7 @@
 
 import { constants } from './constants.js';
 import * as util from './util.js';
+import * as asynchronous from './asynchronous.js';
 
 
 export class WebSocketClient {
@@ -25,7 +26,7 @@ export class WebSocketClient {
 
   connect() {
     this.disconnect();
-    this.wsConnected = new util.Deferred();
+    this.wsConnected = new asynchronous.Deferred();
     this.ws = new WebSocket(this.url);
     this.ws.addEventListener('open', this.onOpen.bind(this));
     this.ws.addEventListener('close', this.onClose.bind(this));
@@ -68,9 +69,9 @@ export class WebSocketClient {
 
     // Setup response handling
     if (!timeout) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
-    let promise = new util.Deferred().promise;
+    let promise = new asynchronous.Deferred().promise;
     self.requests[correlationId] = promise;
-    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
+    return asynchronous.promiseThen(asynchronous.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
       delete(self.requests[correlationId]);
     });

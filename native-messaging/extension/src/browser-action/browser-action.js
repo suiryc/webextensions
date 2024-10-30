@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import { settings, trackFields } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
 
@@ -255,7 +256,7 @@ async function refreshMessages(showTab) {
   // Note: with current code, when showing the action page, we get called twice;
   // from main code, and tab (observer) focusing.
   if (refreshing) await refreshing;
-  refreshing = new util.Deferred();
+  refreshing = new asynchronous.Deferred();
   try {
     // Remove any displayed message right now.
     [activeMessagesNode, otherMessagesNode].forEach(n => {

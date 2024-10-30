@@ -2,6 +2,7 @@
 
 import { constants } from './constants.js';
 import * as util from './util.js';
+import * as asynchronous from './asynchronous.js';
 import { settings } from '../common/settings.js';
 
 
@@ -505,9 +506,9 @@ class PortHandler {
 
     // Setup response handling
     if (!timeout) timeout = this.defaultTimeout;
-    let promise = new util.Deferred().promise;
+    let promise = new asynchronous.Deferred().promise;
     self.requests[correlationId] = promise;
-    return util.promiseThen(util.promiseOrTimeout(promise, timeout), () => {
+    return asynchronous.promiseThen(asynchronous.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
       delete(self.requests[correlationId]);
     });

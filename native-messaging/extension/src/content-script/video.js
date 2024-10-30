@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import * as unsafe from '../common/unsafe.js';
 import { settings } from '../common/settings.js';
 
@@ -91,7 +92,7 @@ const VIDEO_EVENTS = ['loadstart', 'loadeddata', 'canplay', 'canplaythrough', 'p
 // not active, we are not seeing it right now, neither the browser action icon
 // or context menu in which we show found videos. As such we are not really in
 // need for this code to have a precise timing when tab is inactive.
-const delayed = util.delayPromise(100);
+const delayed = asynchronous.delayPromise(100);
 
 function processVideo(node) {
   // Notes:
