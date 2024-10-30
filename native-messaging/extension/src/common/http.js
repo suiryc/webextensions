@@ -254,6 +254,61 @@ export class RequestsHandler {
 }
 
 
+// Buffers requests and responses to be replayed.
+export class RequestBuffer {
+
+  constructor() {
+    this.buffer = [];
+    this.urls = new Set();
+    this.timeStamp = 0;
+  }
+
+  clear() {
+    this.buffer = [];
+    this.urls.clear();
+    this.timeStamp = 0;
+  }
+
+  getUrls() {
+    return this.urls;
+  }
+
+  hasUrl(url) {
+    return this.urls.has(url);
+  }
+
+  addRequest(request) {
+    if (this.timeStamp < request.timeStamp) this.timeStamp = request.timeStamp;
+    this.urls.add(request.url);
+    this.buffer.push(request);
+  }
+
+  addResponse(response, location) {
+    if (this.timeStamp < response.timeStamp) this.timeStamp = response.timeStamp;
+    this.urls.add(response.url);
+    if (location) this.urls.add(location);
+    this.buffer.push(response);
+  }
+
+  async replay(target) {
+    // Clear us before replaying, so that we could be re-used while replaying.
+    let buffer = this.buffer;
+    this.clear();
+    for (let buffered of buffer) {
+      let isResponse = !!buffered.responseHeaders;
+      try {
+        buffered.replayed = true;
+        if (isResponse) await target.onResponse(buffered);
+        else await target.onRequest(buffered);
+      } catch (error) {
+        console.log('Failed to replay %s=<%o>: %o', isResponse ? 'response' : 'request', buffered, error);
+      }
+    }
+  }
+
+}
+
+
 // We mainly care about text, images, audio, hls and subtitles.
 const hlsMimeTypes = new Set([
   'application/vnd.apple.mpegurl', 'application/mpegurl', 'application/x-mpegurl',
