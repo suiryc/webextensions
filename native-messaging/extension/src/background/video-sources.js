@@ -1050,7 +1050,7 @@ export class VideoSourceHandler {
 }
 
 
-// Buffers requests (and associated response) to be replayed.
+// Buffers requests and responses to be replayed.
 class RequestBuffer {
 
   constructor() {
@@ -1076,58 +1076,28 @@ class RequestBuffer {
   addRequest(request) {
     if (this.timeStamp < request.timeStamp) this.timeStamp = request.timeStamp;
     this.urls.add(request.url);
-    this.buffer.push({request});
+    this.buffer.push(request);
   }
 
   addResponse(response, location) {
     if (this.timeStamp < response.timeStamp) this.timeStamp = response.timeStamp;
     this.urls.add(response.url);
     if (location) this.urls.add(location);
-    // Search for latest associated request.
-    // Beware that upon redirection the requestId is re-used: only search for
-    // request with missing response.
-    // Search from end of array, as we expect request to be nearer from end
-    // than beginning.
-    let requestId = response.requestId;
-    let idx = this.buffer.length - 1;
-    while (idx > 0) {
-      let buffered = this.buffer[idx];
-      if (buffered.request && (buffered.request.requestId == requestId)) {
-        // We may receive responses without request when extension is starting.
-        if (buffered.response) break;
-        buffered.response = response;
-        return;
-      }
-      idx--;
-    }
-
-    // We don't have the request, simply remember the response.
-    this.buffer.push({response});
+    this.buffer.push(response);
   }
 
   async replay(target) {
-    // Caller is not expected to reuse us, but in case: clear us, so that adding
-    // requests don't interfere with our replaying.
+    // Clear us before replaying, so that we could be re-used while replaying.
     let buffer = this.buffer;
     this.clear();
     for (let buffered of buffer) {
-      let request = buffered.request;
-      if (request) {
-        try {
-          request.replayed = true;
-          await target.onRequest(request);
-        } catch (error) {
-          console.log('Failed to replay request=<%o>: %o', request, error);
-        }
-      }
-      let response = buffered.response;
-      if (response) {
-        try {
-          response.replayed = true;
-          await target.onResponse(response);
-        } catch (error) {
-          console.log('Failed to replay response=<%o>: %o', response, error);
-        }
+      let isResponse = !!buffered.responseHeaders;
+      try {
+        buffered.replayed = true;
+        if (isResponse) await target.onResponse(buffered);
+        else await target.onRequest(buffered);
+      } catch (error) {
+        console.log('Failed to replay %s=<%o>: %o', isResponse ? 'response' : 'request', buffered, error);
       }
     }
   }
