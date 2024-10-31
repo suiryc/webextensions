@@ -551,7 +551,7 @@ class VideoSourceTabHandler {
     if (util.getTimestamp() - buffered.timeStamp < constants.REQUESTS_TTL) return false;
     if (settings.debug.video) {
       for (let b of buffered.buffer) {
-        console.log('Dropping buffered request=<%o> response=<%o>: TTL reached', b.request, b.response);
+        console.log('Dropping buffered request/response=<%o>: TTL reached', b);
       }
     }
     if (remove) delete(this.bufferedRequests[url]);
