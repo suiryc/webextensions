@@ -66,6 +66,10 @@ export class RequestDetails {
     if (!this.originUrl) {
       this.originUrl = this.received?.originUrl || this.sent?.originUrl;
     }
+    // Get (first) referrer.
+    if (!this.referrer && !isResponse) {
+      this.referrer = findHeaderValue(this.sent?.requestHeaders, 'Referer');
+    }
     // Get current URL.
     this.url = this.received?.url || this.sent?.url;
     // Get current timestamp.
