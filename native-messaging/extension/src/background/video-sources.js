@@ -603,11 +603,17 @@ class VideoSourceTabHandler {
     }
   }
 
-  findSource(url, originUrl) {
+  findSource(url, update) {
     for (let source of this.sources) {
       if (source.hasUrl(url)) {
-        // Set source originUrl if needed.
-        if (!source.originUrl && originUrl) source.originUrl = originUrl;
+        // Update some fields if needed.
+        if (update) {
+          for (let [field, value] of Object.entries(update)) {
+            if (!source[field] && (value !== undefined) && (value !== null)) {
+              source[field] = value;
+            }
+          }
+        }
         return source;
       }
     }
@@ -684,7 +690,10 @@ class VideoSourceTabHandler {
     if (this.ignoredUrls.has(url)) return;
 
     this.requestsHandler.addRequest(request);
-    let source = this.findSource(url, request.originUrl);
+    let source = this.findSource(url, {
+      originUrl: request.originUrl,
+      referrer: http.findHeaderValue(request.requestHeaders, 'Referer')
+    });
     if (!source) {
       this.getBufferedRequests(url).addRequest(request);
       return;
@@ -720,7 +729,7 @@ class VideoSourceTabHandler {
     let requestDetails = this.requestsHandler.addResponse(response);
     requestDetails.parseResponse();
 
-    let source = this.findSource(url, response.originUrl);
+    let source = this.findSource(url, {originUrl: response.originUrl});
     let scriptParams = {
       params: {
         videoHandler: this,
