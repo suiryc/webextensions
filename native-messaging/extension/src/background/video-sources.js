@@ -183,6 +183,7 @@ export class VideoSource {
 
   constructor(parent, details) {
     Object.assign(this, details);
+    this.downloadId = util.uuidv4();
     // Notes:
     // Remember important objects, but don't forget to remove in 'forMessage'
     // those that cannot be cloned.
@@ -204,13 +205,17 @@ export class VideoSource {
   // Clone this video source, without fields that cannot be cloned when passing
   // the result as a message between the extension components.
   forMessage() {
-    return Object.assign({}, this, {
-      parent: undefined,
-      webext: undefined,
-      tabHandler: undefined,
-      menuEntry: undefined,
-      menuHandler: undefined
-    });
+    // Shallow copy.
+    let r = Object.assign({}, this);
+    // Remove unwanted fields (that would fail message passing anyway).
+    delete(r.parent);
+    delete(r.webext);
+    delete(r.tabHandler);
+    delete(r.menuEntry);
+    delete(r.menuHandler);
+    delete(r.downloadEntry);
+    r.download = this.downloadEntry;
+    return r;
   }
 
   setTabTitle(title) {
@@ -337,7 +342,16 @@ export class VideoSource {
     this.downloadFile = downloadFile;
 
     // Update determined download info.
-    this.download = {
+    // Note: remember download information so that menu entry callback (on
+    // click) can access up-to-date download details when we change them,
+    // without having to update the menu entry callback function.
+    this.downloadEntry = {
+      source: {
+        windowId: this.windowId,
+        tabId: this.tabId,
+        frameId: this.frameId,
+        downloadId: this.downloadId,
+      },
       details: {
         url: this.getUrl(),
         referrer: this.frameUrl,
@@ -395,6 +409,15 @@ export class VideoSource {
     return changes;
   }
 
+  // Trigger download.
+  async download(details) {
+    // 'auto' is given from caller details.
+    details = Object.assign({}, this.downloadEntry.details, {
+      auto: details.auto
+    });
+    await dlMngr.download(details, this.downloadEntry.params);
+  }
+
   // Creates menu entry.
   // Notes:
   // This will be called each time the owning tab is activated, which is not
@@ -409,13 +432,11 @@ export class VideoSource {
     self.menuEntry = await self.menuHandler.addEntry({
       title: self.menuEntryTitle,
       onclick: (data, tab) => {
-        // Add cookie and user agent unless we saw a request (in which we
-        // extracted those).
         // Auto-download enabled by default, unless using non-main button
         // or 'Ctrl' key.
-        dlMngr.download(Object.assign({}, self.download.details, {
+        self.download(Object.assign({}, self.downloadEntry.details, {
           auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
-        }), self.download.params);
+        }));
       }
     });
   }
@@ -605,6 +626,14 @@ class VideoSourceTabHandler {
       }
       return true;
     });
+  }
+
+  async download(details, downloadDetails) {
+    for (let source of this.sources) {
+      if (source.downloadEntry.source.downloadId == details.downloadId) {
+        return await source.download(downloadDetails);
+      }
+    }
   }
 
   async addSource(details) {
@@ -868,6 +897,16 @@ export class VideoSourceHandler {
     // So create a dummy object with original fields except those that cannot be
     // cloned.
     return sources.map(source => source.forMessage());
+  }
+
+  async download(details, downloadDetails) {
+    let { handler } = this.getTabHandler(details, false);
+    if (!handler) {
+      console.warn(`Cannot download video tab=<${details.tabId}> frame=<${details.frameId}>: Unknown tab frame`);
+      return;
+    }
+
+    return await handler.download(details, downloadDetails);
   }
 
   async addSource(details) {

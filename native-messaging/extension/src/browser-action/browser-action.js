@@ -73,7 +73,7 @@ async function dl_updateVideos(sources, showTab) {
     videosItemNode.removeAttribute('data-badge');
     return;
   }
-  sources.forEach(source => {
+  for (let source of sources) {
     let node = cloneNode(listItemNode);
     node.classList.add('clickable');
     // Note: a default extension was chosen when applicable.
@@ -113,15 +113,15 @@ async function dl_updateVideos(sources, showTab) {
       details.auto = (data.button == 0) && !data.ctrlKey;
       webext.sendMessage({
         target: constants.TARGET_BACKGROUND_PAGE,
-        kind: constants.KIND_DOWNLOAD,
+        kind: constants.KIND_DL_VIDEO,
         details,
-        params: source.download.params
+        source: source.download.source
       });
       // Close the browser action page.
       window.close();
     });
     videosNode.appendChild(node);
-  });
+  }
   videosItemNode.setAttribute('data-badge', sources.length);
   videosItemNode.classList.toggle('badge', true);
   if (showTab) document.querySelector('#tab-item-videos').click();

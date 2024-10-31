@@ -86,6 +86,10 @@ async function onMessage(extension, msg, sender) {
       return dl_ignoreNext(msg);
       break;
 
+    case constants.KIND_DL_VIDEO:
+      return dl_downloadVideo(msg);
+      break;
+
     case constants.KIND_DOWNLOAD:
       return dl_download(msg);
       break;
@@ -187,6 +191,10 @@ function dl_ignoreNext(msg) {
 // Triggers download.
 function dl_download(msg) {
   return dlMngr.download(msg.details, msg.params);
+}
+
+function dl_downloadVideo(msg, sender) {
+  return videoSourceHandler.download(msg.source, msg.details);
 }
 
 // Gets videos found in currently focused tab.

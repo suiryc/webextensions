@@ -47,6 +47,7 @@ export const constants = {
   KIND_CONSOLE: 'console',
   KIND_DL_IGNORE_NEXT: 'dlIgnoreNext',
   KIND_DL_UPDATE_VIDEOS: 'dlUpdateVideos',
+  KIND_DL_VIDEO: 'dlVideo',
   KIND_DOWNLOAD: 'download',
   KIND_ECHO: 'echo',
   KIND_EXT_MESSAGE: 'extMessage',
