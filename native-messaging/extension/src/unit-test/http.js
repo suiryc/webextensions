@@ -53,6 +53,11 @@ describe('http', function() {
       );
     });
 
+    it('should handle undefined headers', function() {
+      test(undefined, 'Header', undefined);
+      test(null, 'Header', undefined);
+    });
+
   });
 
 });

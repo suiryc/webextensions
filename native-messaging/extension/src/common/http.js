@@ -15,6 +15,7 @@ export function canDownload(url) {
 }
 
 export function findHeader(headers, name) {
+  if (!headers) return;
   name = name.toLowerCase();
   return headers.find(h => h.name.toLowerCase() === name);
 }
