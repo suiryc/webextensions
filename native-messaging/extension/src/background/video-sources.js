@@ -4,6 +4,7 @@ import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import * as unsafe from '../common/unsafe.js';
 import * as http from '../common/http.js';
+import * as hls from './stream-hls.js';
 import { dlMngr } from './downloads.js';
 import { settings } from '../common/settings.js';
 
@@ -214,7 +215,18 @@ export class VideoSource {
     delete(r.menuEntry);
     delete(r.menuHandler);
     delete(r.downloadEntry);
-    r.download = this.downloadEntry;
+    // Build downloads information.
+    // Also remove unwanted (may consume memory for nothing) fields.
+    // First deep clone.
+    r.download = structuredClone(this.downloadEntry);
+    if (r.download.details.hls) {
+      delete(r.download.details.hls.raw);
+      if (r.download.details.hls.keys) {
+        for (let key of r.download.details.hls.keys) {
+          delete(key.raw);
+        }
+      }
+    }
     return r;
   }
 
@@ -370,20 +382,33 @@ export class VideoSource {
         notify: true
       }
     };
+    if (this.hls) {
+      download.details.hls = {
+        raw: this.hls.raw,
+        url: this.hls.getURL().href
+      };
+    }
 
     // Determine menu title.
-    // We will prefix the download size and extension if possible.
+    // We will prefix the download size and extension if possible, except for
+    // for HLS.
     // The rest of the title will be the file name (without extension).
-    let title = '';
-    // Format size if known.
-    if ('size' in this) title = util.getSizeText(this.size);
+    let title = [];
+    // Format size if known (excluding HLS, which has its own size desc).
+    if (!this.hls && ('size' in this)) title.push(util.getSizeText(this.size));
     // Don't show filename extension in title prefix if too long.
     // Display the whole filename instead.
     if (extension && (extension.length > 4)) {
       extension = undefined;
       name = filename;
     }
-    if (extension) title = title ? `${title} ${extension}` : extension;
+    if (this.hls) {
+      if (this.hls.sizeDesc) entryTitle.push(this.hls.sizeDesc);
+      title.push(`🎞️${this.hls.name}`);
+    } else if (extension) {
+      title.push(extension);
+    }
+    title = title.join(' ');
     if (title) title = `[${title}] `;
     // Note: on FireFox (77) if the text width (in pixels) exceeds a given
     // size, the end is replaced by an ellipsis character.
@@ -415,6 +440,49 @@ export class VideoSource {
     details = Object.assign({}, this.downloadEntry.details, {
       auto: details.auto
     });
+
+    // We get side contents (HLS keys, if any) to pass them to the download
+    // application, which then only needs to download the HLS stream playlist
+    // segments.
+    // If we fail these, fail the download.
+
+    // Get key(s) if needed.
+    let hlsKeys = this.hls?.getKeys();
+    if (hlsKeys) {
+      details.hls.keys = hlsKeys;
+      for (let key of hlsKeys) {
+        if (!key.url || key.raw) continue;
+        try {
+          let response = await fetch(key.url, {
+            referrer: this.referrer
+          });
+          if (response.ok) {
+            // See: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
+            let rawS = Array.from(
+              await response.bytes(),
+              (byte) => String.fromCodePoint(byte)
+            ).join('');
+            key.raw = btoa(rawS);
+          } else {
+            this.webext.notify({
+              title: 'Failed to download HLS key',
+              level: 'error',
+              message: key.url,
+              error: response
+            });
+            return;
+          }
+        } catch (error) {
+          this.webext.notify({
+            title: 'Failed to download HLS key',
+            level: 'error',
+            message: key.url,
+            error
+          });
+          return;
+        }
+      }
+    }
     await dlMngr.download(details, this.downloadEntry.params);
   }
 
@@ -619,6 +687,21 @@ class VideoSourceTabHandler {
     }
   }
 
+  removeSource(url) {
+    let found;
+    this.sources = this.sources.filter(source => {
+      // We only expect to find and remove one element.
+      if (found) return true;
+      let match = source.hasUrl(url);
+      if (match) {
+        found = source;
+        source.removeMenuEntry();
+      }
+      return !match;
+    });
+    return found;
+  }
+
   // Merges sources based on ETag and urls.
   mergeSources(source) {
     this.sources = this.sources.filter(other => {
@@ -632,6 +715,149 @@ class VideoSourceTabHandler {
       }
       return true;
     });
+  }
+
+  async checkHLS(requestDetails) {
+    if (!settings.video.hls.intercept) return;
+    // Wait for actual response.
+    if (requestDetails.isRedirection()) return;
+
+    let isHLS = requestDetails.contentType.isHLS();
+    let maybeHLS = !isHLS && requestDetails.contentType.maybeHLS(requestDetails.actualFilename);
+    if (!isHLS && !maybeHLS) return;
+
+    // For 'may be' HLS, don't bother if response size is above limit: we
+    // don't expect master/stream playlist to be this big.
+    // Notes about stream playlist:
+    // Some sites don't query a master playlist and we only see requests for
+    // selected stream playlist, so we wish to process them too.
+    // When a master playlist is queried first, we deduce the stream playlists
+    // URLs and ignore them.
+    if (maybeHLS && (requestDetails.contentLength >= constants.HLS_SIZE_LIMIT)) {
+      if (settings.debug.video) console.log(`Ignoring maybe-hls url=<${requestDetails.url}> content size=<${requestDetails.contentLength}> above limit:`, requestDetails);
+      return;
+    }
+
+    let playlist;
+    let requestHeaders = requestDetails.sent?.requestHeaders || [];
+    try {
+      // Notes:
+      // The 'only-if-cached' cache mode is not expected to work here.
+      // So we just try our best to do the same request with the same referer.
+      // Referer must be passed as API parameter: ignored as pure header.
+      let response = await fetch(requestDetails.url, {
+        referrer: http.findHeaderValue(requestHeaders, 'Referer')
+      });
+      if (response.ok) {
+        // Check again content size before trying to parse it.
+        // Note: we need to clone the response, since the content can only be
+        // retrieved once per response.
+        let contentLength = (await response.clone().arrayBuffer()).byteLength;
+        if (contentLength >= constants.HLS_SIZE_LIMIT) {
+          if (settings.debug.video) console.log(`Ignoring maybe-hls url=<${requestDetails.url}> content size=<${contentLength}> above limit:`, requestDetails);
+          return;
+        }
+        let content = await response.text();
+        playlist = new hls.HLSPlaylist(content, {
+          url: requestDetails.url,
+          debug: settings.debug.video
+        });
+      } else {
+        console.log(`Failed to fetch possibly HLS url=<${requestDetails.url}> content:`, response);
+      }
+    } catch (error) {
+      console.log(`Failed to fetch possibly HLS url=<${requestDetails.url}> content:`, error);
+    }
+
+    if (!playlist) {
+      if (settings.debug.video) console.log(`Ignoring actually non-hls url=<${requestDetails.url}>`);
+      return;
+    }
+
+    if (playlist.streams.length) {
+      if (settings.debug.video) console.log('Found HLS master playlist:', playlist, requestDetails);
+      // Once a master playlist has been processed, we can discard its URL since
+      // we don't need to process anything else.
+      this.discardUrl(playlist.url);
+    } else {
+      if (settings.debug.video) console.log('Found HLS non-master playlist:', playlist);
+    }
+
+    // Add HLS streams as sources.
+    for (let stream of playlist.streams) {
+      let url = stream.getURL().href;
+      // Get actual stream content: get everything we can (and is not too much)
+      // so that the download application will only need to download the HLS
+      // stream playlist segments.
+      // This is also useful to get hint about the total stream size.
+      // (HLS keys will be downloaded when needed)
+      // If we fail, ignore this stream.
+      try {
+        let response = await fetch(url, {
+          referrer: http.findHeaderValue(requestHeaders, 'Referer')
+        });
+        if (response.ok) {
+          let content = await response.text();
+          let playlistStream = new hls.HLSPlaylist(content, {
+            url: requestDetails.url,
+            debug: settings.debug.video
+          });
+          let actualStream = playlistStream.isStream();
+          if (!actualStream) {
+            console.log(`Ignoring actually non-stream playlist=<${url}>:`, playlistStream);
+            continue;
+          }
+          stream.merge(actualStream);
+        } else {
+          console.log(`Failed to fetch HLS stream url=<${url}> content:`, response);
+          continue;
+        }
+      } catch (error) {
+        console.log(`Failed to fetch HLS stream url=<${url}> content:`, error);
+        continue;
+      }
+
+      if (this.removeSource(url) && settings.debug.video) {
+        console.log(`HLS stream playlist=<${url}> was previously received and will be replaced`);
+      }
+
+      await this.addSource({
+        url: url,
+        originUrl: requestDetails.originUrl,
+        referrer: requestDetails.referrer,
+        hls: stream,
+        windowId: this.tabHandler.windowId,
+        tabId: this.tabHandler.id,
+        tabUrl: this.tabHandler.url,
+        frameId: requestDetails.received.frameId
+      });
+    }
+
+    // For stream playlist, add as source unless already known.
+    let stream = playlist.isStream();
+    if (stream) {
+      let url = stream.getURL().href;
+      let update = {
+        originUrl: requestDetails.originUrl,
+        referrer: requestDetails.referrer
+      };
+      if (this.findSource(url, update)) {
+        console.log(`Ignoring HLS stream playlist=<${url}>: already known`);
+      } else {
+        await this.addSource({
+          url: url,
+          originUrl: requestDetails.originUrl,
+          referrer: requestDetails.referrer,
+          hls: stream,
+          windowId: this.tabHandler.windowId,
+          tabId: this.tabHandler.id,
+          tabUrl: this.tabHandler.url,
+          frameId: requestDetails.received.frameId
+        });
+      }
+    }
+
+    return playlist;
   }
 
   async download(details, downloadDetails) {
@@ -668,14 +894,15 @@ class VideoSourceTabHandler {
     let reason = checkVideoContentType(contentType);
     if (reason) return this.ignoreDownload(details, reason);
 
-    if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> video url=<${url}>`);
+    if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> hls=<${!!details.hls}> video url=<${url}>`);
     details.tabTitle = tabHandler.title;
     let source = new VideoSource(this, details);
     this.sources.push(source);
 
     // Process buffered requests.
+    // Except when source is HLS: we already did process what was needed.
     let buffered = this.getBufferedRequests(url, true);
-    if (buffered) await buffered.replay(this);
+    if (buffered && !details.hls) await buffered.replay(this);
 
     // Refresh source, then when applicable add menu entry and trigger videos
     // update.
@@ -734,15 +961,36 @@ class VideoSourceTabHandler {
       params: {
         videoHandler: this,
         videoSource: source,
-        requestDetails
+        requestDetails,
+        hlsPlaylist: undefined
       }
     };
     if (!source) {
-      if (settings.trace.video) console.log('Received non-source response:', requestDetails);
+      // Check for possible HLS content.
+      let playlist = await this.checkHLS(requestDetails);
+      let skip = !!playlist;
+
+      if (!skip && settings.trace.video) console.log('Received non-skipped response:', requestDetails);
+      scriptParams.params.hlsPlaylist = playlist;
       await this.responseRefining.execute(scriptParams);
-      // Remember this response, in case an associated video source is added
-      // later.
-      this.getBufferedRequests(url).addResponse(response, location);
+
+      // We also intercept XMLHttpRequest, but we usually don't want them other
+      // than to detect HLS: these are expected to be done by site script, e.g.
+      // to get server information, or the player which is streaming.
+      // So don't buffer these type of requests.
+      if (!skip) skip = requestDetails.type == 'xmlhttprequest';
+      if (!skip) {
+        // Remember this response, in case an associated video source is added
+        // later.
+        this.getBufferedRequests(url).addResponse(response, location);
+      }
+      return;
+    }
+
+    if (source.hls) {
+      // Belt and suspenders: urls associated to HLS playlist should be ignored
+      // by now (master playlist and each stream), since we already did process
+      // them.
       return;
     }
 
@@ -955,7 +1203,9 @@ export class VideoSourceHandler {
       // 'embed' elements can indeed include video, for which requests are
       // typed as 'object' instead fo 'media'.
       // Example: https://developer.mozilla.org/fr/docs/Web/HTML/Element/embed
-      let webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object'] };
+      // For HLS we also need to intercept xmlhttprequest, which is usually
+      // done by site/player code.
+      let webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object', 'xmlhttprequest'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,
         webRequestFilter,

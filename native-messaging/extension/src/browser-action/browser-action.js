@@ -81,8 +81,14 @@ async function dl_updateVideos(sources, showTab) {
     util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
     let subtitle = [];
     let tooltip = [];
-    if ('size' in source) subtitle.push(util.getSizeText(source.size));
-    if (extension) subtitle.push(extension);
+    // Use source size and extension, unless HLS.
+    if (source.hls) {
+      if (source.hls.sizeDesc) subtitle.push(source.hls.sizeDesc);
+      subtitle.push(`🎞️${source.hls.name}`);
+    } else {
+      if ('size' in source) subtitle.push(util.getSizeText(source.size));
+      if (extension) subtitle.push(extension);
+    }
     let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
     subtitle.push(hostname);
     tooltip.push(util.limitText(source.url, 120));

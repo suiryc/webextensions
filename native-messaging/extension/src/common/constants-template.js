@@ -30,6 +30,9 @@ export const constants = {
   // TTL of pending requests
   REQUESTS_TTL: 120 * 1000,
 
+  // We expect HLS master/stream playlist to be under 400KiB
+  HLS_SIZE_LIMIT: 400 * 1024,
+
   // Message known 'target' field values
   TARGET_BACKGROUND_PAGE: 'background page',
   TARGET_BROWSER_ACTION: 'browser action',

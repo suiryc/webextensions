@@ -191,6 +191,7 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('video.filenameRefining.enabled', true);
     new ExtensionScriptSetting('video.filenameRefining.script');
     new ExtensionBooleanSetting('video.intercept', true);
+    new ExtensionBooleanSetting('video.hls.intercept', true);
 
     // If there is no 'window', assume we are not running inside browser and
     // don't need to do anything else.
