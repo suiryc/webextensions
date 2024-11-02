@@ -89,6 +89,7 @@ html, body {
         <input type="radio" id="tab-item-videos-main" name="tabs-videos" class="tab-locator" hidden checked>
         <input type="radio" id="tab-item-videos-download-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-response-refining" name="tabs-videos" class="tab-locator" hidden>
+        <input type="radio" id="tab-item-videos-subtitles-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-filename-refining" name="tabs-videos" class="tab-locator" hidden>
 
         <div class="panel-nav tabs-items">
@@ -101,6 +102,9 @@ html, body {
             </li>
             <li class="tab-item">
               <label for="tab-item-videos-response-refining" class="clickable"><a>Response refining</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-videos-subtitles-refining" class="clickable"><a>Subtitles refining</a></label>
             </li>
             <li class="tab-item">
               <label for="tab-item-videos-filename-refining" class="clickable"><a>Filename refining</a></label>
@@ -117,6 +121,7 @@ html, body {
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="trace.video"><i class="form-icon"></i><span>Trace</span></label></div>
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.intercept"><i class="form-icon"></i><span>Intercept video</span></label></div>
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.hls.intercept"><i class="form-icon"></i><span>Intercept HLS</span></label></div>
+                <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.subtitles.intercept"><i class="form-icon"></i><span>Intercept subtitles</span></label></div>
               </div>
             </div>
           </div>
@@ -129,6 +134,11 @@ html, body {
           <div class="tab-content">
             <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.responseRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
             <textarea class="form-input input-script" id="video.responseRefining.script" rows="70" spellcheck="false" autocorrect="off"></textarea>
+          </div>
+
+          <div class="tab-content">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.subtitlesRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="video.subtitlesRefining.script" rows="70" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
           <div class="tab-content">

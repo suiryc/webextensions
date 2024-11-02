@@ -188,10 +188,13 @@ class Settings extends SettingsBranch {
     new ExtensionScriptSetting('video.downloadRefining.script');
     new ExtensionBooleanSetting('video.responseRefining.enabled', true);
     new ExtensionScriptSetting('video.responseRefining.script');
+    new ExtensionBooleanSetting('video.subtitlesRefining.enabled', true);
+    new ExtensionScriptSetting('video.subtitlesRefining.script');
     new ExtensionBooleanSetting('video.filenameRefining.enabled', true);
     new ExtensionScriptSetting('video.filenameRefining.script');
     new ExtensionBooleanSetting('video.intercept', true);
     new ExtensionBooleanSetting('video.hls.intercept', true);
+    new ExtensionBooleanSetting('video.subtitles.intercept', true);
 
     // If there is no 'window', assume we are not running inside browser and
     // don't need to do anything else.

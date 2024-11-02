@@ -74,61 +74,66 @@ async function dl_updateVideos(sources, showTab) {
     return;
   }
   for (let source of sources) {
-    let node = cloneNode(listItemNode);
-    node.classList.add('clickable');
-    // Note: a default extension was chosen when applicable.
-    let { name, extension } = util.getFilenameExtension(source.download.details.file);
-    util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
-    let subtitle = [];
-    let tooltip = [];
-    // Use source size and extension, unless HLS.
-    if (source.hls) {
-      if (source.hls.sizeDesc) subtitle.push(source.hls.sizeDesc);
-      subtitle.push(`🎞️${source.hls.name}`);
-    } else {
-      if ('size' in source) subtitle.push(util.getSizeText(source.size));
-      if (extension) subtitle.push(extension);
-    }
-    let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
-    subtitle.push(hostname);
-    tooltip.push(util.limitText(source.url, 120));
-    subtitle = subtitle.join(' - ');
-    if (source.actualUrl) {
-      let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
-      if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
-        subtitle = `${subtitle}\nActual host: ${actualHostname}`;
+    for (let download of source.downloads) {
+      let node = cloneNode(listItemNode);
+      node.classList.add('clickable');
+      // Note: a default extension was chosen when applicable.
+      let { name, extension } = util.getFilenameExtension(download.details.file);
+      util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
+      let videoSubtitle = download.details.subtitle;
+      let subtitle = [];
+      let tooltip = [];
+      // Use source size and extension, unless HLS.
+      if (source.hls) {
+        if (source.hls.sizeDesc) subtitle.push(source.hls.sizeDesc);
+        subtitle.push(`🎞️${source.hls.name}`);
+      } else {
+        if ('size' in source) subtitle.push(util.getSizeText(source.size));
+        if (extension) subtitle.push(extension);
       }
-      tooltip.push(util.limitText(source.actualUrl, 120));
-    }
-    if (source.forceUrl) {
-      let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
-      if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
-        subtitle = `${subtitle}\nForced host: ${actualHostname}`;
+      if (videoSubtitle) subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
+      let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
+      subtitle.push(hostname);
+      tooltip.push(util.limitText(source.url, 120));
+      subtitle = subtitle.join(' - ');
+      if (source.actualUrl) {
+        let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
+        if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+          subtitle = `${subtitle}\nActual host: ${actualHostname}`;
+        }
+        tooltip.push(util.limitText(source.actualUrl, 120));
       }
-      tooltip.push(util.limitText(source.forceUrl, 120));
-    }
-    util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
-    // Don't use a CSS tooltip, as it would likely not be displayed correctly
-    // (if at all) in the browser action popup view. Instead use some simple
-    // 'title' to let the browser display it.
-    node.setAttribute('title', tooltip.join('\n'));
-    node.addEventListener('click', data => {
-      let details = source.download.details;
-      // Auto-download enabled by default, unless using non-main button
-      // or 'Ctrl' key.
-      details.auto = (data.button == 0) && !data.ctrlKey;
-      webext.sendMessage({
-        target: constants.TARGET_BACKGROUND_PAGE,
-        kind: constants.KIND_DL_VIDEO,
-        details,
-        source: source.download.source
+      if (source.forceUrl) {
+        let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
+        if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+          subtitle = `${subtitle}\nForced host: ${actualHostname}`;
+        }
+        tooltip.push(util.limitText(source.forceUrl, 120));
+      }
+      if (videoSubtitle) tooltip.push(util.limitText(`💬${videoSubtitle.url}`, 120));
+      util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
+      // Don't use a CSS tooltip, as it would likely not be displayed correctly
+      // (if at all) in the browser action popup view. Instead use some simple
+      // 'title' to let the browser display it.
+      node.setAttribute('title', tooltip.join('\n'));
+      node.addEventListener('click', data => {
+        let details = download.details;
+        // Auto-download enabled by default, unless using non-main button
+        // or 'Ctrl' key.
+        details.auto = (data.button == 0) && !data.ctrlKey;
+        webext.sendMessage({
+          target: constants.TARGET_BACKGROUND_PAGE,
+          kind: constants.KIND_DL_VIDEO,
+          details,
+          source: download.source
+        });
+        // Close the browser action page.
+        window.close();
       });
-      // Close the browser action page.
-      window.close();
-    });
-    videosNode.appendChild(node);
+      videosNode.appendChild(node);
+    }
   }
-  videosItemNode.setAttribute('data-badge', sources.length);
+  videosItemNode.setAttribute('data-badge', sources.map(source => source.downloads.length).reduce((sum, v) => sum + v, 0));
   videosItemNode.classList.toggle('badge', true);
   if (showTab) document.querySelector('#tab-item-videos').click();
 }

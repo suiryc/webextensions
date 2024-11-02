@@ -180,11 +180,36 @@ export class VideoSourceNamer {
 
 }
 
+class VideoSourceEntryHandler {
+
+  constructor(menuGroup) {
+    this.menuGroup = menuGroup;
+    this.downloadId = util.uuidv4();
+  }
+
+  async addMenuEntry(details) {
+    await this.removeMenuEntry();
+    this.menuEntry = await this.menuGroup.addEntry(details);
+  }
+
+  async updateMenuEntry(details) {
+    if (!this.menuEntry) return;
+    await this.menuEntry.update(details);
+  }
+
+  async removeMenuEntry() {
+    if (!this.menuEntry) return false;
+    await this.menuEntry.remove();
+    delete(this.menuEntry);
+    return true;
+  }
+
+}
+
 export class VideoSource {
 
   constructor(parent, details) {
-    Object.assign(this, details);
-    this.downloadId = util.uuidv4();
+    Object.assign(this, {subtitles: [], subtitleEntries: []}, details);
     // Notes:
     // Remember important objects, but don't forget to remove in 'forMessage'
     // those that cannot be cloned.
@@ -199,7 +224,15 @@ export class VideoSource {
     this.urls = new Set();
     this.addUrl(this.url);
     this.addUrl(this.forceUrl);
-    this.menuHandler = parent.menuHandler;
+    // Create menu entries helpers, associated to each subtitle and base source.
+    // Note: we only expect to have subtitles when enabled.
+    for (let subtitle of this.subtitles) {
+      this.addSubtitleEntry(subtitle);
+    }
+    delete(this.subtitles);
+    this.menuGroup = parent.menuHandler?.addGroup();
+    this.entryHandler = new VideoSourceEntryHandler(this.menuGroup);
+    this.downloadEntries = [];
     this.needRefresh = true;
   }
 
@@ -212,21 +245,28 @@ export class VideoSource {
     delete(r.parent);
     delete(r.webext);
     delete(r.tabHandler);
-    delete(r.menuEntry);
-    delete(r.menuHandler);
-    delete(r.downloadEntry);
+    delete(r.menuGroup);
+    delete(r.entryHandler);
+    delete(r.subtitleEntries);
+    delete(r.downloadEntries);
     // Build downloads information.
-    // Also remove unwanted (may consume memory for nothing) fields.
-    // First deep clone.
-    r.download = structuredClone(this.downloadEntry);
-    if (r.download.details.hls) {
-      delete(r.download.details.hls.raw);
-      if (r.download.details.hls.keys) {
-        for (let key of r.download.details.hls.keys) {
-          delete(key.raw);
+    r.downloads = this.downloadEntries.map(entryHandler => {
+      // Also remove unwanted (may consume memory for nothing) fields.
+      // First deep clone.
+      let download = structuredClone(entryHandler.download);
+      if (download.details.hls) {
+        delete(download.details.hls.raw);
+        if (download.details.hls.keys) {
+          for (let key of download.details.hls.keys) {
+            delete(key.raw);
+          }
         }
       }
-    }
+      if (download.details.subtitle) {
+        delete(download.details.subtitle.raw);
+      }
+      return download;
+    });
     return r;
   }
 
@@ -332,6 +372,59 @@ export class VideoSource {
     });
   }
 
+  findSubtitle(subtitle) {
+    for (let known of this.subtitleEntries) {
+      if (known.subtitle.url == subtitle.url) return known.subtitle;
+    }
+  }
+
+  mergeSubtitle(known, subtitle) {
+    // If fresh subtitle was intercepted, we are done: at best the known one was
+    // not intercepted (that is, explicitly associated to source), and at worst
+    // it was also intercepted (consider this a duplicate).
+    // Same if known subtitle was not intercepted: consider the fresh one a
+    // duplicate.
+    if (subtitle.intercepted || !known.intercepted) return;
+
+    if (settings.trace.video) {
+      console.log(`Removing tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, known);
+      console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, subtitle);
+    }
+
+    // Replace known one by fresh one.
+    for (let entryHandler of this.subtitleEntries) {
+      if (entryHandler.subtitle.url == subtitle.url) {
+        entryHandler.subtitle = subtitle;
+        this.needRefresh = true;
+        break;
+      }
+    }
+  }
+
+  addSubtitleEntry(subtitle) {
+    if (settings.trace.video) console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, subtitle);
+
+    let entryHandler = new VideoSourceEntryHandler(this.menuGroup);
+    entryHandler.subtitle = subtitle;
+    this.subtitleEntries.push(entryHandler);
+    this.addUrl(subtitle.url);
+    this.needRefresh = true;
+  }
+
+  addSubtitles(subtitles) {
+    // Note: we only expect to be called when subtitles are enabled.
+    for (let subtitle of subtitles) {
+      // Merge if already known.
+      let known = this.findSubtitle(subtitle);
+      if (known) {
+        this.mergeSubtitle(known, subtitle);
+        continue;
+      }
+
+      this.addSubtitleEntry(subtitle);
+    }
+  }
+
   async refresh() {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
@@ -354,15 +447,16 @@ export class VideoSource {
     this.downloadFile = downloadFile;
 
     // Update determined download info.
-    // Note: remember download information so that menu entry callback (on
-    // click) can access up-to-date download details when we change them,
-    // without having to update the menu entry callback function.
-    this.downloadEntry = {
+    // Note: we build download information and store them inside a menu entry
+    // handler so that menu entry callback (on click) can access up-to-date
+    // download details when we change them, without having to update the
+    // menu entry callback function.
+    let download = {
       source: {
         windowId: this.windowId,
         tabId: this.tabId,
         frameId: this.frameId,
-        downloadId: this.downloadId,
+        downloadId: this.entryHandler.downloadId,
       },
       details: {
         url: this.getUrl(),
@@ -388,6 +482,44 @@ export class VideoSource {
         url: this.hls.getURL().href
       };
     }
+    // Determine subtitles per priority when applicable.
+    let subtitlePriority;
+    let grouped = Object.groupBy(this.subtitleEntries, entryHandler => {
+      let priority = entryHandler.subtitle.priority || 0;
+      subtitlePriority = Math.max(subtitlePriority || 0, priority);
+      return priority;
+    });
+    // When there are, keep only subtitles with first priority.
+    let subtitleEntries = grouped[subtitlePriority];
+
+    // Remove menu entries created for other subtitles ...
+    for (let [priority, handlers] of Object.entries(grouped)) {
+      if (priority === subtitlePriority) continue;
+      for (let entryHandler of handlers) {
+        if (await entryHandler.removeMenuEntry()) changes = true;
+      }
+    }
+    // ... or created for non-subtitle case.
+    if (subtitleEntries && await this.entryHandler.removeMenuEntry()) changes = true;
+
+    if (subtitleEntries) {
+      for (let entryHandler of subtitleEntries) {
+        // Refine details for these subtitles.
+        entryHandler.download = {
+          source: Object.assign(structuredClone(download.source), {
+            downloadId: entryHandler.downloadId
+          }),
+          details: Object.assign(structuredClone(download.details), {
+            subtitle: entryHandler.subtitle
+          }),
+          params: download.params
+        };
+      }
+      this.downloadEntries = subtitleEntries;
+    } else {
+      this.entryHandler.download = download;
+      this.downloadEntries = [this.entryHandler];
+    }
 
     // Determine menu title.
     // We will prefix the download size and extension if possible, except for
@@ -402,49 +534,85 @@ export class VideoSource {
       extension = undefined;
       name = filename;
     }
-    if (this.hls) {
-      if (this.hls.sizeDesc) entryTitle.push(this.hls.sizeDesc);
-      title.push(`🎞️${this.hls.name}`);
-    } else if (extension) {
-      title.push(extension);
+
+    for (let entryHandler of this.downloadEntries) {
+      let subtitle = entryHandler.subtitle;
+      let entryTitle = [...title];
+      if (this.hls) {
+        if (this.hls.sizeDesc) entryTitle.push(this.hls.sizeDesc);
+        entryTitle.push(`🎞️${this.hls.name}`);
+      } else if (extension) {
+        entryTitle.push(extension);
+      }
+      if (subtitle) entryTitle.push(`💬${subtitle.lang || subtitle.name}`);
+      entryTitle = entryTitle.join(' ');
+      if (entryTitle) entryTitle = `[${entryTitle}] `;
+      // Note: on FireFox (77) if the text width (in pixels) exceeds a given
+      // size, the end is replaced by an ellipsis character.
+      // There is thus no easy (or at all) way to determine how many characters
+      // is the limit, as it depends on which characters are present.
+      // A good average limit seems to be somewhere around 75 characters; 72 is
+      // then a good value to avoid it in the majority of cases.
+      entryTitle = `${entryTitle}${util.limitText(name, 72 - entryTitle.length)}`;
+      // Notes:
+      // If there were changes in filename, there should be changes in title too.
+      // If only the title changes, it should be due to a file size change.
+      // In either case, we want to update the menu entry if existing and notify
+      // caller there were changes.
+      changes = changes || (entryTitle !== entryHandler.title);
+      entryHandler.title = entryTitle;
+      // Refresh menu entry when applicable.
+      if (changes) {
+        await entryHandler.updateMenuEntry({
+          title: entryTitle
+        });
+      }
     }
-    title = title.join(' ');
-    if (title) title = `[${title}] `;
-    // Note: on FireFox (77) if the text width (in pixels) exceeds a given
-    // size, the end is replaced by an ellipsis character.
-    // There is thus no easy (or at all) way to determine how many characters
-    // is the limit, as it depends on which characters are present.
-    // A good average limit seems to be somewhere around 75 characters; 72 is
-    // then a good value to avoid it in the majority of cases.
-    title = `${title}${util.limitText(name, 72 - title.length)}`;
-    // Notes:
-    // If there were changes in filename, there should be changes in title too.
-    // If only the title changes, it should be due to a file size change.
-    // In either case, we want to update the menu entry if existing and notify
-    // caller there were changes.
-    changes = changes || (title !== this.menuEntryTitle);
-    this.menuEntryTitle = title;
-    // Refresh menu entry when applicable.
-    if (changes && this.menuEntry) {
-      await this.menuEntry.update({
-        title: this.menuEntryTitle
-      });
-    }
+    // Add new menu entries when applicable
+    if (this.tabHandler.isFocused()) await this.addMenuEntry();
 
     return changes;
   }
 
-  // Trigger download.
-  async download(details) {
+  // Trigger download for given entry handler.
+  async download(entryHandler, details) {
     // 'auto' is given from caller details.
-    details = Object.assign({}, this.downloadEntry.details, {
+    details = Object.assign({}, entryHandler.download.details, {
       auto: details.auto
     });
 
-    // We get side contents (HLS keys, if any) to pass them to the download
-    // application, which then only needs to download the HLS stream playlist
-    // segments.
+    // We get side contents (HLS keys and subtitles, if any) to pass them to the
+    // download application, which then only needs to download the HLS stream
+    // playlist segments.
     // If we fail these, fail the download.
+
+    // Get subtitles if needed.
+    if (details.subtitle && !details.subtitle.raw) {
+      try {
+        let response = await fetch(details.subtitle.url, {
+          referrer: this.referrer
+        });
+        if (response.ok) {
+          details.subtitle.raw = await response.text();
+        } else {
+          this.webext.notify({
+            title: 'Failed to download subtitles',
+            level: 'error',
+            message: `${details.subtitle.filename}\n${details.subtitle.url}`,
+            error: response
+          });
+          return;
+        }
+      } catch (error) {
+        this.webext.notify({
+          title: 'Failed to download subtitles',
+          level: 'error',
+          message: `${details.subtitle.filename}\n${details.subtitle.url}`,
+          error
+        });
+        return;
+      }
+    }
 
     // Get key(s) if needed.
     let hlsKeys = this.hls?.getKeys();
@@ -483,10 +651,10 @@ export class VideoSource {
         }
       }
     }
-    await dlMngr.download(details, this.downloadEntry.params);
+    await dlMngr.download(details, entryHandler.download.params);
   }
 
-  // Creates menu entry.
+  // Creates menu entries.
   // Notes:
   // This will be called each time the owning tab is activated, which is not
   // a problem as there is nothing too intensive done.
@@ -495,24 +663,30 @@ export class VideoSource {
   // the source is updated.
   async addMenuEntry() {
     let self = this;
-    // Nothing to do if already done.
-    if (self.menuEntry) return;
-    self.menuEntry = await self.menuHandler.addEntry({
-      title: self.menuEntryTitle,
-      onclick: (data, tab) => {
-        // Auto-download enabled by default, unless using non-main button
-        // or 'Ctrl' key.
-        self.download(Object.assign({}, self.downloadEntry.details, {
-          auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
-        }));
-      }
-    });
+    // First re-add our group if needed.
+    await self.menuGroup.add();
+    for (let entryHandler of self.downloadEntries) {
+      await entryHandler.addMenuEntry({
+        title: entryHandler.title,
+        onclick: (data, tab) => {
+          // Auto-download enabled by default, unless using non-main button
+          // or 'Ctrl' key.
+          self.download(entryHandler, Object.assign({}, entryHandler.download.details, {
+            auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
+          }));
+        }
+      });
+    }
   }
 
   async removeMenuEntry() {
-    if (!this.menuEntry) return;
-    await this.menuEntry.remove();
-    delete(this.menuEntry);
+    // First remove our group.
+    await this.menuGroup.remove();
+    // Then remove every menu entry we know.
+    for (let entryHandler of this.subtitleEntries) {
+      await entryHandler.removeMenuEntry();
+    }
+    await this.entryHandler.removeMenuEntry();
   }
 
 }
@@ -567,6 +741,7 @@ class VideoSourceTabHandler {
     self.menuHandler = parent.menuHandler;
     self.requestsHandler = new http.RequestsHandler();
     self.sources = [];
+    self.subtitles = {};
     self.ignoredUrls = new Set();
     // Buffered requests, per url.
     self.bufferedRequests = {};
@@ -584,6 +759,18 @@ class VideoSourceTabHandler {
       create: tabHandler => new unsafe.CodeExecutor({
         webext: self.webext,
         name: 'response refining',
+        args: ['params'],
+        setting,
+        notifDefaults: self.notifDefaults
+      })
+    });
+
+    setting = settings.video.subtitlesRefining;
+    self.subtitlesRefining = self.tabHandler.extensionProperties.get({
+      key: setting.getKey(),
+      create: tabHandler => new unsafe.CodeExecutor({
+        webext: self.webext,
+        name: 'subtitles refining',
         args: ['params'],
         setting,
         notifDefaults: self.notifDefaults
@@ -609,6 +796,7 @@ class VideoSourceTabHandler {
       this.requestsHandler.clear();
       await this.removeMenuEntries();
       this.sources = [];
+      this.subtitles = {};
       this.ignoredUrls.clear();
       this.updateVideos();
     }
@@ -717,6 +905,18 @@ class VideoSourceTabHandler {
     });
   }
 
+  async pairSubtitles() {
+    let needUpdate = false;
+    for (let source of this.sources) {
+      let subtitles = this.subtitles[source.originUrl] || [];
+      if (!subtitles.length) continue;
+      source.addSubtitles(this.subtitles[source.originUrl] || []);
+      needUpdate = true;
+      await source.refresh();
+    }
+    if (needUpdate) this.updateVideos();
+  }
+
   async checkHLS(requestDetails) {
     if (!settings.video.hls.intercept) return;
     // Wait for actual response.
@@ -785,12 +985,39 @@ class VideoSourceTabHandler {
 
     // Add HLS streams as sources.
     for (let stream of playlist.streams) {
+      let subtitles = [];
+      for (let track of stream.subtitles) {
+        let url = track.getURL().href;
+        // We can also discard subtitles URL now.
+        this.discardUrl(url);
+
+        // Do nothing else if disabled.
+        if (!settings.video.subtitles.intercept) continue;
+        let subtitle = {
+          name: track.name,
+          lang: track.lang,
+          url,
+          filename: util.getFilename(url)
+        };
+        let scriptParams = {
+          params: {
+            videoHandler: this,
+            requestDetails,
+            hlsPlaylist: playlist,
+            subtitle
+          }
+        };
+        await this.subtitlesRefining.execute(scriptParams);
+
+        subtitles.push(subtitle);
+      }
+
       let url = stream.getURL().href;
       // Get actual stream content: get everything we can (and is not too much)
       // so that the download application will only need to download the HLS
       // stream playlist segments.
       // This is also useful to get hint about the total stream size.
-      // (HLS keys will be downloaded when needed)
+      // (HLS keys and subtitles will be downloaded when needed)
       // If we fail, ignore this stream.
       try {
         let response = await fetch(url, {
@@ -826,6 +1053,7 @@ class VideoSourceTabHandler {
         originUrl: requestDetails.originUrl,
         referrer: requestDetails.referrer,
         hls: stream,
+        subtitles,
         windowId: this.tabHandler.windowId,
         tabId: this.tabHandler.id,
         tabUrl: this.tabHandler.url,
@@ -849,6 +1077,7 @@ class VideoSourceTabHandler {
           originUrl: requestDetails.originUrl,
           referrer: requestDetails.referrer,
           hls: stream,
+          subtitles: [],
           windowId: this.tabHandler.windowId,
           tabId: this.tabHandler.id,
           tabUrl: this.tabHandler.url,
@@ -862,8 +1091,10 @@ class VideoSourceTabHandler {
 
   async download(details, downloadDetails) {
     for (let source of this.sources) {
-      if (source.downloadEntry.source.downloadId == details.downloadId) {
-        return await source.download(downloadDetails);
+      for (let entryHandler of source.downloadEntries) {
+        if (entryHandler.download.source.downloadId == details.downloadId) {
+          return await source.download(entryHandler, downloadDetails);
+        }
       }
     }
   }
@@ -908,6 +1139,35 @@ class VideoSourceTabHandler {
     // update.
     await source.refresh();
     if (tabHandler.isFocused()) await source.addMenuEntry();
+    this.updateVideos();
+  }
+
+  async addSubtitles(details) {
+    if (!settings.video.subtitles.intercept) return;
+
+    let subtitles = details.subtitles;
+    if (!subtitles || !subtitles.length) return;
+
+    let source = this.findSource(details.url);
+    if (!source) {
+      if (settings.debug.video) console.log(`Not adding unknown tab=<${details.tabId}> frame=<${details.frameId}> video url=<${details.url}> subtitles:`, subtitles);
+      return;
+    }
+
+    for (let subtitle of subtitles) {
+      // Set filename from URL if needed.
+      if (!subtitle.filename) subtitle.filename = util.getFilename(subtitle.url);
+      let scriptParams = {
+        params: {
+          videoHandler: this,
+          videoSource: source,
+          subtitle
+        }
+      };
+      await this.subtitlesRefining.execute(scriptParams);
+    }
+    source.addSubtitles(subtitles);
+    await source.refresh();
     this.updateVideos();
   }
 
@@ -966,13 +1226,45 @@ class VideoSourceTabHandler {
       }
     };
     if (!source) {
-      // Check for possible HLS content.
+      // Check for possible HLS or subtitle content.
       let playlist = await this.checkHLS(requestDetails);
       let skip = !!playlist;
+      if (!skip && settings.video.subtitles.intercept && requestDetails.contentType.isSubtitle()) {
+        if (settings.trace.video) console.log('Received subtitle response:', requestDetails);
+
+        let subtitle = {
+          url: requestDetails.url,
+          filename: requestDetails.actualFilename,
+          intercepted: true
+        };
+        let scriptParams = {
+          params: {
+            videoHandler: this,
+            requestDetails,
+            subtitle
+          }
+        };
+        await this.subtitlesRefining.execute(scriptParams);
+        if (subtitle.name || subtitle.lang) {
+          let originUrl = requestDetails.originUrl;
+          if (settings.trace.video) console.log(`Adding tab=<${response.tabId}> frame=<${response.frameId}> originUrl=<${originUrl}> subtitles:`, subtitle);
+
+          // Remember intercepted subtitles per origin URL.
+          let subtitles = this.subtitles[originUrl];
+          if (!subtitles) subtitles = this.subtitles[originUrl] = [];
+          subtitles.push(subtitle);
+          await this.pairSubtitles();
+        }
+
+        skip = true;
+      }
 
       if (!skip && settings.trace.video) console.log('Received non-skipped response:', requestDetails);
       scriptParams.params.hlsPlaylist = playlist;
       await this.responseRefining.execute(scriptParams);
+
+      // Pair intercepted subtitles when applicable.
+      if (playlist && settings.video.subtitles.intercept) await this.pairSubtitles();
 
       // We also intercept XMLHttpRequest, but we usually don't want them other
       // than to detect HLS: these are expected to be done by site script, e.g.
@@ -1189,6 +1481,19 @@ export class VideoSourceHandler {
     return await handler.addSource(details);
   }
 
+  async addSubtitles(details) {
+    details.url = util.normalizeUrl(details.url, settings.debug.video, 'video source');
+
+    let { handler, frameUrl } = this.getTabHandler(details, true);
+    if (!handler) {
+      if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> csUuid=<${details.csUuid}> video url=<${details.url}> subtitles: Unknown tab frame`);
+      return;
+    }
+    details.frameUrl = frameUrl;
+
+    return await handler.addSubtitles(details);
+  }
+
   setupInterception() {
     // Check whether we now need to intercept anything
     let interceptVideo = settings.video.intercept;
@@ -1203,8 +1508,8 @@ export class VideoSourceHandler {
       // 'embed' elements can indeed include video, for which requests are
       // typed as 'object' instead fo 'media'.
       // Example: https://developer.mozilla.org/fr/docs/Web/HTML/Element/embed
-      // For HLS we also need to intercept xmlhttprequest, which is usually
-      // done by site/player code.
+      // For HLS and subtitles, we also need to intercept xmlhttprequest, which
+      // is usually done by site/player code.
       let webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object', 'xmlhttprequest'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,

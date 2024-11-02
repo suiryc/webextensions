@@ -113,6 +113,11 @@ async function onMessage(extension, msg, sender) {
       return dl_addVideoSource(msg, sender);
       break;
 
+    case constants.KIND_ADD_VIDEO_SUBTITLES:
+      if (!settings.video.intercept) return;
+      return dl_addVideoSubtitles(msg, sender);
+      break;
+
     case constants.KIND_CONSOLE:
       return ext_console(msg, sender);
       break;
@@ -243,6 +248,19 @@ function dl_addVideoSource(msg, sender) {
   }, msg));
 }
 
+function dl_addVideoSubtitles(msg, sender) {
+  msg = Object.assign({}, msg);
+  delete(msg.correlationId);
+  delete(msg.target);
+  delete(msg.kind);
+  return videoSourceHandler.addSubtitles(Object.assign({
+    windowId: sender.tab.windowId,
+    tabId: sender.tab.id,
+    tabUrl: sender.tab.url,
+    frameId: sender.frameId
+  }, msg));
+}
+
 
 // Native application message handling
 
@@ -362,7 +380,7 @@ function updateStatus(windowId) {
   for (let [windowId, sources] of Object.entries(obj)) {
     // Reminder: object keys are strings, we need windowId as an integer.
     windowId = Number(windowId);
-    let hasVideos = sources.length;
+    let hasVideos = sources.map(source => source.downloads.length).reduce((sum, v) => sum + v, 0);
     if (!hasVideos) hasVideos = '';
 
     // Messages are kept until dismissed, and we set a visual hint.

@@ -152,6 +152,35 @@ function processVideo(node) {
     return srcs;
   }
 
+  function addVideoSubtitles() {
+    if (!settings.video.subtitles.intercept) return;
+    let srcs = getSources();
+    if (!srcs.size) return;
+
+    let subtitles = [];
+    for (let track of Array.from(node.getElementsByTagName('track'))) {
+      // 'subtitles' kind is expected, but sometimes 'captions' is actually used
+      // instead. Send both to handle and let it decide.
+      if ((track.kind != 'subtitles') && (track.kind != 'captions')) continue;
+      subtitles.push({
+        kind: track.kind,
+        name: track.label,
+        lang: track.srclang,
+        url: track.src
+      });
+    }
+    if (subtitles.length) {
+      for (let src of srcs) {
+        webext.sendMessage({
+          target: constants.TARGET_BACKGROUND_PAGE,
+          kind: constants.KIND_ADD_VIDEO_SUBTITLES,
+          url: src,
+          subtitles
+        });
+      }
+    }
+  }
+
   async function addVideoSource(src) {
     if (!src) return;
     // Prevent sending message until a given amount of time has elapsed since
@@ -181,6 +210,7 @@ function processVideo(node) {
     for (let src of getSources()) {
       await addVideoSource(src);
     }
+    addVideoSubtitles();
   }
 
   // 'src' changes observer.
@@ -225,6 +255,8 @@ function processVideo(node) {
 
   // If there is no src nor currentSrc, we need to look for changes until it
   // happens.
+  // Note: we assume that 'tracks' are set at the same time as source is
+  // selected/available.
   if (nonEmpty('src') || nonEmpty('currentSrc')) {
     // Process source.
     processVideoSource();

@@ -44,6 +44,7 @@ export const constants = {
 
   // Message known 'kind' field values
   KIND_ADD_VIDEO_SOURCE: 'addVideoSource',
+  KIND_ADD_VIDEO_SUBTITLES: 'addVideoSubtitles',
   KIND_CHECK_NATIVE_APP: 'checkNativeApp',
   KIND_CLEAR_MESSAGES: 'clearMessages',
   KIND_CLEAR_MESSAGE: 'clearMessage',
