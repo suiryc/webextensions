@@ -2,7 +2,9 @@
 
 import * as util from './util.js';
 import * as http from './http.js';
+// Import and expose ourself in scripts.
 import * as unsafe from './unsafe.js';
+import { settings } from './settings.js';
 
 
 // 'Hide' Function usage to limit code inspection warnings.
@@ -16,7 +18,7 @@ export class CodeExecutor {
     self.notifDefaults = params.notifDefaults;
     self.scriptName = params.name;
     // We will pass useful helpers automatically.
-    self.argNames = params.args.concat(['http', 'notif', 'unsafe', 'util', 'webext']);
+    self.argNames = params.args.concat(['http', 'notif', 'unsafe', 'util', 'webext', 'settings']);
     if (params.code) {
       self.setup(params.code);
       return;
@@ -82,7 +84,8 @@ export class CodeExecutor {
       notif,
       unsafe,
       util,
-      webext: this.webext
+      webext: this.webext,
+      settings
     }, args);
     for (let arg of this.argNames) {
       argValues.push(args[arg]);
