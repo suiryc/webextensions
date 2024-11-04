@@ -471,6 +471,7 @@ export class VideoSource {
         addUserAgent: !this.seenRequest,
         addComment: true,
         mimeFilename: this.filename,
+        mimeType: this.mimeType,
         tabUrl: this.tabUrl,
         tabTitle: this.tabTitle,
         notify: true
@@ -1055,6 +1056,7 @@ class VideoSourceTabHandler {
         url: url,
         originUrl: requestDetails.originUrl,
         referrer: requestDetails.referrer,
+        mimeType: requestDetails.contentType.mimeType,
         hls: stream,
         subtitles,
         windowId: this.tabHandler.windowId,
@@ -1079,6 +1081,7 @@ class VideoSourceTabHandler {
           url: url,
           originUrl: requestDetails.originUrl,
           referrer: requestDetails.referrer,
+          mimeType: requestDetails.contentType.mimeType,
           hls: stream,
           subtitles: [],
           windowId: this.tabHandler.windowId,
@@ -1129,6 +1132,7 @@ class VideoSourceTabHandler {
     if (reason) return this.ignoreDownload(details, reason);
 
     if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> hls=<${!!details.hls}> video url=<${url}>`);
+    details.mimeType = contentType.mimeType;
     details.tabTitle = tabHandler.title;
     let source = new VideoSource(this, details);
     this.sources.push(source);
@@ -1321,6 +1325,8 @@ class VideoSourceTabHandler {
     source.setSize(requestDetails.contentLength);
     // Guess content type if needed, based on the given filename (or url).
     requestDetails.contentType.guess(util.getFilename(source.getUrl(), source.filename), true);
+    // Keep latest response mime type (possibly guessed).
+    source.mimeType = requestDetails.contentType.mimeType;
     // Retrieved/actual information may differ from original ones. Check again
     // and ignore content types we don't want to download.
     let reason = checkVideoContentType(requestDetails.contentType);

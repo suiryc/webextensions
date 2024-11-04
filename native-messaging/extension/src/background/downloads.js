@@ -82,6 +82,7 @@ class DlMngrClient {
       let comment = [];
       if (details.file) comment.push(`Download filename: ${details.file}`);
       if (params.mimeFilename) comment.push(`MIME filename: ${params.mimeFilename}`);
+      if (params.mimeType) comment.push(`MIME type: ${params.mimeType}`);
       comment.push(`URL filename: ${util.getFilename(details.url)}`);
       if (params.tabTitle) comment.push(`Page title: ${params.tabTitle}`);
       if (params.tabUrl && (params.tabUrl != details.url)) comment.push(`Page URL: ${params.tabUrl}`);
@@ -488,6 +489,7 @@ export class RequestsHandler extends http.RequestsHandler {
     }, {
       addComment: true,
       mimeFilename: requestDetails.filename,
+      mimeType: requestDetails.contentType?.mimeType,
       tabTitle
     });
     // Cancel the request if we successfully managed to trigger the download.
