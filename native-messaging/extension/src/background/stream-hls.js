@@ -327,8 +327,10 @@ export class HLSTagParser {
       if (idxComma < 0) {
         if (idxEqual < 0) {
           // value = 'XXX'
-          // Should not happen, but consider the remaining value as attribute
-          // name.
+          // Should not happen for normal attributes.
+          // May happen for some tags, e.g. 'EXTINF' which value is a duration
+          // followed by a comma and optional title.
+          // Anyway, consider the remaining value as attribute name.
           attName = this.value;
           this.value = '';
         } else {
@@ -339,11 +341,11 @@ export class HLSTagParser {
         }
       } else {
         if ((idxEqual < 0) || (idxEqual > idxComma)) {
-          // value = XXX,XXX
+          // value = XXX,...
           // Should not happen, but consider the next part as attribute name.
           attName = this.skipOffset(idxComma);
         } else {
-          // value = XXX=XXX,XXX
+          // value = XXX=XXX,...
           attName = this.skipOffset(idxEqual);
           attValue = this.parseAttributeValue();
         }
@@ -385,7 +387,7 @@ export class HLSTagParser {
       if (this.value.length) {
         if (this.value[0] != ',') {
           // There are extra data after quote and before next parameter.
-          // Should not happpen: ignore the extra data.
+          // Should not happen: ignore the extra data.
           let idxComma = this.value.indexOf(',');
           if (idxComma < 0) {
             this.value = '';
