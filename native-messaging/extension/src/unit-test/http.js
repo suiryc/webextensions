@@ -322,6 +322,11 @@ describe('ContentType', function() {
     isKind(mimeType, false, false, false, false, true);
   }
 
+  function mimeExtension(mimeType, expected) {
+    let ct = new http.ContentType(mimeType);
+    assert.strictEqual(ct.getMimeExtension(), expected);
+  }
+
   // ContentType relies on HeaderParser.
   // We just need to check it properly handles a full header value.
   it('should parse content type header', function() {
@@ -419,6 +424,13 @@ describe('ContentType', function() {
     ct.guess('test.txt', true);
     assert.equal(ct.guessed, false);
     assert.deepEqual(ct.params, {param1: 'value1', param2: 'value2'});
+  });
+
+  it('should get main extension for given mime type', function() {
+    mimeExtension(mimeType, undefined);
+    mimeExtension('text/plain', 'txt');
+    mimeExtension('text/html', 'html');
+    mimeExtension('audio/mpeg', undefined);
   });
 
 });

@@ -322,20 +322,23 @@ const hlsMimeTypes = new Set([
 const hlsFileExtension = 'm3u8';
 const subtitleMimeTypes = new Set(['application/x-subrip', 'text/vtt']);
 // Mime type per extensions.
-// Note: we only want one type per matching extension here.
+// Notes:
+// We only want one type per matching extension here.
+// When applicable, include at least one string matcher (corresponds to default
+// extension for this mime type).
 const mimeTypesExt = {
   'text/plain': ['txt'],
   'text/css': ['css'],
   'text/csv': ['csv'],
-  'text/html': [/^html?$/],
-  'text/javascript': [/^m?js$/],
+  'text/html': [/^html?$/, 'html'],
+  'text/javascript': [/^m?js$/, 'js'],
   'text/xml': ['xml'],
-  'image/jpeg': [/^jpe?g$/],
+  'image/jpeg': [/^jpe?g$/, 'jpg'],
   'image/png': ['png'],
   'image/webp': ['webp'],
   'image/gif': ['gif'],
   'image/bmp': ['bmp'],
-  'image/tiff': [/^tiff?$/],
+  'image/tiff': [/^tiff?$/, 'tiff'],
   'audio/mpeg': [/^mp[1-3]$/, /^m[12p]a$/],
   'audio/mp4': ['m4a'],
   'audio/webm': ['weba'],
@@ -398,6 +401,18 @@ export class ContentType {
       this.raw = guessed;
       this.guessed = true;
       this.parse(true);
+    }
+  }
+
+  // Gets mime extension.
+  // If mime type corresponds to a known one, and it has a 'string' extension
+  // matcher, consider this is the main extension for this mime type.
+  getMimeExtension() {
+    for (let [mt, matchers] of Object.entries(mimeTypesExt)) {
+      if (mt != this.mimeType) continue;
+      for (let matcher of matchers) {
+        if (typeof(matcher) === 'string') return matcher;
+      }
     }
   }
 
