@@ -192,6 +192,18 @@ export class RequestDetails {
     if (this.actualFilename) {
       this.contentType.guess(this.actualFilename, true);
     }
+
+    // Finally, determine actual extension, from content type or filename.
+    // If request did point to an explicit filename, use it.
+    if (this.hasFilename()) {
+      this.actualExtension = util.getFilenameExtension(this.filename).extension;
+    }
+    if (!this.actualExtension) {
+      this.actualExtension = this.contentType.getMimeExtension();
+    }
+    if (!this.actualExtension && this.actualFilename) {
+      this.actualExtension = util.getFilenameExtension(this.actualFilename).extension;
+    }
   }
 
 }
