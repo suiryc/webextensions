@@ -350,6 +350,7 @@ describe('ContentType', function() {
     guess(ct, 'test.jpg', 'image/jpeg');
     guess(ct, 'test.mp3', 'audio/mpeg');
     guess(ct, 'test.mpa', 'audio/mpeg');
+    guess(ct, 'test.mp4', 'video/mp4');
     guess(ct, 'test.m3u8', 'application/vnd.apple.mpegurl');
     guess(ct, 'test.srt', 'application/x-subrip');
     guess(ct, 'test.vtt', 'text/vtt');

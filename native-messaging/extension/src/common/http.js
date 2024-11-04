@@ -355,6 +355,7 @@ const mimeTypesExt = {
   'audio/mp4': ['m4a'],
   'audio/webm': ['weba'],
   'audio/ogg': ['opus'],
+  'video/mp4': ['mp4'],
   'application/vnd.apple.mpegurl': [hlsFileExtension],
   'application/x-subrip': ['srt'],
   'text/vtt': ['vtt']
