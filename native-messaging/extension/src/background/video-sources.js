@@ -1237,7 +1237,9 @@ class VideoSourceTabHandler {
 
         let subtitle = {
           url: requestDetails.url,
-          filename: requestDetails.actualFilename,
+          // Try our best to use proper subtitle extension, in case the request
+          // points to some kind of API, not the file itself.
+          filename: util.filenameWithExtension(requestDetails.actualFilename, requestDetails.actualExtension),
           intercepted: true
         };
         let scriptParams = {
