@@ -83,12 +83,14 @@ async function dl_updateVideos(sources, showTab) {
       let videoSubtitle = download.details.subtitle;
       let subtitle = [];
       let tooltip = [];
-      // Use source size and extension, unless HLS.
+      // Use source size, and extension (unless HLS).
+      if (download.details.size) {
+        subtitle.push(`${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`);
+      }
+      if ('size' in source) subtitle.push(util.getSizeText(source.size));
       if (source.hls) {
-        if (source.hls.sizeDesc) subtitle.push(source.hls.sizeDesc);
         subtitle.push(`🎞️${source.hls.name}`);
       } else {
-        if ('size' in source) subtitle.push(util.getSizeText(source.size));
         if (extension) subtitle.push(extension);
       }
       if (videoSubtitle) subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);

@@ -477,6 +477,8 @@ export class VideoSource {
       }
     };
     if (this.hls) {
+      download.details.size = this.hls.size;
+      download.details.sizeQualifier = this.hls.sizeQualifier;
       download.details.hls = {
         raw: this.hls.raw,
         url: this.hls.getURL().href
@@ -526,8 +528,10 @@ export class VideoSource {
     // for HLS.
     // The rest of the title will be the file name (without extension).
     let title = [];
-    // Format size if known (excluding HLS, which has its own size desc).
-    if (!this.hls && ('size' in this)) title.push(util.getSizeText(this.size));
+    // Format size if known (with optional qualifier, e.g. for HLS).
+    if (download.details.size) {
+      title.push(`${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`);
+    }
     // Don't show filename extension in title prefix if too long.
     // Display the whole filename instead.
     if (extension && (extension.length > 4)) {
@@ -539,7 +543,6 @@ export class VideoSource {
       let subtitle = entryHandler.subtitle;
       let entryTitle = [...title];
       if (this.hls) {
-        if (this.hls.sizeDesc) entryTitle.push(this.hls.sizeDesc);
         entryTitle.push(`🎞️${this.hls.name}`);
       } else if (extension) {
         entryTitle.push(extension);

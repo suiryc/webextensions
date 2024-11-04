@@ -633,8 +633,8 @@ some-value
         uri: 'http://example.com/low.m3u8',
         name: 'low',
         duration: 21.021,
-        sizeHint: 2627625,
-        sizeDesc: '≈2.51M',
+        size: 2627625,
+        sizeQualifier: '≈',
         video: [],
         audio: [],
         subtitles: []
@@ -659,8 +659,8 @@ some-value
         uri: 'http://example.com/audio-only.m3u8',
         name: '≤63.5Kbps',
         duration: 21.021,
-        sizeHint: 170796,
-        sizeDesc: '≤167K',
+        size: 170796,
+        sizeQualifier: '≤',
         video: [],
         audio: [],
         subtitles: []

@@ -210,11 +210,11 @@ class HLSStream extends HLSTagged {
 
     // Bandwidth is in bits-per-second.
     if (this.tag.attributes['AVERAGE-BANDWIDTH']) {
-      this.sizeHint = Math.round(this.duration * this.tag.attributes['AVERAGE-BANDWIDTH'] / 8);
-      this.sizeDesc = `≈${util.getSizeText(this.sizeHint)}`;
+      this.size = Math.round(this.duration * this.tag.attributes['AVERAGE-BANDWIDTH'] / 8);
+      this.sizeQualifier = '≈';
     } else if (this.tag.attributes['BANDWIDTH']) {
-      this.sizeHint = Math.round(this.duration * this.tag.attributes['BANDWIDTH'] / 8);
-      this.sizeDesc = `≤${util.getSizeText(this.sizeHint)}`;
+      this.size = Math.round(this.duration * this.tag.attributes['BANDWIDTH'] / 8);
+      this.sizeQualifier = '≤';
     }
   }
 
