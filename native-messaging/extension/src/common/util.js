@@ -391,6 +391,11 @@ export function buildFilename(name, extension) {
   return extension ? `${name}.${extension}` : name;
 }
 
+export function filenameWithExtension(filename, extension) {
+  if (!filename || !extension) return filename;
+  return buildFilename(getFilenameExtension(filename).name, extension);
+}
+
 // Round number to the requested precision (3 digits by default).
 export function roundNumber(num, dec, precision) {
   if (num == 0) return 0;

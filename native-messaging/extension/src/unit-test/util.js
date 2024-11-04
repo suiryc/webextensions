@@ -591,6 +591,20 @@ describe('util', function() {
 
   });
 
+  describe('filenameWithExtension', function() {
+
+    it('should build proper filename', function() {
+      assert.strictEqual(util.filenameWithExtension(undefined, 'ext'), undefined);
+      assert.strictEqual(util.filenameWithExtension(null, 'ext'), null);
+      assert.strictEqual(util.filenameWithExtension('filename', undefined), 'filename');
+      assert.strictEqual(util.filenameWithExtension('filename', null), 'filename');
+      assert.strictEqual(util.filenameWithExtension('filename', ''), 'filename');
+      assert.equal(util.filenameWithExtension('filename', 'ext'), 'filename.ext');
+      assert.equal(util.filenameWithExtension('filename.ext', 'other'), 'filename.other');
+    });
+
+  });
+
   describe('roundNumber', function() {
 
     it('should round number', function() {
