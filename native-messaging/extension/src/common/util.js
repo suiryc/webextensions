@@ -166,7 +166,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   if (Array.isArray(obj)) {
     // Recursively handle arrays.
     if (recursiveLoop) return `Array(${obj.length})`;
-    s = '[';
+    let s = '[';
     let idx = 0;
     obj.forEach(v => {
       s += (idx++ ? ', ' : ' ') + recurse(v);
