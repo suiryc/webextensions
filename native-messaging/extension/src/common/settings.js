@@ -1,6 +1,7 @@
 'use strict';
 
 import * as util from './util.js';
+import { _fn } from './unsafe.js';
 
 
 // Settings
@@ -608,8 +609,6 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
 }
 
 // Manages a script (string) setting.
-// 'Hide' Function usage to limit code inspection warnings.
-let _fn = Function;
 class ExtensionScriptSetting extends ExtensionSetting {
 
   constructor(key, value) {

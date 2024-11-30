@@ -7,8 +7,9 @@ import * as unsafe from './unsafe.js';
 import { settings } from './settings.js';
 
 
-// 'Hide' Function usage to limit code inspection warnings.
-let _fn = Function;
+// Declare Function for usage.
+// Share declaration to limit code inspection warnings to the bare minimum.
+export let _fn = Function;
 
 export class CodeExecutor {
 
