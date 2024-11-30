@@ -1030,7 +1030,7 @@ class VideoSourceTabHandler {
         if (response.ok) {
           let content = await response.text();
           let playlistStream = new hls.HLSPlaylist(content, {
-            url: requestDetails.url,
+            url: url,
             debug: settings.debug.video
           });
           let actualStream = playlistStream.isStream();
