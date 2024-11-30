@@ -7,9 +7,9 @@ import * as unsafe from './unsafe.js';
 import { settings } from './settings.js';
 
 
-// Declare Function for usage.
+// Declare AsyncFunction for usage.
 // Share declaration to limit code inspection warnings to the bare minimum.
-export let _fn = Function;
+export let _fn = async function () {}.constructor;
 
 export class CodeExecutor {
 
