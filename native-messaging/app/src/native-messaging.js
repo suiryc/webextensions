@@ -1,10 +1,10 @@
 'use strict';
 
-const constants = require('./constants');
-const os = require('os');
-const stream = require('stream');
-const util = require('./util');
-const uuidv4 = require('uuid/v4');
+import * as constants from './constants.js';
+import os from 'os';
+import stream from 'stream';
+import * as util from './util.js';
+import { v4 as uuidv4 } from 'uuid';
 
 
 // UINT32 size in bytes.
@@ -243,7 +243,7 @@ class NativeHandler extends stream.Writable {
 }
 
 // Native application (plumbing)
-class NativeApplication {
+export class NativeApplication {
 
   constructor(handler) {
     let self = this;
@@ -349,6 +349,3 @@ class NativeApplication {
   }
 
 }
-
-
-exports.NativeApplication = NativeApplication;

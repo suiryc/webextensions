@@ -1,10 +1,10 @@
 'use strict';
 
-const child_process = require('child_process');
+import child_process from 'child_process';
 
 
 // Formats object to string.
-function formatObject(obj, processed, recursiveLoop) {
+export function formatObject(obj, processed, recursiveLoop) {
   // Handle recursion:
   // Remember the current object in order to detect circular recursion.
   // Create a Set in first recursion level, and duplicate it in each recursion
@@ -68,7 +68,7 @@ function formatObject(obj, processed, recursiveLoop) {
   return s;
 }
 
-class Deferred {
+export class Deferred {
 
   constructor() {
     // Reminder: function given to Promise constructor is executed before the
@@ -93,7 +93,7 @@ class Deferred {
 }
 
 // Spawns process, piping stdin/stdout/stderr, and returns Promise.
-function spawn(command, args, options) {
+export function spawn(command, args, options) {
   let d = new Deferred();
   let p = child_process.spawn(command, args, Object.assign({ shell : true, stdio: 'inherit' }, options));
   p.on('exit', (code, signal) => {
@@ -105,10 +105,3 @@ function spawn(command, args, options) {
   });
   return d.promise;
 }
-
-
-module.exports = {
-  formatObject: formatObject,
-  Deferred: Deferred,
-  spawn: spawn
-};

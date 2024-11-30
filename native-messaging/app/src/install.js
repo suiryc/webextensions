@@ -2,11 +2,11 @@
 
 // TODO: also create 'uninstall.js'
 
-const fse = require('fs-extra');
-const os = require('os');
-const path = require('path');
-const util = require('./util');
-const yargs = require('yargs');
+import fse from 'fs-extra';
+import os from 'os';
+import path from 'path';
+import * as util from './util.js';
+import yargs from 'yargs';
 
 
 // Creates manifest file
@@ -107,10 +107,8 @@ f.then(() => {
   console.log('>> Creating settings.js');
   let settingsContent = `'use strict';
 
-module.exports = Object.freeze({
-  dlMngrInterpreter: ${JSON.stringify(params.dlMngrInterpreter)},
-  dlMngrPath: ${JSON.stringify(params.dlMngrPath)}
-});
+export const dlMngrInterpreter = ${JSON.stringify(params.dlMngrInterpreter)};
+export const dlMngrPath = ${JSON.stringify(params.dlMngrPath)};
 `;
   return fse.writeFile('settings.js', settingsContent);
 }).then(() => {

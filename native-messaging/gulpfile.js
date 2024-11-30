@@ -1,30 +1,33 @@
 'use strict';
 
-const gulp = require('gulp');
-const os = require('os');
-const glob = require('glob');
-const path = require('path');
-const fse = require('fs-extra');
-const rename = require('gulp-rename');
-const replace = require('gulp-replace');
-const webpack = require('webpack');
-let settings = require('./gulpfile-settings');
-const util = require('./app/src/util');
+import gulp from 'gulp';
+import os from 'os';
+import glob from 'glob';
+import path from 'path';
+import fse from 'fs-extra';
+import rename from 'gulp-rename';
+import replace from 'gulp-replace';
+import { fileURLToPath } from 'url';
+import webpack from 'webpack';
+import * as settingsRO from './gulpfile-settings.js';
+import * as util from './app/src/util.js';
 
 
-exports.deployApp = deployApp;
-exports.install = gulp.series(deployApp, installApp, buildExt_dev);
-exports.buildExt = buildExt_dev;
-exports.unitTestExt = unitTestExt;
-exports.packageExt = packageExt;
-exports.signExt = signExt;
-exports.watch = gulp.series(exports.install, watch);
-exports.default = exports.install;
+// Mimic CommonJS __filename and __dirname, so that it can be used in ESM too.
+// See: https://stackoverflow.com/a/62892482
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+export const install = gulp.series(deployApp, installApp, buildExt_dev);
+export const buildExt = buildExt_dev;
+export const watch = gulp.series(install, watchChanges);
+export default install;
 
 
 // Enrich settings with constants ...
 const extensionPath = 'extension';
-settings = Object.assign({
+let settings = Object.assign({
   appInstallScript: path.join('app', 'src', 'install.js'),
   appPaths: [
     // Note: for globs, path.posix is needed (\\ escapement conflict on Windows)
@@ -39,7 +42,7 @@ settings = Object.assign({
     path.join(extensionPath, '.mocharc.yaml'),
     path.join(extensionPath, 'babel.config.js')
   ]
-}, settings);
+}, settingsRO);
 // ... and platform-dependent values.
 switch (os.platform()) {
   case 'win32':
@@ -51,7 +54,7 @@ switch (os.platform()) {
     break;
 }
 
-function deployApp() {
+export function deployApp() {
   // We wish to copy files without keeping the hierarchy.
   return gulp.src(settings.appPaths)
     .pipe(rename({ dirname: '' }))
@@ -138,7 +141,7 @@ async function webpackBundle(mode) {
   await deferred;
 }
 
-async function buildExt(webpackMode) {
+async function _buildExt(webpackMode) {
   let fill = function(p) {
     let dirname = path.dirname(p);
     let basename = path.basename(p);
@@ -159,14 +162,14 @@ async function buildExt(webpackMode) {
 }
 
 async function buildExt_dev() {
-  await buildExt('development');
+  await _buildExt('development');
 }
 
 async function buildExt_prod() {
-  await buildExt('production');
+  await _buildExt('production');
 }
 
-async function unitTestExt() {
+export async function unitTestExt() {
   let deferred = new util.Deferred();
   glob(path.posix.join('src', 'unit-test', '**', '*.js'), { cwd: extensionPath }, (err, files) => {
     if (err) deferred.reject(err);
@@ -178,7 +181,7 @@ async function unitTestExt() {
     { cwd: extensionPath });
 }
 
-async function packageExt() {
+export async function packageExt() {
   await buildExt_prod();
 
   let ignoredFiles = getIgnoredFiles();
@@ -188,7 +191,7 @@ async function packageExt() {
     { cwd: extensionPath });
 }
 
-async function signExt() {
+export async function signExt() {
   await buildExt_prod();
   let ignoredFiles = getIgnoredFiles();
   console.log('Ignoring:', ignoredFiles);
@@ -199,9 +202,9 @@ async function signExt() {
     { cwd: extensionPath });
 }
 
-function watch() {
+function watchChanges() {
   gulp.watch(settings.appPaths.concat([`!${settings.appInstallScript}`]), deployApp);
-  gulp.watch(settings.appInstallScript, exports.install);
+  gulp.watch(settings.appInstallScript, install);
   let extensionTemplatePaths = settings.extensionTemplatedPaths.map(p => getTemplatePath(p));
   // Follow changes in sources and templates.
   // Excluded templated files (generated from templates).

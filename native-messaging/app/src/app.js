@@ -1,11 +1,13 @@
 'use strict';
 
-const child_process = require('child_process');
-const constants = require('./constants');
-const fs = require('fs');
-const nativeMessaging = require('./native-messaging');
-const settings = require('./settings');
-const util = require('./util');
+import child_process from 'child_process';
+import * as constants from './constants.js';
+import fs from 'fs';
+import * as nativeMessaging from './native-messaging.js';
+import os from 'os';
+import path from 'path';
+import * as settings from './settings.js';
+import * as util from './util.js';
 
 
 let app = new nativeMessaging.NativeApplication(onMessage);
@@ -52,8 +54,8 @@ function app_specs(app, msg) {
     platform: process.platform,
     arch: process.arch,
     versions: process.versions,
-    separator: require('path').sep,
-    tmpdir: require('os').tmpdir()
+    separator: path.sep,
+    tmpdir: os.tmpdir()
   };
 }
 

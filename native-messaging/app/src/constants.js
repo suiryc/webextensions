@@ -2,10 +2,9 @@
 
 // Shared constants
 // See: https://stackoverflow.com/a/21247500
-module.exports = Object.freeze({
-  KIND_CONSOLE: 'console',
-  KIND_DOWNLOAD: 'download',
-  KIND_NOTIFICATION: 'notification',
-  KIND_SPECS: 'specs',
-  KIND_TW_SAVE: 'twSave'
-});
+
+export const KIND_CONSOLE = 'console';
+export const KIND_DOWNLOAD = 'download';
+export const KIND_NOTIFICATION = 'notification';
+export const KIND_SPECS = 'specs';
+export const KIND_TW_SAVE = 'twSave';
