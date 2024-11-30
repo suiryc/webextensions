@@ -397,11 +397,13 @@ describe('ContentType', function() {
     isHLS('audio/mpegurl');
     isHLS('audio/x-mpegurl');
 
-    let ct = new http.ContentType('video/mp2t');
-    assert.equal(ct.isHLS(), false);
-    assert.equal(ct.maybeHLS(), false);
-    assert.equal(ct.maybeHLS('file.ext'), false);
-    assert.equal(ct.maybeHLS('file.m3u8'), true);
+    for (let mimeType of ['video/mp2t', 'text/plain']) {
+      let ct = new http.ContentType(mimeType);
+      assert.equal(ct.isHLS(), false);
+      assert.equal(ct.maybeHLS(), false);
+      assert.equal(ct.maybeHLS('file.ext'), false);
+      assert.equal(ct.maybeHLS('file.m3u8'), true);
+    }
   });
 
   it('should know subtitle types', function() {

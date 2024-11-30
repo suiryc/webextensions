@@ -460,10 +460,11 @@ export class ContentType {
     return hlsMimeTypes.has(this.mimeType);
   }
 
-  // Some sites return 'video/mp2t' for m3u8 files.
+  // Some sites return 'video/mp2t' or 'text/plain' for m3u8 files.
   // Let caller decide what to do, e.g. based on content size if known.
   maybeHLS(filename) {
-    if (!this.is('video', 'mp2t') || !filename) return false;
+    if (!filename) return false;
+    if (!this.is('video', 'mp2t') && !this.is('text', 'plain')) return false;
     let extension = util.getFilenameExtension(filename).extension || '';
     return extension == hlsFileExtension;
   }
