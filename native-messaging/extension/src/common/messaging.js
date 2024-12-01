@@ -341,6 +341,10 @@ export class WebExtension {
     this.portHandler.connect();
   }
 
+  // Send message, and return response (if applicable).
+  // Note: when inside background script, since we may target more than one
+  // recipient, the response is an array of all recipients result. Targeting
+  // ourself won't return an array however, but our response.
   sendMessage(msg) {
     // Include the sender information we have right now.
     msg.sender = {
@@ -350,16 +354,18 @@ export class WebExtension {
         id: browser.runtime.getFrameId(window)
       }
     };
+
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
     if (this.targets && msg.target) {
+      // Message actually sent to self: send back our one response.
+      if (this.isTarget(msg)) return this.onMessage(msg, this);
+
       let ports = this.targets[msg.target] || [];
       let promises = [];
       for (let port of ports) {
         promises.push(port.postRequest(msg));
       }
-      // Message actually sent to self.
-      if (this.isTarget(msg)) promises.push(this.onMessage(msg, this));
       return Promise.all(promises);
     }
 
