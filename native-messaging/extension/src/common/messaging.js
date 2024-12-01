@@ -3,6 +3,7 @@
 import { constants } from './constants.js';
 import * as util from './util.js';
 import * as asynchronous from './asynchronous.js';
+import { findHeaderValue } from './http.js';
 import { settings } from '../common/settings.js';
 
 
@@ -510,11 +511,45 @@ class PortHandler {
     // Post message
     self.postMessage(msg);
 
-    // Setup response handling
+    // Setup response handling.
+    // Note: since we don't 'await' from postMessage until here, we are sure to
+    // set the promise before it is needed (when response is received).
     if (!timeout) timeout = this.defaultTimeout;
     let promise = new asynchronous.Deferred().promise;
+    let actualPromise = promise;
+
+    // Special case: if we delegated a fetch request, convert the response
+    // as needed.
+    if (msg.kind == constants.KIND_HTTP_FETCH) {
+      actualPromise = actualPromise.then(r => {
+        // Trigger real error when applicable.
+        if (r.error) throw r.error;
+        // Or extract response.
+        r = r.response;
+        // And build binary wanted binary formats from base64.
+        if (r.ok) {
+          let params = msg.params || {};
+          if (params.wantBytes || params.wantArrayBuffer || params.wantBlob) {
+            r.bytes = Uint8Array.fromBase64(r.base64);
+          }
+          if (params.wantArrayBuffer) {
+            r.arrayBuffer = r.bytes.buffer;
+          }
+          if (params.wantBlob) {
+            // Blob type is Content-Type.
+            // If there is no Content-Type, since we don't want to guess it by
+            // inspecting the data, 'application/octet-stream' is the HTTP
+            // default.
+            let type = findHeaderValue(r.headers, 'Content-Type') || 'application/octet-stream';
+            r.blob = new Blob([r.bytes], { type });
+          }
+        }
+        return r;
+      });
+    }
+
     self.requests[correlationId] = promise;
-    return asynchronous.promiseThen(asynchronous.promiseOrTimeout(promise, timeout), () => {
+    return asynchronous.promiseThen(asynchronous.promiseOrTimeout(actualPromise, timeout), () => {
       // Automatic cleanup of request
       delete(self.requests[correlationId]);
     });

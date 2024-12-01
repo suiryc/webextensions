@@ -10,6 +10,8 @@ export const constants = {
 
   // Idle timeout (ms)
   IDLE_TIMEOUT: 30 * 1000,
+  // Timeout (ms) when waiting for HTTP fetch response
+  HTTP_FETCH_TIMEOUT: 60 * 1000,
   // Timeout (ms) when waiting for any extension response
   // (reminder: an internal message may trigger a native or webextension one)
   MESSAGE_RESPONSE_TIMEOUT: 20 * 1000,
@@ -57,6 +59,7 @@ export const constants = {
   KIND_EXT_MESSAGE: 'extMessage',
   KIND_GET_DL_VIDEOS: 'getDlVideos',
   KIND_GET_EXT_MESSAGES: 'getExtMessages',
+  KIND_HTTP_FETCH: 'http-fetch',
   KIND_NOTIFICATION: 'notification',
   KIND_REGISTER_PORT: 'registerPort',
   KIND_REGISTER_TABS_EVENTS: 'registerTabsEvents',

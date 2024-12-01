@@ -82,6 +82,10 @@ async function onMessage(extension, msg, sender) {
       return tw_save(msg);
       break;
 
+    case constants.KIND_HTTP_FETCH:
+      return http_fetch(msg);
+      break;
+
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
       break;
@@ -186,6 +190,12 @@ function tw_checkConcurrent(msg) {
 function tw_save(msg) {
   // Request native application to do the saving, as WebExtensions have no right to properly do it.
   return nativeApp.postRequest(msg, constants.TW_SAVE_TIMEOUT);
+}
+
+// Delegate HTTP fetch to native app.
+function http_fetch(msg) {
+  let timeout = msg?.params?.timeout;
+  return nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
 }
 
 // Ignore next download interception.

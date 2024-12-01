@@ -2,6 +2,7 @@
 
 import child_process from 'child_process';
 import * as constants from './constants.js';
+import fetch from 'node-fetch';
 import fs from 'fs';
 import * as nativeMessaging from './native-messaging.js';
 import os from 'os';
@@ -20,12 +21,16 @@ async function onMessage(app, msg) {
       return dl_save(app, msg);
       break;
 
-    case constants.KIND_TW_SAVE:
-      return tw_save(app, msg);
+    case constants.KIND_HTTP_FETCH:
+      return http_fetch(app, msg);
       break;
 
     case constants.KIND_SPECS:
       return app_specs(app, msg);
+      break;
+
+    case constants.KIND_TW_SAVE:
+      return tw_save(app, msg);
       break;
 
     default:
@@ -193,6 +198,96 @@ function dl_save(app, msg) {
   });
 
   return deferred.promise;
+}
+
+async function http_fetch(app, msg) {
+  try {
+    let r = await fetch(msg.resource, msg.options);
+
+    // Note: we will need to copy/adapt response fields (and retrieved content)
+    // so that it fits in the JSON message we will send back to caller.
+
+    // Extract headers name/value.
+    let headers = [];
+    for (let [name, value] of r.headers.entries()) {
+      headers.push({name, value});
+    }
+    // Copy response fields.
+    let response = {
+      headers,
+      ok: r.ok,
+      redirected: r.redirected,
+      status: r.status,
+      statusText: r.statusText,
+      type: r.type,
+      url: r.url
+    };
+
+    // Extract response content, in wanted formats.
+    //
+    // Notes:
+    // Allow caller to ask for more than one format. We simply need to 'clone'
+    // the response to get the appropriate formats.
+    // When cloning, don't forget that content reading is done once, and that to
+    // properly get it for all clones, we need to have them work in parallel.
+    // See: https://github.com/node-fetch/node-fetch/blob/main/README.md#custom-highwatermark
+    // Original response and clones all need to be consumed.
+    // We prepare one or more Promises, which are completed *after* setting the
+    // value in our response field. So when waiting for all of them, once they
+    // are completed we know our response is ready.
+    //
+    // Explicitly get text/json: don't try to be smart and derive one from the
+    // other here.
+    // For binary formats, since the data needs to fit in the JSON response, we
+    // get it as base64, and let caller build the wanted formats from this.
+    let params = msg.params || {};
+    let contentPromises = [];
+    if (params.wantJson) {
+      // Prepare JSON.
+      let promise = new util.Deferred().promise;
+      r.clone().json().then(v => {
+        response.json = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    if (params.wantText) {
+      // Prepare text.
+      let promise = new util.Deferred().promise;
+      r.clone().text().then(v => {
+        response.text = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    // Last format to handle: don't clone this one, and ensure original response
+    // is consumed.
+    if (params.wantArrayBuffer || params.wantBlob || params.wantBytes || params.wantBase64) {
+      // Prepare base64.
+      // We do this if either one binary format was wanted.
+      let promise = new util.Deferred().promise;
+      r.arrayBuffer().then(v => {
+        response.base64 = Buffer.from(v).toString('base64');
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    } else if (contentPromises.length) {
+      // There was at least one clone done, so we need to consume the original
+      // response too.
+      // The safest is to ask for raw binary (ArrayBuffer).
+      contentPromises.push(r.arrayBuffer());
+    }
+
+    // Wait for content variant(s) to be retrieved.
+    await Promise.all(contentPromises);
+
+    // Return response, in named field so that caller can easily distinguish
+    // success from error.
+    return { response };
+  } catch (error) {
+    console.log(`Failed to fetch resource=<${msg.resource}> with options:`, msg.options, util.formatObject(error));
+    return { error };
+  }
 }
 
 function tw_save(app, msg) {
