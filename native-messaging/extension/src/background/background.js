@@ -83,7 +83,7 @@ async function onMessage(extension, msg, sender) {
       break;
 
     case constants.KIND_HTTP_FETCH:
-      return http_fetch(msg);
+      return await http_fetch(msg);
       break;
 
     case constants.KIND_DL_IGNORE_NEXT:
@@ -193,9 +193,16 @@ function tw_save(msg) {
 }
 
 // Delegate HTTP fetch to native app.
-function http_fetch(msg) {
+async function http_fetch(msg) {
   let timeout = msg?.params?.timeout;
-  return nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
+  try {
+    let response = await nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
+    if (msg.params.debug) console.log('Delegated fetch:', msg, response);
+    return response;
+  } catch(error) {
+    if (msg.params.debug) console.log('Delegated fetch failed:', msg, error);
+    throw error;
+  }
 }
 
 // Ignore next download interception.

@@ -398,6 +398,13 @@ export class WebExtension {
     });
   }
 
+  fetch(details) {
+    return this.sendMessage(Object.assign({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_HTTP_FETCH
+    }, details));
+  }
+
 }
 
 // Handles a webextension connection Port.
