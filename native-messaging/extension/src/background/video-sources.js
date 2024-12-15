@@ -209,7 +209,11 @@ class VideoSourceEntryHandler {
 export class VideoSource {
 
   constructor(parent, details) {
-    Object.assign(this, {subtitles: [], subtitleEntries: []}, details);
+    Object.assign(this, {
+      newRequestHeaders: {},
+      subtitles: [],
+      subtitleEntries: []
+    }, details);
     // Notes:
     // Remember important objects, but don't forget to remove in 'forMessage'
     // those that cannot be cloned.
@@ -593,11 +597,18 @@ export class VideoSource {
     // Get subtitles if needed.
     if (details.subtitle && !details.subtitle.raw) {
       try {
-        let response = await fetch(details.subtitle.url, {
-          referrer: this.referrer
+        let response = await this.webext.fetch({
+          resource: details.subtitle.url,
+          options: {
+            referrer: this.referrer,
+            headers: this.newRequestHeaders
+          }, params: {
+            debug: settings.trace.video,
+            wantText: true
+          }
         });
         if (response.ok) {
-          details.subtitle.raw = await response.text();
+          details.subtitle.raw = response.text;
         } else {
           this.webext.notify({
             title: 'Failed to download subtitles',
@@ -625,13 +636,20 @@ export class VideoSource {
       for (let key of hlsKeys) {
         if (!key.url || key.raw) continue;
         try {
-          let response = await fetch(key.url, {
-            referrer: this.referrer
+          let response = await this.webext.fetch({
+            resource: key.url,
+            options: {
+              referrer: this.referrer,
+              headers: this.newRequestHeaders
+            }, params: {
+              debug: settings.trace.video,
+              wantBytes: true
+            }
           });
           if (response.ok) {
             // See: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
             let rawS = Array.from(
-              await response.bytes(),
+              response.bytes,
               (byte) => String.fromCodePoint(byte)
             ).join('');
             key.raw = btoa(rawS);
@@ -944,25 +962,32 @@ class VideoSourceTabHandler {
 
     let playlist;
     let requestHeaders = requestDetails.sent?.requestHeaders || [];
+    let newRequestHeaders = requestDetails.newRequestHeaders();
     try {
       // Notes:
       // The 'only-if-cached' cache mode is not expected to work here.
       // So we just try our best to do the same request with the same referer.
       // Referer must be passed as API parameter: ignored as pure header.
-      let response = await fetch(requestDetails.url, {
-        referrer: http.findHeaderValue(requestHeaders, 'Referer')
+      // To ignore browser extension constraints, delegate request to native
+      // application.
+      let response = await this.webext.fetch({
+        resource: requestDetails.url,
+        options: {
+          referrer: requestDetails.referrer,
+          headers: newRequestHeaders
+        }, params: {
+          debug: settings.trace.video,
+          wantText: true
+        }
       });
       if (response.ok) {
         // Check again content size before trying to parse it.
-        // Note: we need to clone the response, since the content can only be
-        // retrieved once per response.
-        let contentLength = (await response.clone().arrayBuffer()).byteLength;
+        let contentLength = response.text.length;
         if (contentLength >= constants.HLS_SIZE_LIMIT) {
           if (settings.debug.video) console.log(`Ignoring maybe-hls url=<${requestDetails.url}> content size=<${contentLength}> above limit:`, requestDetails);
           return;
         }
-        let content = await response.text();
-        playlist = new hls.HLSPlaylist(content, {
+        playlist = new hls.HLSPlaylist(response.text, {
           url: requestDetails.url,
           debug: settings.debug.video
         });
@@ -1024,11 +1049,18 @@ class VideoSourceTabHandler {
       // (HLS keys and subtitles will be downloaded when needed)
       // If we fail, ignore this stream.
       try {
-        let response = await fetch(url, {
-          referrer: http.findHeaderValue(requestHeaders, 'Referer')
+        let response = await this.webext.fetch({
+          resource: url,
+          options: {
+            referrer: requestDetails.referrer,
+            headers: newRequestHeaders
+          }, params: {
+            debug: settings.trace.video,
+            wantText: true
+          }
         });
         if (response.ok) {
-          let content = await response.text();
+          let content = response.text;
           let playlistStream = new hls.HLSPlaylist(content, {
             url: url,
             debug: settings.debug.video
@@ -1056,6 +1088,7 @@ class VideoSourceTabHandler {
         url: url,
         originUrl: requestDetails.originUrl,
         referrer: requestDetails.referrer,
+        newRequestHeaders: newRequestHeaders,
         mimeType: requestDetails.contentType.mimeType,
         hls: stream,
         subtitles,
@@ -1081,6 +1114,7 @@ class VideoSourceTabHandler {
           url: url,
           originUrl: requestDetails.originUrl,
           referrer: requestDetails.referrer,
+          newRequestHeaders: newRequestHeaders,
           mimeType: requestDetails.contentType.mimeType,
           hls: stream,
           subtitles: [],

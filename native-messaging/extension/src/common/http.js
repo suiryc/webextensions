@@ -206,6 +206,21 @@ export class RequestDetails {
     }
   }
 
+  // Gets a map of headers useful to pass when doing a new query for the same
+  // url.
+  // Most would be ignored by browser webextension fetch API, so caller better
+  // delegate the qurery to the native app.
+  newRequestHeaders() {
+    let headers = {};
+
+    for (let name of ['Cookie', 'Origin', 'Referer', 'Sec-Fetch-Dest', 'Sec-Fetch-Mode', 'Sec-Fetch-Site', 'User-Agent']) {
+      let h = findHeaderValue(this.sent?.requestHeaders, name);
+      if (h) headers[name] = h;
+    }
+
+    return headers;
+  }
+
 }
 
 
