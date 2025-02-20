@@ -182,18 +182,27 @@ export class VideoSourceNamer {
 
 class VideoSourceEntryHandler {
 
-  constructor(menuGroup) {
-    this.menuGroup = menuGroup;
+  constructor(videoSource) {
+    this.videoSource = videoSource;
+    this.menuGroup = videoSource.menuGroup;
     this.downloadId = util.uuidv4();
   }
 
   async addMenuEntry(details) {
     await this.removeMenuEntry();
+    if (this.videoSource.removed) {
+      if (settings.video.debug) console.warn(`Ignoring menu actions for removed tab=<${this.videoSource.tabId}> frame=<${this.videoSource.frameId}> video source id=<${this.videoSource.id}> url=<${this.videoSource.url}>`);
+      return;
+    }
     this.menuEntry = await this.menuGroup.addEntry(details);
   }
 
   async updateMenuEntry(details) {
     if (!this.menuEntry) return;
+    if (this.videoSource.removed) {
+      if (settings.video.debug) console.warn(`Ignoring menu actions for removed tab=<${this.videoSource.tabId}> frame=<${this.videoSource.frameId}> video source id=<${this.videoSource.id}> url=<${this.videoSource.url}>`);
+      return;
+    }
     await this.menuEntry.update(details);
   }
 
@@ -209,9 +218,13 @@ class VideoSourceEntryHandler {
 export class VideoSource {
 
   constructor(parent, details) {
-    // Note: we assign an id mainly for debugging purposes.
+    // Notes:
+    //  - we assign an id mainly for debugging purposes
+    //  - since we handle things asynchronously, we track whether this source
+    //    has been removed, so that ongoing async actions can be stopped ASAP
     Object.assign(this, {
       id: util.uuidv4(),
+      removed: false,
       newRequestHeaders: {},
       subtitles: [],
       subtitleEntries: []
@@ -237,7 +250,7 @@ export class VideoSource {
       this.addSubtitleEntry(subtitle);
     }
     delete(this.subtitles);
-    this.entryHandler = new VideoSourceEntryHandler(this.menuGroup);
+    this.entryHandler = new VideoSourceEntryHandler(this);
     this.downloadEntries = [];
     this.needRefresh = true;
   }
@@ -274,6 +287,11 @@ export class VideoSource {
       return download;
     });
     return r;
+  }
+
+  remove() {
+    this.removed = true;
+    return this.removeMenuEntry();
   }
 
   setTabTitle(title) {
@@ -410,7 +428,7 @@ export class VideoSource {
   addSubtitleEntry(subtitle) {
     if (settings.trace.video) console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}> subtitles:`, subtitle);
 
-    let entryHandler = new VideoSourceEntryHandler(this.menuGroup);
+    let entryHandler = new VideoSourceEntryHandler(this);
     entryHandler.subtitle = subtitle;
     this.subtitleEntries.push(entryHandler);
     this.addUrl(subtitle.url);
@@ -434,6 +452,11 @@ export class VideoSource {
   async refresh() {
     if (!this.needRefresh) return false;
     this.needRefresh = false;
+
+    if (this.removed) {
+      if (settings.video.debug) console.warn(`Ignoring actions for removed tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}>`);
+      return false;
+    }
 
     if (!this.tabSite) this.tabSite = util.parseSiteUrl(this.tabUrl);
     if (!this.downloadSite) this.downloadSite = util.parseSiteUrl(this.getUrl());
@@ -907,7 +930,7 @@ class VideoSourceTabHandler {
       let match = source.hasUrl(url);
       if (match) {
         found = source;
-        source.removeMenuEntry();
+        source.remove();
       }
       return !match;
     });
@@ -922,7 +945,7 @@ class VideoSourceTabHandler {
       if (matches) {
         if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, other, source);
         source.merge(other);
-        other.removeMenuEntry();
+        other.remove();
         return false;
       }
       return true;
