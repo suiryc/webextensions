@@ -209,7 +209,9 @@ class VideoSourceEntryHandler {
 export class VideoSource {
 
   constructor(parent, details) {
+    // Note: we assign an id mainly for debugging purposes.
     Object.assign(this, {
+      id: util.uuidv4(),
       newRequestHeaders: {},
       subtitles: [],
       subtitleEntries: []
@@ -391,8 +393,8 @@ export class VideoSource {
     if (subtitle.intercepted || !known.intercepted) return;
 
     if (settings.trace.video) {
-      console.log(`Removing tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, known);
-      console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, subtitle);
+      console.log(`Removing tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}> subtitles:`, known);
+      console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}> subtitles:`, subtitle);
     }
 
     // Replace known one by fresh one.
@@ -406,7 +408,7 @@ export class VideoSource {
   }
 
   addSubtitleEntry(subtitle) {
-    if (settings.trace.video) console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video url=<${this.url}> subtitles:`, subtitle);
+    if (settings.trace.video) console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}> subtitles:`, subtitle);
 
     let entryHandler = new VideoSourceEntryHandler(this.menuGroup);
     entryHandler.subtitle = subtitle;
@@ -1165,10 +1167,10 @@ class VideoSourceTabHandler {
     let reason = checkVideoContentType(contentType);
     if (reason) return this.ignoreDownload(details, reason);
 
-    if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> hls=<${!!details.hls}> video url=<${url}>`);
     details.mimeType = contentType.mimeType;
     details.tabTitle = tabHandler.title;
     let source = new VideoSource(this, details);
+    if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> hls=<${!!details.hls}> video source id=<${source.id}> url=<${url}>`);
     this.sources.push(source);
 
     // Process buffered requests.
@@ -1339,7 +1341,7 @@ class VideoSourceTabHandler {
     // has nothing to do with the URL the response redirects to. So we are done
     // with this response by taking into account the new url.
     if (location) {
-      if (settings.debug.video) console.log(`Tab=<${response.tabId}> frame=<${response.frameId}> video src=<${source.url}> is redirected to=<${location}>`);
+      if (settings.debug.video) console.log(`Tab=<${response.tabId}> frame=<${response.frameId}> video source id=<${source.id}> url=<${source.url}> is redirected to=<${location}>`);
       source.setRedirection(location);
       // Note: we wait for the actual redirected URL request to refresh.
       return;
@@ -1348,7 +1350,7 @@ class VideoSourceTabHandler {
     // Only process standard success code. This filters out errors and
     // non-standard successes.
     if ((statusCode != 200) && (statusCode != 206)) {
-      if (settings.debug.video) console.log(`Not handling tab=<${response.tabId}> frame=<${response.frameId}> video response=<%o>: Response code=<${statusCode}> not managed`, response);
+      if (settings.debug.video) console.log(`Not handling tab=<${response.tabId}> frame=<${response.frameId}> video source id=<${source.id}> response=<%o>: Response code=<${statusCode}> not managed`, response);
       return;
     }
     source.setCompleted();
@@ -1388,7 +1390,7 @@ class VideoSourceTabHandler {
 
     if (source) this.ignoreUrls(source.getUrls());
     else this.discardUrl(details.url);
-    if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> video url=<${details.url}>: ${reason}`);
+    if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> video source id=<${source?.id}> url=<${details.url}>: ${reason}`);
   }
 
   discardUrl(url) {
