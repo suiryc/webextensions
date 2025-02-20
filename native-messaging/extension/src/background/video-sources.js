@@ -232,11 +232,11 @@ export class VideoSource {
     this.addUrl(this.forceUrl);
     // Create menu entries helpers, associated to each subtitle and base source.
     // Note: we only expect to have subtitles when enabled.
+    this.menuGroup = parent.menuHandler?.addGroup();
     for (let subtitle of this.subtitles) {
       this.addSubtitleEntry(subtitle);
     }
     delete(this.subtitles);
-    this.menuGroup = parent.menuHandler?.addGroup();
     this.entryHandler = new VideoSourceEntryHandler(this.menuGroup);
     this.downloadEntries = [];
     this.needRefresh = true;
