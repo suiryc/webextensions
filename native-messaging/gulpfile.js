@@ -93,6 +93,7 @@ function getIgnoredFiles() {
   return settings.extensionTemplatedPaths.map(p => {
     return getTemplatePath(p).substring(extensionPath.length + 1);
   }).concat(excludedPaths).concat([
+    'doc',
     'src'
   ]);
 }
