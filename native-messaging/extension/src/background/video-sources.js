@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import * as unsafe from '../common/unsafe.js';
 import * as http from '../common/http.js';
 import * as hls from './stream-hls.js';
@@ -778,6 +779,15 @@ export class VideoSource {
 //
 // Merging mostly transfers the previous source information unless already
 // known in the new source.
+//
+//
+// Since some fields (e.g. 'sources') may be modified while we do 'async' things,
+// sometimes we prefer to:
+//  - first do a (shallow) copy of the collection to work on
+//  - work on the copy, inside an explicit promise
+//  - have the function non-async, and return the explicit promise
+// This ensures we work on the actual elements the caller could see before
+// calling, while still handling async stuff to do.
 class VideoSourceTabHandler {
 
   constructor(parent, tabHandler) {
@@ -825,23 +835,37 @@ class VideoSourceTabHandler {
     });
   }
 
-  async tabUpdated(details) {
+  tabUpdated(details) {
+    let r = asynchronous.defer;
+
     if (details.tabChanges.url) this.tabReset({sameUrl: false});
     if (details.tabChanges.title) {
-      for (let source of this.sources) {
-        source.setTabTitle(details.tabChanges.title);
-        await source.refresh();
+      // Note: do our best to work on expected 'sources' even if they are altered
+      // while we work on them.
+      let sources = this.sources.slice();
+      r = r.then(async () => {
+        for (let source of sources) {
+          source.setTabTitle(details.tabChanges.title);
+          await source.refresh();
+        }
+      });
+      r = r.then(() => {
         this.updateVideos();
-      }
+      });
     }
+
+    return r;
   }
 
-  async tabReset(details) {
+  tabReset(details) {
     // If we remain on the same url, we don't have to forget previous sources
     // or ignored urls.
     if (!details.sameUrl) {
       this.requestsHandler.clear();
-      await this.removeMenuEntries();
+      for (let source of this.sources) {
+        // Note: there is no need to 'await' for this.
+        source.remove();
+      }
       this.sources = [];
       this.subtitles = {};
       this.ignoredUrls.clear();
@@ -894,16 +918,22 @@ class VideoSourceTabHandler {
     }
   }
 
-  async addMenuEntries() {
-    for (let source of this.sources) {
-      await source.addMenuEntry();
-    }
+  addMenuEntries() {
+    let sources = this.sources.slice();
+    return asynchronous.defer.then(async () => {
+      for (let source of sources) {
+        await source.addMenuEntry();
+      }
+    });
   }
 
-  async removeMenuEntries() {
-    for (let source of this.sources) {
-      await source.removeMenuEntry();
-    }
+  removeMenuEntries() {
+    let sources = this.sources.slice();
+    return asynchronous.defer.then(async () => {
+      for (let source of sources) {
+        await source.removeMenuEntry();
+      }
+    });
   }
 
   findSource(url, update) {
