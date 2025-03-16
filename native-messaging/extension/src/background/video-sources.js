@@ -330,6 +330,14 @@ export class VideoSource {
     return this.urls.has(url);
   }
 
+  setReferrer(referrer) {
+    // Update source referrer, and existing download entries too.
+    this.referrer = referrer;
+    for (let entryHandler of this.downloadEntries) {
+      entryHandler.download.details.referrer = this.referrer || this.frameUrl;
+    }
+  }
+
   setRedirection(url) {
     // Ignore url if already used.
     if ((url == this.url) || (url == this.actualUrl)) return;
@@ -492,6 +500,8 @@ export class VideoSource {
         url: this.getUrl(),
         // We may already know a referrer (e.g. intercepted request), or fall
         // back to the frame URL (if applicable).
+        // Note: when referrer is updated on source, it is also updated in
+        // download entries.
         referrer: this.referrer || this.frameUrl,
         cookie: this.cookie,
         userAgent: this.userAgent,
@@ -629,7 +639,7 @@ export class VideoSource {
         let response = await this.webext.fetch({
           resource: details.subtitle.url,
           options: {
-            referrer: this.referrer,
+            referrer: details.referrer,
             headers: this.newRequestHeaders
           }, params: {
             debug: settings.trace.video,
@@ -668,7 +678,7 @@ export class VideoSource {
           let response = await this.webext.fetch({
             resource: key.url,
             options: {
-              referrer: this.referrer,
+              referrer: details.referrer,
               headers: this.newRequestHeaders
             }, params: {
               debug: settings.trace.video,
@@ -946,7 +956,16 @@ class VideoSourceTabHandler {
         if (update) {
           for (let [field, value] of Object.entries(update)) {
             if (!source[field] && (value !== undefined) && (value !== null)) {
-              source[field] = value;
+              // Notes:
+              // If source has a 'setXXX' method for the field, call it.
+              // None of the fields we (current callers) update here require to
+              // refresh the source.
+              let updateMethod = `set${field.charAt(0).toUpperCase()}${field.slice(1)}`;
+              if (updateMethod in source) {
+                source[updateMethod](value);
+              } else {
+                source[field] = value;
+              }
             }
           }
         }
