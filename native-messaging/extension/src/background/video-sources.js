@@ -712,6 +712,15 @@ export class VideoSource {
         }
       }
     }
+
+    // For HLS, pass headers too.
+    if (details.hls && !details.headers) {
+      details.headers = [];
+      for (let [name, value] of Object.entries(this.newRequestHeaders)) {
+        details.headers.push({name, value});
+      }
+    }
+
     await dlMngr.download(details, entryHandler.download.params);
   }
 
