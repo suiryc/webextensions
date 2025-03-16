@@ -119,10 +119,15 @@ async function dl_updateVideos(sources, showTab) {
       // 'title' to let the browser display it.
       node.setAttribute('title', tooltip.join('\n'));
       node.addEventListener('click', data => {
-        let details = download.details;
+        // Triggering video download only requires to know:
+        //  - the 'source' (contains unique video id)
+        //  - download extra details: all original details are known by target
+        //    and don't need to be passed back
         // Auto-download enabled by default, unless using non-main button
         // or 'Ctrl' key.
-        details.auto = (data.button == 0) && !data.ctrlKey;
+        let details = {
+          auto: (data.button == 0) && !data.ctrlKey
+        };
         webext.sendMessage({
           target: constants.TARGET_BACKGROUND_PAGE,
           kind: constants.KIND_DL_VIDEO,

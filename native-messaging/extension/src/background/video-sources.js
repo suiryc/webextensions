@@ -610,7 +610,8 @@ export class VideoSource {
 
   // Trigger download for given entry handler.
   async download(entryHandler, details) {
-    // 'auto' is given from caller details.
+    // Use current entry download details, and get extra details from caller.
+    // Expected extra details: 'auto'.
     details = Object.assign({}, entryHandler.download.details, {
       auto: details.auto
     });
@@ -719,9 +720,9 @@ export class VideoSource {
         onclick: (data, tab) => {
           // Auto-download enabled by default, unless using non-main button
           // or 'Ctrl' key.
-          self.download(entryHandler, Object.assign({}, entryHandler.download.details, {
+          self.download(entryHandler, {
             auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
-          }));
+          });
         }
       });
     }
