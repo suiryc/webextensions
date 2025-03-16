@@ -490,7 +490,9 @@ export class VideoSource {
       },
       details: {
         url: this.getUrl(),
-        referrer: this.frameUrl,
+        // We may already know a referrer (e.g. intercepted request), or fall
+        // back to the frame URL (if applicable).
+        referrer: this.referrer || this.frameUrl,
         cookie: this.cookie,
         userAgent: this.userAgent,
         file: filename,
