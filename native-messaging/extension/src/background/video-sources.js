@@ -855,6 +855,47 @@ class VideoSourceTabHandler {
         notifDefaults: self.notifDefaults
       })
     });
+
+    setting = settings.video.interceptRefining;
+    self.interceptRefining = self.tabHandler.extensionProperties.get({
+      key: setting.getKey(),
+      create: tabHandler => new unsafe.CodeExecutor({
+        webext: self.webext,
+        name: 'interception refining',
+        args: ['params'],
+        setting,
+        notifDefaults: self.notifDefaults
+      })
+    });
+    // Reset intercepton refining when modified.
+    [settings.video.interceptRefining.inner.enabled, settings.video.interceptRefining.inner.script].forEach(setting => {
+      setting.addListener((setting, oldValue, newValue) => {
+        this.refined = undefined;
+      });
+    });
+  }
+
+  async refineInterception() {
+    if (this.refined === undefined) {
+      this.refined = this.interceptRefining.execute({
+        params: Object.assign({}, {
+          windowId: this.tabHandler.windowId,
+          tabId: this.tabHandler.id,
+          url: this.tabHandler.url
+        })
+      });
+    }
+
+    // For debugging purposes, replace promise with result once known.
+    let r = await this.refined;
+    this.refined = r;
+
+    return r;
+  }
+
+  async canInterceptVideo() {
+    let refined = await this.refineInterception();
+    return !(refined?.intercept?.disabled ?? false) && (refined?.intercept?.video ?? true);
   }
 
   tabUpdated(details) {
@@ -883,6 +924,8 @@ class VideoSourceTabHandler {
     // If we remain on the same url, we don't have to forget previous sources
     // or ignored urls.
     if (!details.sameUrl) {
+      // Reset interception refining too.
+      this.refined = undefined;
       this.requestsHandler.clear();
       for (let source of this.sources) {
         // Note: there is no need to 'await' for this.
@@ -1271,6 +1314,7 @@ class VideoSourceTabHandler {
 
   async addSubtitles(details) {
     if (!settings.video.subtitles.intercept) return;
+    if (!await this.canInterceptVideo()) return;
 
     let subtitles = details.subtitles;
     if (!subtitles || !subtitles.length) return;
@@ -1299,6 +1343,8 @@ class VideoSourceTabHandler {
   }
 
   async onRequest(request) {
+    if (!await this.canInterceptVideo()) return;
+
     let url = request.url;
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
@@ -1323,6 +1369,8 @@ class VideoSourceTabHandler {
   }
 
   async onResponse(response) {
+    if (!await this.canInterceptVideo()) return;
+
     let url = response.url;
     let location;
     let statusCode = response.statusCode;

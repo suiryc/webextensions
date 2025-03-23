@@ -276,6 +276,19 @@ let nodesObserver = new MutationObserver(function(mutations, observer) {
 export async function run() {
   if (!settings.video.intercept || !document.URL.startsWith('http')) return;
 
+  let refined = await unsafe.executeCode({
+    webext,
+    name: 'interception refining',
+    args: {
+      params: Object.assign({}, notifDefaults, {
+        url: location.href
+      })
+    },
+    setting: settings.video.interceptRefining,
+    notifDefaults
+  });
+  if (refined?.intercept?.disabled || !(refined?.intercept?.video ?? true)) return;
+
   await util.waitForDocument();
   // Observe mutations in document, to detect new video tags being added.
   nodesObserver.observe(document.body, { childList: true, subtree: true });

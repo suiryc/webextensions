@@ -87,6 +87,7 @@ html, body {
       <div class="tab-content">
         <!-- Inner tabs: don't forget to use a dedicated 'name' for radio buttons -->
         <input type="radio" id="tab-item-videos-main" name="tabs-videos" class="tab-locator" hidden checked>
+        <input type="radio" id="tab-item-videos-intercept-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-download-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-response-refining" name="tabs-videos" class="tab-locator" hidden>
         <input type="radio" id="tab-item-videos-subtitles-refining" name="tabs-videos" class="tab-locator" hidden>
@@ -96,6 +97,9 @@ html, body {
           <ul class="tab">
             <li class="tab-item">
               <label for="tab-item-videos-main" class="clickable"><a>Main</a></label>
+            </li>
+            <li class="tab-item">
+              <label for="tab-item-videos-intercept-refining" class="clickable"><a>Interception refining</a></label>
             </li>
             <li class="tab-item">
               <label for="tab-item-videos-download-refining" class="clickable"><a>Download refining</a></label>
@@ -124,6 +128,11 @@ html, body {
                 <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.subtitles.intercept"><i class="form-icon"></i><span>Intercept subtitles</span></label></div>
               </div>
             </div>
+          </div>
+
+          <div class="tab-content">
+            <div><label class="form-switch clickable d-inline-block"><input type="checkbox" id="video.interceptRefining.enabled"><i class="form-icon"></i><span>Enable</span></label></div>
+            <textarea class="form-input input-script" id="video.interceptRefining.script" rows="70" spellcheck="false" autocorrect="off"></textarea>
           </div>
 
           <div class="tab-content">
