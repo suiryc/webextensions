@@ -1,5 +1,6 @@
 'use strict';
 
+import { constants } from './constants.js';
 import * as util from './util.js';
 import * as http from './http.js';
 // Import and expose ourself in scripts.
@@ -19,7 +20,8 @@ export class CodeExecutor {
     self.notifDefaults = params.notifDefaults;
     self.scriptName = params.name;
     // We will pass useful helpers automatically.
-    self.argNames = params.args.concat(['http', 'notif', 'unsafe', 'util', 'webext', 'settings']);
+    // REMINDER: name must match with 'execute' code!
+    self.argNames = params.args.concat(['constants', 'http', 'notif', 'unsafe', 'util', 'webext', 'settings']);
     if (params.code) {
       self.setup(params.code);
       return;
@@ -80,7 +82,10 @@ export class CodeExecutor {
     if (!this.f) return {};
     let argValues = [];
     let notif = this.getNotif();
+    // Pass useful helpers automatically.
+    // REMINDER: name must match with 'constructor' code!
     args = Object.assign({
+      constants,
       http,
       notif,
       unsafe,
