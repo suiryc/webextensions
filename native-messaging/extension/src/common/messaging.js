@@ -78,6 +78,11 @@ export class WebExtension {
     else self.connect();
   }
 
+  // Create a new instance with updated params.
+  withParams(params) {
+    return new WebExtension(Object.assign({}, this.params, params));
+  }
+
   getNotif(source, defaults) {
     // Create a re-usable dedicated notifier.
     return this.extensionProperties.get({
@@ -183,7 +188,8 @@ export class WebExtension {
   }
 
   isTarget(msg) {
-    return !msg.target || (msg.target == this.params.target);
+    return !msg.target ||
+      ((msg.target == this.params.target) && (!msg.targetId || (msg.targetId == this.params.targetId)));
   }
 
   // Listens to incoming connections.
