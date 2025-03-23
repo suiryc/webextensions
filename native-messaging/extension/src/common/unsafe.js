@@ -92,7 +92,7 @@ export class CodeExecutor {
       util,
       webext: this.webext,
       settings
-    }, args);
+    }, args || {});
     for (let arg of this.argNames) {
       argValues.push(args[arg]);
     }
@@ -116,6 +116,7 @@ export class CodeExecutor {
 
 // Executes script code.
 export async function executeCode(params) {
+  if (!params.args) params.args = {};
   let executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
   return await executor.execute(params.args);
 }
