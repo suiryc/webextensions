@@ -44,6 +44,8 @@ export const constants = {
   // We handle 'options page' with the same code than 'browser action'.
   // We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
 
+  TARGET_ID_CUSTOM_CONTENT_SCRIPT: 'custom content script',
+
   // Message known 'kind' field values
   KIND_ADD_VIDEO_SOURCE: 'addVideoSource',
   KIND_ADD_VIDEO_SUBTITLES: 'addVideoSubtitles',

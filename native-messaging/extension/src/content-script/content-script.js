@@ -57,7 +57,7 @@ let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CON
   try {
     unsafe.executeCode({
       webext,
-      name: 'custom content script',
+      name: constants.TARGET_ID_CUSTOM_CONTENT_SCRIPT,
       args: {},
       setting: settings.content_scripts.custom,
       notifDefaults
