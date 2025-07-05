@@ -52,6 +52,8 @@ function sortTabs(tabs) {
 
 export class TabSuccessor {
 
+  static CHECK_TABS_DELAY = 1000;
+
   constructor(tabsHandler) {
     let self = this;
     self.tabsHandler = tabsHandler;
@@ -79,7 +81,7 @@ export class TabSuccessor {
     // Reminder: the first tab of the chain will be moved out of its current
     // line of succession: its predecessor will be assigned another successor.
     await browser.tabs.moveInSuccession(tabs.map(tab => tab.id), successor, options);
-    self.scheduleCheckTabs();
+    await self.scheduleCheckTabs();
   }
 
   async setup(resetSuccessors) {
@@ -137,14 +139,14 @@ export class TabSuccessor {
     // 'chainTabs' does call 'scheduleCheckTabs'.
     // Belt and suspenders: ensure we at least call it once, in the case we
     // don't find any tab to setup.
-    if (!tabsByWindow.length) self.scheduleCheckTabs();
+    if (!tabsByWindow.length) await self.scheduleCheckTabs();
   }
 
   async tabCreated(details) {
     let self = this;
     let tab = details.tab;
     if (tab.active || !tab.openerTabId) {
-      self.scheduleCheckTabs();
+      await self.scheduleCheckTabs();
       return;
     }
     // This is an inactive tab. Group them by opener.
@@ -242,7 +244,7 @@ export class TabSuccessor {
       return;
     }
     if (!details.previousTabId) {
-      self.scheduleCheckTabs();
+      await self.scheduleCheckTabs();
       return;
     }
     if (details.previousTabId == details.tabId) {
@@ -253,15 +255,15 @@ export class TabSuccessor {
       return;
     }
     await browser.tabs.moveInSuccession([details.tabId], details.previousTabId);
-    self.scheduleCheckTabs();
+    await self.scheduleCheckTabs();
   }
 
-  tabRemoved(details) {
+  async tabRemoved(details) {
     let self = this;
     let tabId = details.tabId;
     let openedTab = self.inactiveOpenedTabs.byId[tabId];
     if (!openedTab) {
-      self.scheduleCheckTabs();
+      await self.scheduleCheckTabs();
       return;
     }
     // Forget this inactive opened tab.
@@ -276,17 +278,17 @@ export class TabSuccessor {
     } else {
       self.inactiveOpenedTabs.byOpener[openedTab.openerTabId] = opened;
     }
-    self.scheduleCheckTabs();
+    await self.scheduleCheckTabs();
     // Note: there is no need to update the chain of successors, it has been
     // done by the browser for us.
   }
 
-  tabDetached(details) {
-    this.tabRemoved(details);
+  async tabDetached(details) {
+    await this.tabRemoved(details);
   }
 
-  tabAttached(details) {
-    this.scheduleCheckTabs();
+  async tabAttached(details) {
+    await this.scheduleCheckTabs();
   }
 
   // Unload (that is, discard) tab(s).
@@ -352,10 +354,17 @@ export class TabSuccessor {
   // Schedules checkTabs call.
   // Previously scheduled call is cleared before creating the new one.
   // Useful when many rapid actions trigger more than one scheduling.
-  scheduleCheckTabs(delay = 1000) {
+  async scheduleCheckTabs() {
     if (!settings.debug.tabs.successor) return;
     if (this.scheduledCheckTabs) clearTimeout(this.scheduledCheckTabs);
-    this.scheduledCheckTabs = setTimeout(this.checkTabs.bind(this), delay);
+    if (TabSuccessor.CHECK_TABS_DELAY > 0) {
+      this.scheduledCheckTabs = setTimeout(
+        this.checkTabs.bind(this),
+        TabSuccessor.CHECK_TABS_DELAY
+      );
+    } else {
+      await this.checkTabs();
+    }
   }
 
   // Checks all tabs and logs debugging information.
