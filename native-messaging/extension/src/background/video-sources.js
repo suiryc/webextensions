@@ -190,7 +190,9 @@ class VideoSourceEntryHandler {
   }
 
   async addMenuEntry(details) {
-    await this.removeMenuEntry();
+    // Note: conditionnally 'await', so that we execute as most code as we can
+    // before other concurrent code is executed.
+    if (this.menuEntry) await this.removeMenuEntry();
     if (this.videoSource.removed) {
       if (settings.video.debug) console.warn(`Ignoring menu actions for removed tab=<${this.videoSource.tabId}> frame=<${this.videoSource.frameId}> video source id=<${this.videoSource.id}> url=<${this.videoSource.url}>`);
       return;
@@ -1047,7 +1049,7 @@ class VideoSourceTabHandler {
       if (other === source) return true;
       let matches = source.matches(other);
       if (matches) {
-        if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, other, source);
+        if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, util.tryStructuredClone(other), util.tryStructuredClone(source));
         source.merge(other);
         other.remove();
         return false;
