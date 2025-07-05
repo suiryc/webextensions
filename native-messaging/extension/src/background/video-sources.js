@@ -941,21 +941,22 @@ class VideoSourceTabHandler {
   }
 
   tabReset(details) {
-    // If we remain on the same url, we don't have to forget previous sources
-    // or ignored urls.
-    if (!details.sameUrl) {
-      // Reset interception refining too.
-      this.refined = undefined;
-      this.requestsHandler.clear();
-      for (let source of this.sources) {
-        // Note: there is no need to 'await' for this.
-        source.remove();
-      }
-      this.sources = [];
-      this.subtitles = {};
-      this.ignoredUrls.clear();
-      this.updateVideos();
+    // Even if we remain on the same url, assume we will get (again) the same
+    // sources and details if the page content (about to be loaded) truly is
+    // the same.
+    // Some sites do actually navigate to other content while keeping the same
+    // url, so better forget previous sources etc.
+    // Reset interception refining too.
+    this.refined = undefined;
+    this.requestsHandler.clear();
+    for (let source of this.sources) {
+      // Note: there is no need to 'await' for this.
+      source.remove();
     }
+    this.sources = [];
+    this.subtitles = {};
+    this.ignoredUrls.clear();
+    this.updateVideos();
     this.bufferedRequests = {};
   }
 
