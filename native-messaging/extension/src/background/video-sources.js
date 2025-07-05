@@ -256,6 +256,7 @@ export class VideoSource {
     this.entryHandler = new VideoSourceEntryHandler(this);
     this.downloadEntries = [];
     this.needRefresh = true;
+    this.mutex = new asynchronous.Mutex();
   }
 
   // Clone this video source, without fields that cannot be cloned when passing
@@ -472,8 +473,25 @@ export class VideoSource {
     if (!this.tabSite) this.tabSite = util.parseSiteUrl(this.tabUrl);
     if (!this.downloadSite) this.downloadSite = util.parseSiteUrl(this.getUrl());
 
+    // Notes:
+    // Since we receive information from both content script and intercepted
+    // query responses, refreshing can be called multiple times in a short time.
+    // There is no simple way to ensure everything is done properly (concurrent
+    // accesses) and efficiently.
+    // However, there are a few places wher we can, and need, to synchronize
+    // concurrent code execution.
+    // Here, we setup a 'namer' from currently known information, and let it
+    // execute async code to determine new name/extension to use if applicable.
+    // We really want callers to modify the source in the order they arrived,
+    // so that we ensure the one with the most recent information will do the
+    // final modifications.
+    // Hence, we use 'syncEnding': callers may run in parallel, we only need
+    // them to continue in their initial order.
     let namer = new VideoSourceNamer(this);
-    await namer.refine();
+    await this.mutex.syncEnding(async () => {
+      await namer.refine();
+    });
+
     let {name, extension, filename} = namer;
     let downloadFile = {
       name,
