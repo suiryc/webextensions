@@ -145,6 +145,10 @@ export class TabSuccessor {
   async tabCreated(details) {
     let self = this;
     let tab = details.tab;
+
+    // When starting, we are notified of existing tabs: don't react yet.
+    if (!details.created) return;
+
     if (tab.active || !tab.openerTabId) {
       await self.scheduleCheckTabs();
       return;
