@@ -123,6 +123,8 @@ class TabHandler {
 
   update(tab) {
     let self = this;
+    // Keep the latest tab object, mostly for observers.
+    self.cachedTab = tab;
     // Notes:
     // The url is updated through main frame handling when navigating to a new
     // URL. But sometimes the page do change its URL, remaining on the same site
@@ -300,9 +302,10 @@ class TabHandler {
 //  - tabActivated: a tab has been activated
 //    * may be called twice if tab handler does not exist yet and is created
 //      later (frame added) while the tab is still active
-//  - tabAdded: a new tab has been added
 //  - tabAttached: a tab has been attached to a window
-//  - tabCreated: a new tab has been created
+//  - tabCreated: a new tab has been added/created
+//    * called when tab is first created, or the first time the handler does
+//      take the tab into account
 //  - tabDetached: a tab has been detached from a window
 //  - tabFocused: a tab has focus
 //  - tabRemoved: a tab is being removed
@@ -425,12 +428,18 @@ export class TabsHandler {
     this.observers.push(observer);
     if (silent) return;
     // Trigger 'fake' events depending on observed ones.
-    let hasTabAdded = util.hasMethod(observer, constants.EVENT_TAB_ADDED);
+    let hasTabCreated = util.hasMethod(observer, constants.EVENT_TAB_CREATED);
     let hasFrameAdded = util.hasMethod(observer, constants.EVENT_FRAME_ADDED);
     // Reminder: object keys are strings.
-    if (hasTabAdded || hasFrameAdded) {
+    if (hasTabCreated || hasFrameAdded) {
       for (let tabHandler of Object.values(this.tabs)) {
-        if (hasTabAdded) this.notifyObserver(observer, constants.EVENT_TAB_ADDED, { windowId: tabHandler.windowId, tabId: tabHandler.id, tabHandler });
+        if (hasTabCreated) this.notifyObserver(observer, constants.EVENT_TAB_CREATED, {
+          windowId: tabHandler.windowId,
+          tabId: tabHandler.id,
+          tabHandler,
+          tab: tabHandler.cachedTab,
+          created: false
+        });
         if (hasFrameAdded) {
           for (let frameHandler of Object.values(tabHandler.frames)) {
             this.notifyObserver(observer, constants.EVENT_FRAME_ADDED, {
@@ -498,7 +507,7 @@ export class TabsHandler {
 
   // Adds tab and return tab handler.
   // If tab is known, existing handler is returned.
-  async addTab(tab) {
+  async addTab(tab, created) {
     let windowId = tab.windowId;
     let tabId = tab.id;
     let tabHandler = this.tabs[tabId];
@@ -509,7 +518,7 @@ export class TabsHandler {
 
     if (settings.debug.misc) console.log(`Managing new window=<${windowId}> tab=<${tabId}> url=<${tab.url}>`);
     this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
-    this.notifyObservers(constants.EVENT_TAB_ADDED, { windowId, tabId, tabHandler });
+    this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tabHandler, tab, created });
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)
     //  - if we know the active tab id, it must be this tab: in this case we
@@ -607,9 +616,9 @@ export class TabsHandler {
     let tabId = details.tabId;
     let tabHandler = self.tabs[tabId];
     if (!tabHandler) {
-      // Tab is not known yet, add it first.
+      // Belt and suspenders: tab is not known yet, add it first.
       tabHandler = await browser.tabs.get(tabId).then(tab => {
-        return self.addTab(tab);
+        return self.addTab(tab, false);
       }, error => {
         console.log(`Could not manage tab=<${tabId}>:`, error);
       });
@@ -624,17 +633,11 @@ export class TabsHandler {
     tabHandler.resetFrame(details);
   }
 
-  createTab(tab) {
-    let windowId = tab.windowId;
-    let tabId = tab.id;
-    this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tab });
-  }
-
   updateTab(tab, tabChanges) {
     let tabHandler = this.tabs[tab.id];
     if (!tabHandler) {
-      // Tab is not known yet, add it instead.
-      tabHandler = this.addTab(tab);
+      // Belt and suspenders: tab is not known yet, add it instead.
+      tabHandler = this.addTab(tab, false);
     } else {
       let windowId = tab.windowId;
       let tabId = tab.id;
@@ -727,9 +730,9 @@ export class TabsHandler {
       self.activateTab(details);
     });
     // tabs.onCreated parameters: Tab
-    browser.tabs.onCreated.addListener(function(details) {
+    browser.tabs.onCreated.addListener(function(tab) {
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onCreated', ...arguments]);
-      self.createTab(details);
+      self.addTab(tab, true);
     });
     // tabs.onUpdated parameters:
     //  - tabId
@@ -778,7 +781,7 @@ export class TabsHandler {
     // So ensure we determine focused window and active tabs.
     self.focusWindow((await browser.windows.getLastFocused()).id);
     for (let tab of await browser.tabs.query({active: true})) {
-      self.addTab(tab);
+      self.addTab(tab, false);
     }
   }
 

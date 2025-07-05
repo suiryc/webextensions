@@ -164,7 +164,7 @@ class TabsObserver {
     webext.extensionProperties.tabsHandler = this;
   }
 
-  tabAdded(details) {
+  tabCreated(details) {
     this.tabs[details.tabId] = details;
   }
 
