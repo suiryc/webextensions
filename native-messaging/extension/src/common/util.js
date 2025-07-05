@@ -90,6 +90,11 @@ export function epoch() {
   return Math.round(getTimestamp() / 1000);
 }
 
+export function isEmptyObject(obj) {
+  for (let unused in obj) return false;
+  return true;
+}
+
 // Clone object structure.
 // Handles failures by ignoring/transfomring unhandled values.
 export function tryStructuredClone(obj, processed) {

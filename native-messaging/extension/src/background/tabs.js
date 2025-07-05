@@ -130,33 +130,25 @@ class TabHandler {
     // Sometimes we get notified of an URL change, but the value remains the
     // same. If there is no change, ignore it (and especially don't notify
     // listeners).
-    if (tab.url == self.url) return false;
-    self.url = tab.url;
-    // Ensure main frame URL is up to date too.
-    if (self.frameHandler) self.frameHandler.setUrl(tab.url);
-    self.title = tab.title;
+    //
+    // At least refresh what could change: title.
+    let changes = {};
+    if (tab.title != self.title) self.title = changes.title = tab.title;
+
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
-    if ((tab.status == 'loading') && tab.url.endsWith(tab.title)) {
-      let listener = function(tabId, changeInfo, tab) {
-        if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
-        self.title = tab.title;
-        if (changeInfo.title) self.tabsHandler.notifyObservers(constants.EVENT_TAB_UPDATED, {
-          windowId: self.windowId,
-          tabId: self.id,
-          tabHandler: self,
-          tabChanges: changeInfo
-        });
-        // When page has been loaded, let some more time for title change.
-        if (tab.status == 'complete') {
-          setTimeout(() => {
-            browser.tabs.onUpdated.removeListener(listener);
-          }, 2000);
-        }
-      };
-      browser.tabs.onUpdated.addListener(listener, {tabId: self.id, properties: ['title', 'status']});
+    if ((tab.status == 'loading') && tab.url.endsWith(tab.title)) self.addTitleListener();
+    // When page has been loaded, let some more time for title change.
+    if (tab.status == 'complete') self.scheduleRemoveTitleListener();
+
+    if (tab.url != self.url) {
+      self.url = changes.url = tab.url;
+
+      // Ensure main frame URL is up to date too.
+      if (self.frameHandler) self.frameHandler.setUrl(tab.url);
     }
-    return true;
+
+    return changes;
   }
 
   getTabsHandler() {
@@ -171,8 +163,45 @@ class TabHandler {
     return (this.getTabsHandler().focusedTab.id == this.id);
   }
 
+  addTitleListener() {
+    let self = this;
+
+    if (self.titleListener) return;
+
+    self.titleListener = function(tabId, tabChanges, tab) {
+      if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
+      // Let nominal code handle any change.
+      self.tabsHandler.updateTab(tab, tabChanges);
+    };
+    browser.tabs.onUpdated.addListener(self.titleListener, {tabId: self.id, properties: ['title']});
+  }
+
+  removeTitleListener(listener) {
+    if (!listener) listener = this.titleListener;
+    if (!listener) return;
+
+    // Belt ans suspenders: remove the listener unconditionally, even though we
+    // expect it would have already been done if a new one was created.
+    browser.tabs.onUpdated.removeListener(listener);
+    // Make sure to not delete any new one.
+    if (this.titleListener === listener) delete(this.titleListener);
+  }
+
+  scheduleRemoveTitleListener() {
+    let self = this;
+    // Remember the listener to remove, in case page is changed in the meantime
+    // (and another listener is created).
+    let listener = self.titleListener;
+    if (!listener) return;
+
+    setTimeout(() => {
+      self.removeTitleListener(listener);
+    }, 2000);
+  }
+
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
+    this.removeTitleListener();
     // Reset main frame.
     // Note: notify observer even if we don't know the main frame.
     if (this.frameHandler) this.frameHandler.reset(details, notify);
@@ -609,7 +638,11 @@ export class TabsHandler {
     } else {
       let windowId = tab.windowId;
       let tabId = tab.id;
-      if (tabHandler.update(tab)) this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
+      let changes = tabHandler.update(tab);
+      if (!util.isEmptyObject(changes)) {
+        Object.assign(tabChanges, changes);
+        this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
+      }
     }
   }
 
@@ -702,11 +735,14 @@ export class TabsHandler {
     //  - tabId
     //  - changeInfo
     //  - tab (fields already updated)
-    // Note: once created, we listen to title changes.
+    // We listen on useful changes globally:
+    //  - url
+    //  - status: which we rely on for temporary title changes
+    // Once created, we listen temporarily for title changes.
     browser.tabs.onUpdated.addListener(function(tabId, tabChanges, tab) {
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
       self.updateTab(tab, tabChanges);
-    }, {properties: ['url']});
+    }, {properties: ['url', 'status']});
 
     // tabs.onAttached parameters:
     //  - tabId
