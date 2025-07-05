@@ -455,7 +455,7 @@ class TabsObserver {
 
   videosUpdated(details) {
     let tabHandler = details.tabHandler;
-    if (!tabHandler.isActive()) return;
+    if (!tabHandler.active) return;
     let sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
     this.updateVideos(tabHandler.windowId, sources);
   }

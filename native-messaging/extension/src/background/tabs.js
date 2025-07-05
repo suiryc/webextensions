@@ -133,9 +133,19 @@ class TabHandler {
     // same. If there is no change, ignore it (and especially don't notify
     // listeners).
     //
-    // At least refresh what could change: title.
+    // At least refresh what could change: title, active, discarded, ...
     let changes = {};
     if (tab.title != self.title) self.title = changes.title = tab.title;
+    self.active = tab.active;
+    self.discarded = tab.discarded;
+    // Notes:
+    // The 'lastAccessed' property changes cannot be tracked.
+    // When we first create the handler, we can get the current value.
+    // But later, we can only rely on 'onActivated' listener to guess when tab
+    // was last accessed (without having to query the information each time).
+    // To remain consistant, we keep our timestamp and never re-read the actual
+    // tab one. At worst, caller can check 'cachedTab' if needed.
+    if (!('lastAccessed' in self)) self.lastAccessed = tab.lastAccessed;
 
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
@@ -153,12 +163,13 @@ class TabHandler {
     return changes;
   }
 
-  getTabsHandler() {
-    return this.tabsHandler;
+  updateTabField(field, v) {
+    this[field] = v;
+    if (this.cachedTab) this.cachedTab[field] = v;
   }
 
-  isActive() {
-    return (this.getTabsHandler().getActiveTab(this.windowId).id == this.id);
+  getTabsHandler() {
+    return this.tabsHandler;
   }
 
   isFocused() {
@@ -558,6 +569,15 @@ export class TabsHandler {
       windowId,
       handler: tabHandler
     };
+    // Refresh 'lastAccessed'.
+    if (tabHandler) tabHandler.updateTabField('lastAccessed', util.getTimestamp());
+    // Refresh concerned window tabs 'active' information if necessary.
+    if (!tabHandler || !tabHandler.active) {
+      for (let handler of Object.values(this.tabs)) {
+        if (handler.windowId != windowId) continue;
+        handler.updateTabField('active', handler.id == tabId);
+      }
+    }
     if (settings.debug.misc) console.log(`Activated window=<${windowId}> tab=<${tabId}>`);
     this.notifyObservers(constants.EVENT_TAB_ACTIVATED, {
       windowId,
@@ -644,7 +664,7 @@ export class TabsHandler {
       let changes = tabHandler.update(tab);
       if (!util.isEmptyObject(changes)) {
         Object.assign(tabChanges, changes);
-        this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges });
+        this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges, tab });
       }
     }
   }
@@ -726,6 +746,7 @@ export class TabsHandler {
     // tabs.onActivated parameters:
     //  - activeInfo: {tabId, windowId, previousTabId}
     browser.tabs.onActivated.addListener(function(details) {
+      details.timeStamp = util.getTimestamp();
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onActivated', ...arguments]);
       self.activateTab(details);
     });
@@ -741,16 +762,19 @@ export class TabsHandler {
     // We listen on useful changes globally:
     //  - url
     //  - status: which we rely on for temporary title changes
+    //  - discarded
     // Once created, we listen temporarily for title changes.
     browser.tabs.onUpdated.addListener(function(tabId, tabChanges, tab) {
+      tabChanges.timeStamp = util.getTimestamp();
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onUpdated', ...arguments]);
       self.updateTab(tab, tabChanges);
-    }, {properties: ['url', 'status']});
+    }, {properties: ['url', 'status', 'discarded']});
 
     // tabs.onAttached parameters:
     //  - tabId
     //  - attachInfo: {newWindowId, newPosition}
     browser.tabs.onAttached.addListener(function(tabId, details) {
+      details.timeStamp = util.getTimestamp();
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onAttached', ...arguments]);
       self.attachTab(Object.assign({tabId}, details));
     });
@@ -758,6 +782,7 @@ export class TabsHandler {
     //  - tabId
     //  - detachInfo: {oldWindowId, oldPosition}
     browser.tabs.onDetached.addListener(function(tabId, details) {
+      details.timeStamp = util.getTimestamp();
       if (settings.debug.tabs.events) console.log.apply(console, ['tabs.onDetached', ...arguments]);
       self.detachTab(Object.assign({tabId}, details));
     });
@@ -768,19 +793,20 @@ export class TabsHandler {
     // to track all pages so that we do reset whenever the url do change, even
     // in 'about:blank'/'about:home'/etc. cases.
     browser.webNavigation.onBeforeNavigate.addListener(function(details) {
+      details.timeStamp = util.getTimestamp();
       if (settings.debug.tabs.events) console.log.apply(console, ['webNavigation.onBeforeNavigate', ...arguments]);
       self.resetFrame(details);
     });
 
     // Notes:
     // Listening on focus change usually triggers an initial event, but not
-    // not always.
+    // always.
     // Moreover if content script is not injected in active tab(s), we won't
     // determine the active (/focused) tab until another one is activated.
     // This is especially visible when debugging and reloading the extension.
-    // So ensure we determine focused window and active tabs.
+    // So ensure we determine focused window and (active) tabs.
     self.focusWindow((await browser.windows.getLastFocused()).id);
-    for (let tab of await browser.tabs.query({active: true})) {
+    for (let tab of await browser.tabs.query({})) {
       self.addTab(tab, false);
     }
   }
