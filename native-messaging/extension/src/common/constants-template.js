@@ -32,6 +32,9 @@ export const constants = {
   // TTL of pending requests
   REQUESTS_TTL: 120 * 1000,
 
+  // Mutex.acquire timeout
+  MUTEX_ACQUIRE_TIMEOUT: 90 * 1000,
+
   // We expect HLS master/stream playlist to be under 400KiB
   HLS_SIZE_LIMIT: 400 * 1024,
 
