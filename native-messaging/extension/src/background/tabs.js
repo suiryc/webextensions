@@ -93,7 +93,7 @@ class FrameHandler {
 
 class TabHandler {
 
-  constructor(tabsHandler, tab) {
+  constructor(tabsHandler, tab, created) {
     this.id = tab.id;
     this.windowId = tab.windowId;
     // Note: tab url will be set in 'update'.
@@ -101,7 +101,7 @@ class TabHandler {
     this.frames = {};
     // Properties managed by the extension.
     this.extensionProperties = new util.PropertiesHandler(this);
-    this.update(tab);
+    this.update(tab, created);
   }
 
   // Only keep important fields (and prevent 'cyclic object value' error) for JSON.
@@ -121,7 +121,7 @@ class TabHandler {
     }
   }
 
-  update(tab) {
+  update(tab, created) {
     let self = this;
     // Keep the latest tab object, mostly for observers.
     self.cachedTab = tab;
@@ -137,6 +137,13 @@ class TabHandler {
     let changes = {};
     if (tab.title != self.title) self.title = changes.title = tab.title;
     self.active = tab.active;
+    if (created && !self.discarded && tab.discarded) {
+      self.tabsHandler.notifyObservers(constants.EVENT_TAB_DISCARDED, {
+        windowId: self.windowId,
+        tabId: self.id,
+        tabHandler: self
+      });
+    }
     self.discarded = tab.discarded;
     // Notes:
     // The 'lastAccessed' property changes cannot be tracked.
@@ -318,6 +325,7 @@ class TabHandler {
 //    * called when tab is first created, or the first time the handler does
 //      take the tab into account
 //  - tabDetached: a tab has been detached from a window
+//  - tabDiscarded: a tab has been discarded (unloaded)
 //  - tabFocused: a tab has focus
 //  - tabRemoved: a tab is being removed
 //  - tabReset: an existing tab is being reused
@@ -528,7 +536,7 @@ export class TabsHandler {
     if (tabHandler) return tabHandler;
 
     if (settings.debug.misc) console.log(`Managing new window=<${windowId}> tab=<${tabId}> url=<${tab.url}>`);
-    this.tabs[tabId] = tabHandler = new TabHandler(this, tab);
+    this.tabs[tabId] = tabHandler = new TabHandler(this, tab, created);
     this.notifyObservers(constants.EVENT_TAB_CREATED, { windowId, tabId, tabHandler, tab, created });
     // If this tab is supposed to be active, ensure it is still the case:
     //  - we must not know the active tab handler (for its windowId)

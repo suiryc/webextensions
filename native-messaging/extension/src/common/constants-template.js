@@ -82,6 +82,7 @@ export const constants = {
   EVENT_TAB_ATTACHED: 'tabAttached',
   EVENT_TAB_CREATED: 'tabCreated',
   EVENT_TAB_DETACHED: 'tabDetached',
+  EVENT_TAB_DISCARDED: 'tabDiscarded',
   EVENT_TAB_UPDATED: 'tabUpdated',
   EVENT_TAB_FOCUSED: 'tabFocused',
   EVENT_TAB_REMOVED: 'tabRemoved',
