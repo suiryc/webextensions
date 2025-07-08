@@ -1,6 +1,7 @@
 'use strict';
 
 import { settings } from '../common/settings.js';
+import * as util from '../common/util.js';
 
 
 // Tab successor is used to override the default Firefox behaviour when closing
@@ -139,7 +140,7 @@ export class TabSuccessor {
     // 'chainTabs' does call 'scheduleCheckTabs'.
     // Belt and suspenders: ensure we at least call it once, in the case we
     // don't find any tab to setup.
-    if (!tabsByWindow.length) await self.scheduleCheckTabs();
+    if (util.isEmptyObject(tabsByWindow)) await this.scheduleCheckTabs();
   }
 
   async tabCreated(details) {
