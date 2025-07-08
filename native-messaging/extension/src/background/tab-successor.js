@@ -53,20 +53,28 @@ function sortTabs(tabs) {
 
 export class TabSuccessor {
 
+  // Whether to reset successors when initializing (extension/feature being
+  // activated or reloaded).
+  // Usually, this is not necessary. But we may wish to reset while fiddling
+  // with the code.
+  static RESET_SUCCESSORS = false;
+  // Delay before checking tabs successors (for debugging purposes).
+  // When positive, remaining delay is reset each time a change is made, so that
+  // we log only after all rapid changes are done, instead of spammng the
+  // console.
   static CHECK_TABS_DELAY = 1000;
 
   constructor(tabsHandler) {
-    let self = this;
-    self.tabsHandler = tabsHandler;
+    this.tabsHandler = tabsHandler;
     // List of inactive tabs opened.
-    self.inactiveOpenedTabs = {
+    this.inactiveOpenedTabs = {
       // By tab id
       byId: {},
       // By opener tab id
       byOpener: {}
     };
 
-    self.setup(false);
+    this.setup(TabSuccessor.RESET_SUCCESSORS);
   }
 
   async chainTabs(tabs, successor, options) {
