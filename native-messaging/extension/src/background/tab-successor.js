@@ -13,9 +13,9 @@ import * as util from '../common/util.js';
 // - https://bugzilla.mozilla.org/show_bug.cgi?id=1500479
 // - https://gitlab.com/rhendric/successor-tabs-experiment
 // - https://qiita.com/piroor/items/ea7e727735631c45a366
-// Note: the successorId field value is not persisted; when re-starting the
+// Note: the successorTabId field value is not persisted; when re-starting the
 // browser all tabs are resetted without explicit successor. Anyway the tab id
-// is also resetted (starting from 1), which would mean the successorId would
+// is also resetted (starting from 1), which would mean the successorTabId would
 // have to be recomputed (based on the tab index at the moment of exiting ?).
 //
 // Upon starting, we sort all tabs by window and descending last access time
@@ -34,6 +34,59 @@ import * as util from '../common/util.js';
 //  - similarly, there is no need to specifically handle tabs being attached
 //    since the browser will reset its successor and the tab will be activated
 //    right after being attached (which makes us set its successor accordingly)
+
+// browser.tabs.moveInSuccession
+// -----------------------------
+// Three arguments:
+//  - tabIds: tabs to remove from succession, then chain (in order)
+//    - for each tab removed from succession, its predecessor uses the removed
+//      tab successor as new successor, filling the gap in succession
+//  - tabId: anchor tab, as successor (append=false) or predecessor (append=true)
+//    of the tabIds chain
+//    - append=false (successor): the last of tabIds points to this tab
+//    - append=true (predecessor): this tab points to the first of tabIds
+//  - options:
+//    - append (false): whether to use tabId as successor (append=false) or
+//      predecessor (append=true) of the tabIds chain
+//    - insert (false): if enabled, link up the predecessor (append=false) or
+//      successor (append=true) of tabId to the start or end of the tabIds chain
+//      - append=false: tabId predecessor points to the first of tabIds
+//      - append=true: the last of tabIds points to tabId successor
+//
+// If we have the succession chain A -> B -> C -> D -> E -> F -> G -> H
+//
+// The usual usage is to place a tab first in succession, and have its successor
+// the previous head:
+// moveInSuccession([C], A) results in one chain
+// C -> A -> B -> D -> E -> F -> G -> H
+// moveInSuccession([C, D], A) too
+// C -> D -> A -> B -> E -> F -> G -> H
+//
+// But we could choose any other tab as successor:
+// moveInSuccession([C], D) results in two chains
+// A -> B -> D -> E -> F -> G -> H
+// C -> D (-> E -> ...)
+// moveInSuccession([C, D], F) too
+// A -> B -> E -> F -> G -> H
+// C -> D -> F (-> G -> ...)
+//
+// moveInSuccession([C, D], A, {append:true}) results in tow chains
+// A -> C -> D
+// B -> E -> F -> G -> H
+// moveInSuccession([C, D], B, {append:true}) too
+// A -> B -> C -> D
+// E -> F -> G -> H
+//
+// moveInSuccession([C, D], F, {insert:true}) results in one chain
+// A -> B -> E -> C -> D -> F -> G -> H
+//
+// moveInSuccession([C, D], B, {append:true, insert:true}) does not change the
+// succession chain: it keeps the B -> C -> D relation, with A still being B
+// predecessor, and D pointing to E (B successor once C and D were removed)
+//
+// moveInSuccession([C, D], E, {append:true, insert:true}) moves C and D between
+// E and F
+// A -> B -> E -> C -> D -> F -> G -> H
 
 // Sorts tabs by descending access time (most recent first).
 // Active tab is also forced to be first (it should also be the one with the
@@ -297,10 +350,14 @@ export class TabSuccessor {
   }
 
   async tabDetached(details) {
+    // For our usage, detaching a tab is akin to removing it.
     await this.tabRemoved(details);
   }
 
   async tabAttached(details) {
+    // Notes:
+    // We expect a 'tabActivated' right after 'tabAttached'.
+    // In this case, succession chain will be set appropriately later.
     await this.scheduleCheckTabs();
   }
 
