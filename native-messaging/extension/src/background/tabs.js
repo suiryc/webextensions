@@ -683,6 +683,8 @@ export class TabsHandler {
     let windowId = details.oldWindowId;
     let tabId = details.tabId;
     let tabHandler = this.tabs[tabId];
+    // Hint for observers: the tab is detahced (not yet attached).
+    if (tabHandler) tabHandler.detached = true;
     this.notifyObservers(constants.EVENT_TAB_DETACHED, { windowId, tabId, tabHandler });
   }
 
@@ -690,7 +692,10 @@ export class TabsHandler {
     let windowId = details.newWindowId;
     let tabId = details.tabId;
     let tabHandler = this.tabs[tabId];
-    if (tabHandler) tabHandler.windowId = windowId;
+    if (tabHandler) {
+      delete(tabHandler.detached);
+      tabHandler.updateTabField('windowId', windowId);
+    }
     this.notifyObservers(constants.EVENT_TAB_ATTACHED, { windowId, tabId, tabHandler });
   }
 
@@ -698,6 +703,10 @@ export class TabsHandler {
     // Note: observers may have received messages related to a tab before the
     // handler, so notify them even if we don't know the tab.
     let tabHandler = this.tabs[tabId];
+    // Hint for observers, since we actually remove the handler after notifying
+    // them. It may be easier to use the hint rather than comparing all handlers
+    // to removed one.
+    if (tabHandler) tabHandler.removed = true;
     this.notifyObservers(constants.EVENT_TAB_REMOVED, {
       windowId,
       tabId,
