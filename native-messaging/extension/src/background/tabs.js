@@ -137,7 +137,9 @@ class TabHandler {
     let changes = {};
     if (tab.title != self.title) self.title = changes.title = tab.title;
     self.active = tab.active;
-    if (created && !self.discarded && tab.discarded) {
+    // For 'discarded' notification, ignore when we are merely adding the tab
+    // (discovered after querying existing tabs).
+    if ((created || (created === undefined)) && !self.discarded && tab.discarded) {
       self.tabsHandler.notifyObservers(constants.EVENT_TAB_DISCARDED, {
         windowId: self.windowId,
         tabId: self.id,
