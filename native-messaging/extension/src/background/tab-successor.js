@@ -116,6 +116,10 @@ export class TabSuccessor {
   // we log only after all rapid changes are done, instead of spammng the
   // console.
   static CHECK_TABS_DELAY = 1000;
+  // Minimum delay we allow between a tab being used as anchor then removed.
+  // When done too fast, moveInSuccession may be processed after the anchor tab
+  // has been removed, which breaks the succession chain.
+  static ANCHORED_REMOVE_DELAY = 200;
 
   constructor(tabsHandler) {
     this.tabsHandler = tabsHandler;
@@ -126,6 +130,7 @@ export class TabSuccessor {
       // By opener tab id
       byOpener: {}
     };
+    this.recentlyAnchored = new Set();
 
     this.setup(TabSuccessor.RESET_SUCCESSORS);
   }
@@ -395,6 +400,14 @@ export class TabSuccessor {
     }
     // Belt and suspenders: we expect previousTabId to not be the activated tab.
     if (details.previousTabId == details.tabId) return;
+
+    // Remember the anchor for a short while, in case it is removed too fast
+    // (possibly before our moveInSuccession gets processed).
+    self.recentlyAnchored.add(details.previousTabId);
+    setTimeout(
+      () => self.recentlyAnchored.delete(details.previousTabId),
+      TabSuccessor.ANCHORED_REMOVE_DELAY
+    );
     await self.chainTabs([details.tabHandler], details.previousTabId);
   }
 
@@ -406,12 +419,21 @@ export class TabSuccessor {
     // successor anymore.
     delete(tabHandler.successorTabId);
 
+    // Was this tab used as anchor too recently ?
+    // Usually, there is no need to update the chain of successors: the browser
+    // does it upon removal.
+    // However, if it removes the tab before moveInSuccession (which uses it as
+    // anchor) is processed, this breaks the chain. In this case, we enforce
+    // linking the removed tab predecessors to the tab successor.
+    let recentlyAnchored = this.recentlyAnchored.has(tabId);
+
     // Check if any other tab used it as successor, and chain to the removed tab
     // successor.
     for (tabHandler of this.getTabsList()) {
       if (tabHandler.successorTabId != tabId) continue;
       if (successorTabId > 0) {
         tabHandler.successorTabId = successorTabId;
+        if (recentlyAnchored) await this.chainTabs([tabHandler], successorTabId);
       } else {
         delete(tabHandler.successorTabId);
       }
@@ -435,8 +457,6 @@ export class TabSuccessor {
       this.inactiveOpenedTabs.byOpener[openedTab.openerTabId] = opened;
     }
     await this.scheduleCheckTabs();
-    // Note: there is no need to update the chain of successors, it has been
-    // done by the browser for us.
   }
 
   async tabDetached(details) {
