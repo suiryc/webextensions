@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import { settings } from '../common/settings.js';
 
 
@@ -422,6 +423,7 @@ class TabHandler {
 export class TabsHandler {
 
   constructor() {
+    this.ready = new asynchronous.Deferred();
     this.tabs = {};
     this.focusedTab = {};
     this.activeTabs = {};
@@ -825,9 +827,13 @@ export class TabsHandler {
     // This is especially visible when debugging and reloading the extension.
     // So ensure we determine focused window and (active) tabs.
     self.focusWindow((await browser.windows.getLastFocused()).id);
+    let pending = [];
     for (let tab of await browser.tabs.query({})) {
-      self.addTab(tab, false);
+      pending.push(self.addTab(tab, false));
     }
+    await Promise.allSettled(pending);
+    // We are ready.
+    self.ready.resolve();
   }
 
 }
