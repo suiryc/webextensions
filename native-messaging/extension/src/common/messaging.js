@@ -49,6 +49,10 @@ export class WebExtension {
     self.extensionProperties = new util.PropertiesHandler(self, params.tabsHandler);
     self.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
 
+    if (self.params.targetId && (self.params.targetIdOptional === undefined)) {
+      self.params.targetIdOptional = false;
+    }
+
     // Create console to log messages in background script.
     // Brower action and options ui script already are visible along background
     // script logs: the console shows the log origin page.
@@ -119,7 +123,7 @@ export class WebExtension {
       // If the background script receives a Port message for another target,
       // forward the message.
       if (isPort && this.targets && msg.target) return this.sendMessage(msg);
-      if (settings.debug.misc) console.log(`Ignore message %o: receiver=<${this.params.target}> does not match target=<${msg.target}>`, msg);
+      if (settings.debug.misc) console.log(`Ignore message %o: receiver=<${this.params.target}/${this.params.targetId || ''}> does not match target=<${msg.target}/${msg.targetId || ''}>`, msg);
       return;
     }
     // In background script, we may need to know whether received message is
@@ -189,7 +193,7 @@ export class WebExtension {
 
   isTarget(msg) {
     return !msg.target ||
-      ((msg.target == this.params.target) && (!msg.targetId || (msg.targetId == this.params.targetId)));
+      ((msg.target == this.params.target) && ((!msg.targetId && this.params.targetIdOptional) || (msg.targetId == this.params.targetId)));
   }
 
   // Listens to incoming connections.
