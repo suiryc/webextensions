@@ -56,6 +56,7 @@ export const constants = {
   KIND_CLEAR_MESSAGES: 'clearMessages',
   KIND_CLEAR_MESSAGE: 'clearMessage',
   KIND_CONSOLE: 'console',
+  KIND_CS_ALLOW_COPY_PASTE: 'csAllowCopyPaste',
   KIND_DL_IGNORE_NEXT: 'dlIgnoreNext',
   KIND_DL_UPDATE_VIDEOS: 'dlUpdateVideos',
   KIND_DL_VIDEO: 'dlVideo',

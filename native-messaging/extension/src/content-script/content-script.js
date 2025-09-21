@@ -21,6 +21,10 @@ async function onMessage(extension, msg, sender) {
       return tw.warnConcurrent(msg);
       break;
 
+    case constants.KIND_CS_ALLOW_COPY_PASTE:
+      return cs_allowCopyPaste(msg);
+      break;
+
     default:
       return unhandledMessage(msg, sender);
       break;
@@ -36,6 +40,25 @@ function unhandledMessage(msg, sender) {
   };
 }
 
+function cs_allowCopyPaste(msg) {
+  let allowCtrlCV = function(evt) {
+    let key = evt.key?.toLowerCase();
+    if (evt.ctrlKey && ((key == 'c') || (key == 'v'))) {
+      evt.stopImmediatePropagation();
+    }
+    return true;
+  };
+  let allow = function(evt) {
+    evt.stopImmediatePropagation();
+    return true;
+  };
+  ['copy', 'paste', 'onpaste'].forEach(trigger => {
+    document.addEventListener(trigger, allow, true);
+  });
+  ['keydown'].forEach(trigger => {
+    document.addEventListener(trigger, allowCtrlCV, true);
+  });
+}
 
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)

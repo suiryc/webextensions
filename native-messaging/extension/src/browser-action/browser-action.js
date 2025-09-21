@@ -189,6 +189,7 @@ let refreshing = undefined;
 let ignoreNextButton = document.querySelector('#ignoreNext');
 let ignoreNextText = ignoreNextButton.textContent;
 let ignoringNext = false;
+let allowCopyPasteButton = document.querySelector('#allowCopyPaste');
 let videosItemNode = document.querySelector('#videos-item');
 let videosNode = document.querySelector('#videos');
 let clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
@@ -336,6 +337,14 @@ ignoreNextButton.addEventListener('click', () => {
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_DL_IGNORE_NEXT,
     ttl: ignoringNext ? 0 : constants.IGNORE_NEXT_TTL
+  });
+});
+
+// Allow copy/paste in page.
+allowCopyPasteButton.addEventListener('click', () => {
+  webext.sendMessage({
+    target: constants.TARGET_CONTENT_SCRIPT,
+    kind: constants.KIND_CS_ALLOW_COPY_PASTE
   });
 });
 
