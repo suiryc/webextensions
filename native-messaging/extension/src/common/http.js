@@ -475,11 +475,16 @@ export class ContentType {
     return hlsMimeTypes.has(this.mimeType);
   }
 
-  // Some sites return 'video/mp2t' or 'text/plain' for m3u8 files.
+  // Some sites return 'video/mp2t', 'text/plain', or other mime type for m3u8
+  // files.
+  // If file extension matches, it may be HLS.
   // Let caller decide what to do, e.g. based on content size if known.
   maybeHLS(filename) {
     if (!filename) return false;
-    if (!this.is('video', 'mp2t') && !this.is('text', 'plain')) return false;
+    // Instead of filtering on some mime types already encountered in this
+    // situation, only check the file extension and let caller decide on other
+    // criteria.
+    //if (!this.is('video', 'mp2t') && !this.is('text', 'plain')) return false;
     let extension = util.getFilenameExtension(filename).extension || '';
     return extension == hlsFileExtension;
   }
