@@ -57,6 +57,40 @@
     "gecko": {
       // Our id, to communicate with a native application
       "id": "__EXTENSION_ID__",
+      // Data collection
+      "data_collection_permissions": {
+        // Technically, data are collected and used for what was asked to do in
+        // the browser, which primarily is:
+        //  - download files
+        //  - download HLS (video) and subtitles
+        //  - copy links in the clipboard
+        // No data is transmitted to any third-party.
+        "required": [
+          // browsingActivity: URLs of fetched resources can be used for refined
+          // treatment through the extension (details in "websiteContent").
+          "browsingActivity",
+          // websiteContent: we intercept requests/responses in order to determine
+          // whether there are refined treatments to do through the extension.
+          // When dealing with files (actual downloads), downloading is delegated
+          // to an external dedicated download application, with better handling
+          // than the browser internal one.
+          // When dealing with HLS (video) and subtitles, we get the text content
+          // by re-doing the same requests than the browser (cookies included),
+          // either in the extension or the associated native application.
+          // Download of underlying video segments is also delegated to an
+          // external dedicated download application.
+          // We also add context menu entries to manually download some links
+          // that match the extension criteria.
+          // User can also visually select a zone in the page, collect links
+          // found inside the zone, and copy these links in the clipboard.
+          "websiteContent",
+          // websiteActivity: the main purpose of the extension is to intercept
+          // downloads and delegate them to an external application instead of
+          // relying on the (too simple and limited) browser download feature.
+          "websiteActivity"
+        ],
+        "optional": ["none"]
+      },
       // Personal site with versions and update manifest
       "update_url": "https://files.suiryc-139.freeddns.org/webext/__EXTENSION_SLUG__-update.json"
     }
