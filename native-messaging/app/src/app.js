@@ -2,7 +2,7 @@
 
 import child_process from 'child_process';
 import * as constants from './constants.js';
-import fetch from 'node-fetch';
+import { fetch } from 'undici';
 import fs from 'fs';
 import * as nativeMessaging from './native-messaging.js';
 import os from 'os';
