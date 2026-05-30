@@ -88,8 +88,7 @@
           // downloads and delegate them to an external application instead of
           // relying on the (too simple and limited) browser download feature.
           "websiteActivity"
-        ],
-        "optional": ["none"]
+        ]
       },
       // Personal site with versions and update manifest
       "update_url": "https://files.suiryc-139.freeddns.org/webext/__EXTENSION_SLUG__-update.json"
