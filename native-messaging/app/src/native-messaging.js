@@ -286,7 +286,8 @@ export class NativeApplication {
         self.notify({
           level: 'error',
           title: 'Uncaught exception',
-          error: error
+          // Format object: pure Errors are empty when sent.
+          error: util.formatObject(error)
         });
       } catch { }
       // End the stream before exiting with the nominal value.
