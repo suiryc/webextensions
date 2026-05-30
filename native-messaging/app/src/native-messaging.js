@@ -82,6 +82,8 @@ class NativeSource extends stream.Transform {
       // Not enough received data, wait for more
       break;
     }
+    // Note: implementation is expected to pass a 'done' callback, possibly a
+    // 'nop' function of not given by actual caller.
     done();
   }
 
@@ -110,6 +112,8 @@ class NativeSink extends stream.Writable {
 
   _write(msg, encoding, done) {
     this.writeMessage(msg);
+    // Note: implementation is expected to pass a 'done' callback, possibly a
+    // 'nop' function of not given by actual caller.
     done();
   }
 
@@ -237,6 +241,8 @@ class NativeHandler extends stream.Writable {
       // Format object: pure Errors are empty when sent.
       self.app.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
     });
+    // Note: implementation is expected to pass a 'done' callback, possibly a
+    // 'nop' function of not given by actual caller.
     done();
   }
 
@@ -327,8 +333,28 @@ export class NativeApplication {
         level: level,
         content: chunk.replace(/\r?\n+$/, '')
       });
-      done();
-    }
+      // Note: method definition is 'write(chunk[, encoding][, callback])', so
+      // there may be no callback, or it may be passed as second argument.
+      if (!done && (typeof(encoding) === 'function')) done = encoding;
+      if (done) done();
+    };
+    output.end = function (chunk, encoding, done) {
+      // Note: method definition is 'end([chunk[, encoding]][, callback])', so
+      // there may be no callback, or it may be passed as second or first argument.
+      if (typeof(chunk) === 'function') {
+        done = chunk;
+        chunk = null;
+        encoding = null;
+      } else if (typeof(encoding) === 'function') {
+        done = encoding;
+        encoding = null;
+      }
+      if (chunk) {
+        output.write(chunk, encoding, done);
+      } else if (done) {
+        done();
+      }
+    };
   }
 
   wrapConsole(level) {
