@@ -93,6 +93,7 @@ export class RequestDetails {
       }
     } else {
       // Assume we got standard webRequest details.
+      if (!this.httpVersion) this.httpVersion = response.statusLine.toUpperCase().split(/\s/)[0];
       statusCode = response.statusCode;
       responseHeaders = response.responseHeaders;
     }
