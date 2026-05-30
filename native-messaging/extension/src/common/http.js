@@ -2,6 +2,7 @@
 
 import { constants } from '../common/constants.js';
 import * as util from './util.js';
+import * as asynchronous from '../common/asynchronous.js';
 import { browserInfo, settings } from './settings.js';
 
 
@@ -38,6 +39,109 @@ export function getCookie(url) {
     let cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
     return (cookie || undefined);
   });
+}
+
+export async function http_fetch(msg) {
+  try {
+    let r = await fetch(msg.resource, msg.options);
+
+    // IMPORTANT: changes here need to be reflected in the native application
+    // too.
+    // The main difference is that binary formats can be retrieved as-is here,
+    // while the native application has to pass base64 (which we automatically
+    // decode in our messaging implementation).
+
+    // Extract headers name/value.
+    let headers = [];
+    for (let [name, value] of r.headers.entries()) {
+      headers.push({name, value});
+    }
+    // Copy response fields.
+    let response = {
+      headers,
+      ok: r.ok,
+      redirected: r.redirected,
+      status: r.status,
+      statusText: r.statusText,
+      type: r.type,
+      url: r.url
+    };
+
+    // Extract response content, in wanted formats.
+    //
+    // Notes:
+    // Allow caller to ask for more than one format. We simply need to 'clone'
+    // the response to get the appropriate formats.
+    // When cloning, don't forget that content reading is done once, and that to
+    // properly get it for all clones, we need to have them work in parallel.
+    // See: https://github.com/node-fetch/node-fetch/blob/main/README.md#custom-highwatermark
+    // Original response and clones all need to be consumed.
+    // We prepare one or more Promises, which are completed *after* setting the
+    // value in our response field. So when waiting for all of them, once they
+    // are completed we know our response is ready.
+    //
+    // Explicitly get text/json: don't try to be smart and derive one from the
+    // other here.
+    let params = msg.params || {};
+    let contentPromises = [];
+    if (params.wantJson) {
+      let promise = new asynchronous.Deferred().promise;
+      r.clone().json().then(v => {
+        response.json = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    if (params.wantText) {
+      let promise = new asynchronous.Deferred().promise;
+      r.clone().text().then(v => {
+        response.text = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    if (params.wantBlob) {
+      let promise = new asynchronous.Deferred().promise;
+      r.clone().blob().then(v => {
+        response.blob = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    if (params.wantBytes) {
+      let promise = new asynchronous.Deferred().promise;
+      r.bytes().then(v => {
+        response.bytes = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
+    // Last format to handle: don't clone this one, and ensure original response
+    // is consumed.
+    if (params.wantArrayBuffer || params.wantBase64) {
+      let promise = new asynchronous.Deferred().promise;
+      r.arrayBuffer().then(v => {
+        if (params.wantArrayBuffer) response.arrayBuffer = v;
+        if (params.wantBase64) response.base64 = Buffer.from(v).toString('base64');
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    } else if (contentPromises.length) {
+      // There was at least one clone done, so we need to consume the original
+      // response too.
+      // The safest is to ask for raw binary (ArrayBuffer).
+      contentPromises.push(r.arrayBuffer());
+    }
+
+    // Wait for content variant(s) to be retrieved.
+    await Promise.all(contentPromises);
+
+    if (msg.params.debug) console.log('Native fetch:', msg, response);
+    return response;
+  } catch(error) {
+    if (msg.params.debug) console.log('Native fetch failed:', msg, error);
+    throw error;
+  }
 }
 
 

@@ -206,6 +206,12 @@ async function http_fetch(app, msg) {
 
     // Note: we will need to copy/adapt response fields (and retrieved content)
     // so that it fits in the JSON message we will send back to caller.
+    //
+    // IMPORTANT: changes here need to be reflected in the extension too, which
+    // may fallback to its native fetch API.
+    // The main difference is that binary formats can be retrieved as-is by the
+    // extension, while the native application has to pass base64 (which the
+    // extension automatically decodes in our messaging implementation).
 
     // Extract headers name/value.
     let headers = [];
@@ -243,7 +249,6 @@ async function http_fetch(app, msg) {
     let params = msg.params || {};
     let contentPromises = [];
     if (params.wantJson) {
-      // Prepare JSON.
       let promise = new util.Deferred().promise;
       r.clone().json().then(v => {
         response.json = v;
@@ -252,7 +257,6 @@ async function http_fetch(app, msg) {
       contentPromises.push(promise);
     }
     if (params.wantText) {
-      // Prepare text.
       let promise = new util.Deferred().promise;
       r.clone().text().then(v => {
         response.text = v;
@@ -263,8 +267,6 @@ async function http_fetch(app, msg) {
     // Last format to handle: don't clone this one, and ensure original response
     // is consumed.
     if (params.wantArrayBuffer || params.wantBlob || params.wantBytes || params.wantBase64) {
-      // Prepare base64.
-      // We do this if either one binary format was wanted.
       let promise = new util.Deferred().promise;
       r.arrayBuffer().then(v => {
         response.base64 = Buffer.from(v).toString('base64');

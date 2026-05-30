@@ -3,6 +3,7 @@
 import { constants } from '../common/constants.js';
 import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
+import * as http from '../common/http.js';
 import { WebExtension, NativeApplication } from '../common/messaging.js';
 import { RequestsInterceptor } from './requests-interceptor.js';
 import { dlMngr, RequestsHandler } from './downloads.js';
@@ -192,17 +193,20 @@ function tw_save(msg) {
   return nativeApp.postRequest(msg, constants.TW_SAVE_TIMEOUT);
 }
 
-// Delegate HTTP fetch to native app.
+// Delegate HTTP fetch to native app, fallback to native fetch upon issue.
 async function http_fetch(msg) {
   let timeout = msg?.params?.timeout;
+
   try {
     let response = await nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
     if (msg.params.debug) console.log('Delegated fetch:', msg, response);
-    return response;
+    if (response.status < 400) return response;
   } catch(error) {
     if (msg.params.debug) console.log('Delegated fetch failed:', msg, error);
-    throw error;
   }
+
+  // Fallback to native fetch.
+  return await http.http_fetch(msg);
 }
 
 // Ignore next download interception.
