@@ -219,7 +219,7 @@ class HLSStream extends HLSTagged {
   }
 
   determineRenditions(kind) {
-    if (!this.tag ||!this.playlist) return [];
+    if (!this.tag || !this.playlist) return [];
     let groupId = this.tag.attributes[kind];
     if (!groupId) return [];
     return this.playlist.getRenditions(groupId).map(r => new HLSTrack(this, r));
@@ -235,7 +235,8 @@ class HLSTrack {
     this.stream = stream;
     this.tag = tag;
     this.uri = this.tag.attributes['URI'];
-    this.lang = this.tag.attributes['LANGUAGE'];
+    // Sometimes there is no LANGUAGE but only ASSOC-LANGUAGE.
+    this.lang = this.tag.attributes['LANGUAGE'] || this.tag.attributes['ASSOC-LANGUAGE'];
     this.determineName();
   }
 
