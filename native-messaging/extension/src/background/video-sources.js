@@ -285,6 +285,14 @@ export class VideoSource {
           }
         }
       }
+      if (download.details.audio) {
+        delete(download.details.audio.raw);
+        if (download.details.audio.keys) {
+          for (let key of download.details.audio.keys) {
+            delete(key.raw);
+          }
+        }
+      }
       if (download.details.subtitle) {
         delete(download.details.subtitle.raw);
       }
@@ -443,7 +451,12 @@ export class VideoSource {
     let entryHandler = new VideoSourceEntryHandler(this);
     entryHandler.subtitle = subtitle;
     this.subtitleEntries.push(entryHandler);
-    this.addUrl(subtitle.url);
+    // Note: don't add subtitles url to the source urls.
+    // We only want to consider the actual source (to download) urls, not any
+    // associated track url. These should be handled specifically by caller if
+    // needed: we already ignore them once known, and gather the various
+    // known subtitles we can associate to video streams.
+    //this.addUrl(subtitle.url);
     this.needRefresh = true;
   }
 
@@ -545,6 +558,10 @@ export class VideoSource {
       download.details.hls = {
         raw: this.hls.raw,
         url: this.hls.getURL().href
+      };
+      if (this.audio) download.details.audio = {
+        raw: this.audio.raw,
+        url: this.audio.getURL().href
       };
     }
     // Determine subtitles per priority when applicable.
@@ -689,9 +706,34 @@ export class VideoSource {
     }
 
     // Get key(s) if needed.
-    let hlsKeys = this.hls?.getKeys();
+    if (!await this.downloadHLSKeys(details, 'hls')) return;
+    if (!await this.downloadHLSKeys(details, 'audio')) return;
+
+    // For HLS, pass headers too.
+    if (details.hls && !details.headers) {
+      details.headers = [];
+      for (let [name, value] of Object.entries(this.newRequestHeaders)) {
+        details.headers.push({name, value});
+      }
+    }
+
+    // Pass HLS stream(s) as array.
+    if (details.hls) {
+      let hls = [details.hls];
+      if (details.audio) {
+        hls.push(details.audio);
+        delete(details.audio);
+      }
+      details.hls = hls;
+    }
+
+    await dlMngr.download(details, entryHandler.download.params);
+  }
+
+  async downloadHLSKeys(details, field) {
+    let hlsKeys = this[field]?.getKeys();
     if (hlsKeys) {
-      details.hls.keys = hlsKeys;
+      details[field].keys = hlsKeys;
       for (let key of hlsKeys) {
         if (!key.url || key.raw) continue;
         try {
@@ -719,7 +761,7 @@ export class VideoSource {
               message: key.url,
               error: response
             });
-            return;
+            return false;
           }
         } catch (error) {
           this.webext.notify({
@@ -728,20 +770,12 @@ export class VideoSource {
             message: key.url,
             error
           });
-          return;
+          return false;
         }
       }
     }
 
-    // For HLS, pass headers too.
-    if (details.hls && !details.headers) {
-      details.headers = [];
-      for (let [name, value] of Object.entries(this.newRequestHeaders)) {
-        details.headers.push({name, value});
-      }
-    }
-
-    await dlMngr.download(details, entryHandler.download.params);
+    return true;
   }
 
   // Creates menu entries.
@@ -1049,10 +1083,12 @@ class VideoSourceTabHandler {
 
   removeSource(url) {
     let found;
+    // Consider the url and its normalized form.
+    let normalizedUrl = util.normalizeUrl(url);
     this.sources = this.sources.filter(source => {
       // We only expect to find and remove one element.
       if (found) return true;
-      let match = source.hasUrl(url);
+      let match = source.hasUrl(url) || source.hasUrl(normalizedUrl);
       if (match) {
         found = source;
         source.remove();
@@ -1165,10 +1201,109 @@ class VideoSourceTabHandler {
     // Add HLS streams as sources.
     for (let stream of playlist.streams) {
       let subtitles = [];
+
+      for (let track of stream.audio.concat(stream.subtitles)) {
+        if (!track.uri) continue;
+        let url = track.getURL().href;
+        // We can also discard tracks URL now.
+        this.discardUrl(url);
+        // If any track was served as an HLS, remove from sources.
+        if (this.removeSource(url) && settings.debug.video) {
+          console.log(`HLS stream track playlist=<${url}> was previously received and will be removed in favor of actual stream`);
+        }
+      }
+
+      let audio;
+      for (let track of stream.audio) {
+        if (!track.uri) continue;
+        let url = track.getURL().href;
+
+        if (audio) {
+          console.warn(`Ignoring external HLS audio track url=<${url}>: another track was already used`);
+          continue;
+        }
+        let contentType = new http.ContentType();
+        contentType.guess(util.getFilename(url));
+        if (contentType.isHLS()) {
+          let response = await this.webext.fetch({
+            resource: url,
+            options: {
+              referrer: requestDetails.referrer,
+              headers: newRequestHeaders
+            }, params: {
+              debug: settings.trace.video,
+              wantText: true
+            }
+          });
+          if (response.ok) {
+            let content = response.text;
+            let playlistStream = new hls.HLSPlaylist(content, {
+              url: url,
+              debug: settings.debug.video
+            });
+            let actualStream = playlistStream.isStream();
+            if (actualStream) {
+              console.log(`Using external HLS stream audio track playlist=<${url}>`);
+              audio = actualStream;
+            } else {
+              console.log(`HLS stream audio url=<${url}> could have been another HLS stream but does not appear to be`);
+            }
+          } else {
+            console.log(`Failed to fetch HLS stream audio track playlist=<${url}>:`, response);
+          }
+
+        } else {
+          console.warn(`Ignoring external HLS stream audio track url=<${url}>: not a playlist`);
+        }
+      }
+
       for (let track of stream.subtitles) {
         let url = track.getURL().href;
-        // We can also discard subtitles URL now.
-        this.discardUrl(url);
+
+        // Check if this appear to be a true subtitle track, or another HLS
+        // stream.
+        let contentType = new http.ContentType();
+        contentType.guess(util.getFilename(url));
+        // If we download the subtitles now, and this is not an HLS pointing to
+        // another uri, keep the content as-is.
+        let raw;
+        if (!contentType.isSubtitle() && contentType.isHLS()) {
+          let response = await this.webext.fetch({
+            resource: url,
+            options: {
+              referrer: requestDetails.referrer,
+              headers: newRequestHeaders
+            }, params: {
+              debug: settings.trace.video,
+              wantText: true
+            }
+          });
+          if (response.ok) {
+            let content = response.text;
+            let playlistStream = new hls.HLSPlaylist(content, {
+              url: url,
+              debug: settings.debug.video
+            });
+            let actualStream = playlistStream.isStream();
+            if (actualStream) {
+              let segments = actualStream.getTags('EXTINF');
+              if ((segments.length == 1) && segments.at(0).uri) {
+                let uri = segments.at(0).uri;
+                console.log(`HLS stream subtitles url=<${url}> is actually an HLS segment pointing to uri=<${uri}>`);
+                url = uri;
+                this.discardUrl(url);
+              } else {
+                console.log(`HLS stream subtitles url=<${url}> is actually another HLS stream we do not handle`);
+                raw = content;
+              }
+            } else {
+              console.log(`HLS stream subtitles url=<${url}> could have been another HLS stream but does not appear to be`);
+              raw = content;
+            }
+          } else {
+            console.log(`Failed to fetch HLS stream subtitles playlist=<${url}>:`, response);
+          }
+        }
 
         // Do nothing else if disabled.
         if (!settings.video.subtitles.intercept) continue;
@@ -1176,7 +1311,8 @@ class VideoSourceTabHandler {
           name: track.name,
           lang: track.lang,
           url,
-          filename: util.getFilename(url)
+          filename: util.getFilename(url),
+          raw
         };
         let scriptParams = {
           params: {
@@ -1241,6 +1377,7 @@ class VideoSourceTabHandler {
         newRequestHeaders: newRequestHeaders,
         mimeType: requestDetails.contentType.mimeType,
         hls: stream,
+        audio,
         subtitles,
         windowId: this.tabHandler.windowId,
         tabId: this.tabHandler.id,
