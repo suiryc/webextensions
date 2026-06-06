@@ -48,6 +48,7 @@ export const constants = {
   // We don't have nor need to send messages to 'page action', 'extension page', 'sidebar'.
 
   TARGET_ID_CUSTOM_CONTENT_SCRIPT: 'custom content script',
+  TARGET_ID_CONTENT_SCRIPT_TW: 'TW content script',
 
   // Message known 'kind' field values
   KIND_ADD_VIDEO_SOURCE: 'addVideoSource',

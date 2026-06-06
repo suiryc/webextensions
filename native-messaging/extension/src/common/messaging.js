@@ -26,7 +26,7 @@ import { settings } from '../common/settings.js';
 // the message which is the target and have listener code filter out messages
 // meant for other targets.
 //
-// For heavier message usage, it become useful to create dedicated Ports:
+// For heavier message usage, it becomes useful to create dedicated Ports:
 //  - the background script listens for incoming connections
 //  - any other script can then connect (creates a new Port) to talk to the
 //    background script
@@ -39,6 +39,26 @@ import { settings } from '../common/settings.js';
 // determine whether a message received from the remote endpoint is a new one,
 // or actually the response to a previous message sent by the local endpoint.
 // The same is needed for native application messages (also relies on Port).
+//
+// Each side of a communication has a Port object.
+//
+// Then we can have the background script become a central hub: any script that
+// needs to send a message to another script can do so through the background
+// script which receives all messages and dispatch them to the actual targets.
+// Scripts can of course target the background script itself.
+// Where needed, we can also handle 'local targets': one main script does create
+// the Port, and sub-features may simply register as specific endpoint that can
+// receive messages (through the main script).
+//
+// Message targeting can indicate various fields:
+//  - target: the overall target name; e.g. background page, browser action, ...
+//  - targetId: a specific listener with a dedicated Port, aside the main script
+//    that has the same 'target'
+//  - targetDetails: to target window/tab/frame content script
+//    - windowId
+//    - tabId
+//    - frameId
+//    - id: to target a specific 'local listener' in the content scripts
 export class WebExtension {
 
   constructor(params) {
@@ -48,10 +68,7 @@ export class WebExtension {
     // Properties managed by the extension.
     self.extensionProperties = new util.PropertiesHandler(self, params.tabsHandler);
     self.isBackground = params.target === constants.TARGET_BACKGROUND_PAGE;
-
-    if (self.params.targetId && (self.params.targetIdOptional === undefined)) {
-      self.params.targetIdOptional = false;
-    }
+    self.localTargets = [];
 
     // Create console to log messages in background script.
     // Brower action and options ui script already are visible along background
@@ -115,15 +132,19 @@ export class WebExtension {
     // an empty response.
     // Port.onMessage listener properly transmits any returned value/Promise.
     let actualSender = sender;
-    // If the sender is a Port, get the real sender field.
-    let isPort = !!sender.sender;
-    if (isPort) actualSender = sender.sender;
+    // If the sender is a Port, get the real sender: this is actually only
+    // available in the background script, because the 'Port.sender' field has
+    // been only filled upon 'onConnect' callback.
+    if (sender.sender) actualSender = sender.sender;
+    // In non-background scripts, we can check whether the sender is the port
+    // we use to talk to the background script.
+    let isPort = !!sender.sender || (sender === this.portHandler?.port);
     // Ignore message when applicable.
-    if (!this.isTarget(msg)) {
-      // If the background script receives a Port message for another target,
-      // forward the message.
-      if (isPort && this.targets && msg.target) return this.sendMessage(msg);
-      if (settings.debug.misc) console.log(`Ignore message %o: receiver=<${this.params.target}/${this.params.targetId || ''}> does not match target=<${msg.target}/${msg.targetId || ''}>`, msg);
+    if (!this.isTarget(msg, false)) {
+      // If we are the target as a dispatcher, and have targets, dispatch the
+      // message.
+      if ((this.isBackground || this.isTarget(msg, true)) && (this.targets || (this.localTargets.length > 0))) return this.sendMessage(msg, isPort);
+      if (settings.debug.misc) console.log(`Ignore message %o: receiver target=<${this.params.target || ''}/${this.params.targetId || ''}> details=<${this.params.targetDetails?.windowId || ''}/${this.params.targetDetails?.tabId || ''}/${this.params.targetDetails?.frameId || ''}/${this.params.targetDetails?.id || ''}> does not match message target=<${msg.target || ''}/${msg.targetId || ''}> details=<${msg.targetDetails?.windowId || ''}/${msg.targetDetails?.tabId || ''}/${msg.targetDetails?.frameId || ''}/${msg.targetDetails?.id || ''}>`, msg);
       return;
     }
     // In background script, we may need to know whether received message is
@@ -149,7 +170,8 @@ export class WebExtension {
         });
 
       case constants.KIND_REGISTER_PORT:
-        let handler = this.registerPort(sender, msg.name);
+        let handler = this.registerPort(sender, msg);
+        if (settings.debug.misc) console.log('Registered port=<%o> from message=<%o> with handler=<%o>', sender, msg, handler);
         let tab = actualSender.tab;
         if (!tab || !this.params.tabsHandler) return;
         // Hand over frame information to the tabs handler, which will check
@@ -191,9 +213,24 @@ export class WebExtension {
     return r;
   }
 
-  isTarget(msg) {
-    return !msg.target ||
-      ((msg.target == this.params.target) && ((!msg.targetId && this.params.targetIdOptional) || (msg.targetId == this.params.targetId)));
+  isTarget(msg, dispatcher) {
+    // If there is no target, every listener is a target.
+    if (!msg.target) return true;
+    // When target is defined, it must match.
+    if (msg.target != this.params.target) return false;
+    // When checking as a dispatcher, only the 'target' needs to match.
+    if (dispatcher) return true;
+    // If a targetId is given/needed, we only need to match it.
+    if (msg.targetId || this.params.targetId) return (msg.targetId == this.params.targetId);
+    // Otherwise, optional target details also need to match.
+    let targetDetails = msg.targetDetails;
+    if (!targetDetails) return true;
+    if ((targetDetails.windowId !== undefined) && (this.params.targetDetails?.windowId != targetDetails.windowId)) return false;
+    if ((targetDetails.tabId !== undefined) && (this.params.targetDetails?.tabId != targetDetails.tabId)) return false;
+    if ((targetDetails.frameId !== undefined) && (this.params.targetDetails?.frameId != targetDetails.frameId)) return false;
+    if ((targetDetails.id !== undefined) && (this.params.targetDetails?.id != targetDetails.id)) return false;
+    // Every target/details do match.
+    return true;
   }
 
   // Listens to incoming connections.
@@ -207,8 +244,16 @@ export class WebExtension {
     browser.runtime.onConnect.addListener(this.registerPort.bind(this));
   }
 
-  registerPort(port, target) {
+  registerLocalTarget(params) {
+    this.localTargets.push(params);
+  }
+
+  registerPort(port, msg) {
     // Create the handler the first time.
+    // Note: we should be called twice:
+    //  - from 'onConnect' listener, when port is truly created
+    //  - upon 'KIND_REGISTER_PORT' message, which should be the first thing
+    //    remote endpoint do
     let handler = this.ports.get(port);
     if (!handler) {
       handler = new PortHandler(this, {
@@ -220,8 +265,12 @@ export class WebExtension {
     }
     // Remember the remote endpoint target kind once known (first message it
     // should send).
-    handler.params.target = target;
+    // Reminder: message did use 'name' to pass its (now target) name, since the
+    // 'target' field is resevred to route messages.
+    let target = msg?.name;
     if (!target) return handler;
+    handler.params.target = target;
+    if (msg.targetId) handler.params.targetId = msg.targetId;
     let targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
@@ -356,7 +405,7 @@ export class WebExtension {
   // Note: when inside background script, since we may target more than one
   // recipient, the response is an array of all recipients result. Targeting
   // ourself won't return an array however, but our response.
-  sendMessage(msg) {
+  sendMessage(msg, dispatch) {
     // Include the sender information we have right now.
     msg.sender = {
       kind: this.params.target,
@@ -366,30 +415,100 @@ export class WebExtension {
       }
     };
 
+    let targetDetails = msg.targetDetails;
+    let promises = [];
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
     if (this.targets && msg.target) {
       // Message actually sent to self: send back our one response.
       if (this.isTarget(msg)) return this.onMessage(msg, this);
 
-      let ports = this.targets[msg.target] || [];
-      let promises = [];
-      for (let port of ports) {
-        promises.push(port.postRequest(msg));
+      let knownPortHandlers = this.targets[msg.target] || [];
+      let targets;
+      if (targetDetails || msg.targetId) {
+        targets = [];
+        for (let portHandler of knownPortHandlers) {
+          // Port remote endpoint will finely check received messages do really
+          // target it. However, we can filter out those that should not match
+          // and prevent uselessly sending a message to these.
+          // We only need to check direct target information, not any information
+          // related to a local target on the remote endpoint.
+
+          // If there is no target, every port is a target.
+          // When target is defined, it must match.
+          if (msg.target && (msg.target != portHandler.params.target)) continue;
+          // If a targetId is given/needed, it needs to match.
+          if ((msg.targetId || portHandler.params.targetId) && (msg.targetId != portHandler.params.targetId)) continue;
+          // Optional target details, except id, also need to match.
+          if (targetDetails) {
+            if ((targetDetails.windowId !== undefined) && (portHandler.port?.sender?.tab?.windowId != targetDetails.windowId)) continue;
+            if ((targetDetails.tabId !== undefined) && (portHandler.port?.sender?.tab?.id != targetDetails.tabId)) continue;
+            if ((targetDetails.frameId !== undefined) && (portHandler.port?.sender?.frameId != targetDetails.frameId)) continue;
+          }
+          // Every target/details do match.
+          targets.push(portHandler);
+        }
+      } else {
+        targets = knownPortHandlers;
       }
-      return Promise.all(promises);
+      for (let target of targets) {
+        promises.push(target.postRequest(msg));
+      }
+    }
+    // Reminder: local script do call sendMessage, so we need to ensure we can
+    // dispatch this message to local targets; which has already been confirmed
+    // when we are called from 'onMessage'.
+    if (this.isTarget(msg, true)) {
+      // When we have local targets, send to those that match.
+      let localTargets;
+      if (targetDetails) {
+        localTargets = [];
+        for (let localTarget of this.localTargets) {
+          if ((targetDetails.id !== undefined) && (localTarget.id != targetDetails.id)) continue;
+          localTargets.push(localTarget);
+        }
+      } else {
+        localTargets = this.localTargets;
+      }
+      for (let localTarget of localTargets) {
+        promises.push(localTarget.onMessage(this, msg, msg.sender));
+      }
+    }
+    // If we found at least one acual target, that's it.
+    if (promises.length > 0) return Promise.all(promises);
+
+    // Use dedicated Port when applicable: should mean we need to send the
+    // message to the background script and let it dispatch it to the actual
+    // target(s).
+    // Thus, if we are supposed to dispatch (meaning we received this from
+    // a Port - expectedly the background script), don't send it through our
+    // Port (connected to the background script): the message would loop between
+    // the background script and us.
+    if (!dispatch) {
+      let usePort = this.portHandler && this.portHandler.isConnected();
+      if (usePort) return this.portHandler.postRequest(msg);
     }
 
-    // Use dedicated Port when applicable.
     // Belt and suspenders: fallback to 'broadcasting' otherwise. This actually
     // should not be needed/useful, as only non-background scripts do use Ports,
     // and if remote endpoint disconnects, it should mean it is not running
     // anymore.
-    let usePort = this.portHandler && this.portHandler.isConnected();
-    if (usePort) return this.portHandler.postRequest(msg);
-    return browser.runtime.sendMessage(msg);
+    // Limit this to non-background scripts that are not a target (even as local
+    // dispatcher): ignore in other cases.
+    if (this.isBackground) {
+      if (settings.debug.misc) console.log(`Ignore message %o: background script did not find the target to dispatch to`, msg);
+    } else if (this.isTarget(msg, true)) {
+      if (settings.debug.misc) console.log(`Ignore message %o: non-background script did not find the target to dispatch to`, msg);
+    } else {
+      if (settings.debug.misc) console.log('Fallback to broadcasting message %o: non-background script did not find the target to dispatch to and is not connected to broadcast script', msg);
+      return browser.runtime.sendMessage(msg);
+    }
   }
 
+  // Send a message directly to listeners in tab.
+  // This entirely bypasses our message handling: any listener in the target tab
+  // will receive this message (on its registered listening method, usually
+  // its onMessge one).
   sendTabMessage(tabId, msg, options) {
     return browser.tabs.sendMessage(tabId, msg, options);
   }
@@ -421,6 +540,10 @@ export class WebExtension {
 //
 // Shares mechanisms with native application messaging (which also relies on
 // Port); native application messaging needs some more complex handling though.
+//
+// Each non-background script have at least one, to talk to the background script.
+// The background script have one for each non-background script that does
+// 'browser.runtime.connect()'.
 class PortHandler {
 
   constructor(webext, params) {
@@ -453,9 +576,13 @@ class PortHandler {
     this.autoReconnect = true;
     this.setPort(browser.runtime.connect());
     // Register us in background script.
+    // Pass our name (the target) and targetId if defined.
+    // Reminder: we cannot use 'target' to pass our name, since this field name
+    // is used to route messages.
     this.postMessage({
       kind: constants.KIND_REGISTER_PORT,
-      name
+      name,
+      ...this.webext.params.targetId && {targetId: this.webext.params.targetId}
     });
     // Re-register events to observe.
     let events = this.params.tabsEvents || new Set();

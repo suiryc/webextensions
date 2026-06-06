@@ -159,7 +159,7 @@ async function onNativeMessage(app, msg) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
+  console.warn('Background script received unhandled message %o from %o', msg, sender);
   return {
     error: 'Message is not handled by background script',
     message: msg
@@ -179,7 +179,14 @@ function tw_checkConcurrent(msg) {
       for (let tab of tabs) {
         // We cannot send a message to a discarded tab.
         if (tab.discarded) continue;
-        webext.sendTabMessage(tab.id, {
+        webext.sendMessage({
+          target: constants.TARGET_CONTENT_SCRIPT,
+          targetDetails: {
+            windowId: tab.windowId,
+            tabId: tab.id,
+            frameId: 0,
+            id: constants.TARGET_ID_CONTENT_SCRIPT_TW
+          },
           kind: constants.KIND_TW_WARN_CONCURRENT
         });
       }

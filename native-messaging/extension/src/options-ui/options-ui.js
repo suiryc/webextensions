@@ -22,7 +22,7 @@ async function onMessage(extension, msg, sender) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
+  console.warn('Options ui received unhandled message %o from %o', msg, sender);
   return {
     error: 'Message is not handled by options ui',
     message: msg

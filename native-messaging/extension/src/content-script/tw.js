@@ -5,6 +5,30 @@ import * as util from '../common/util.js';
 import { settings } from '../common/settings.js';
 
 
+// Handles received extension messages.
+// Notes:
+// 'async' so that we don't block and process the code asynchronously.
+async function onMessage(extension, msg, sender) {
+  switch (msg.kind || '') {
+    case constants.KIND_TW_WARN_CONCURRENT:
+      return warnConcurrent(msg);
+      break;
+
+    default:
+      return unhandledMessage(msg, sender);
+      break;
+  }
+}
+
+// Logs unhandled messages received.
+function unhandledMessage(msg, sender) {
+  console.warn(`TW content script window=<${windowId}> tab=<${tabId}> frame=<${frameId}> received unhandled message %o from %o`, msg, sender);
+  return {
+    error: 'Message is not handled by TW content script',
+    message: msg
+  };
+}
+
 // Whether the 'concurrent' warning is displayed
 // (to only display it only once until discarded)
 let warningConcurrent = false;
@@ -29,6 +53,12 @@ export async function run() {
   if ((window !== window.top) || !document.URL.match(/^file:.*html?$/i)) return;
 
   await util.waitForDocument();
+
+  // Listen to messages targeting us.
+  webext.registerLocalTarget({
+    id: constants.TARGET_ID_CONTENT_SCRIPT_TW,
+    onMessage
+  });
 
   // Inject our CSS.
   let link = document.createElement('link');

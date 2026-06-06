@@ -17,10 +17,6 @@ import * as video from './video.js';
 // messages kind meant for other scripts.
 async function onMessage(extension, msg, sender) {
   switch (msg.kind || '') {
-    case constants.KIND_TW_WARN_CONCURRENT:
-      return tw.warnConcurrent(msg);
-      break;
-
     case constants.KIND_CS_ALLOW_COPY_PASTE:
       return cs_allowCopyPaste(msg);
       break;
@@ -33,7 +29,7 @@ async function onMessage(extension, msg, sender) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
+  console.warn(`Generic content script window=<${windowId}> tab=<${tabId}> frame=<${frameId}> received unhandled message %o from %o`, msg, sender);
   return {
     error: 'Message is not handled by content scripts',
     message: msg
@@ -64,19 +60,19 @@ function cs_allowCopyPaste(msg) {
 // (also save it in globalThis so that scripts can use it directly)
 let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
 (async function() {
-  let echo = webext.sendMessage({
+  // All scripts actually want to wait, at one point or another, for settings
+  // to be ready. It is also better to wait for it before using 'webext'.
+  await settings.ready;
+  // Ping the background script, to get and remember our window/tab/frame ids.
+  let echo = await webext.sendMessage({
     target: constants.TARGET_BACKGROUND_PAGE,
     kind: constants.KIND_ECHO
   });
-  // All scripts actually want to wait, at one point or another, for settings
-  // to be ready.
-  await settings.ready;
-  // Now wait for our echo message response, and remember window/tab/frame ids.
-  echo = await echo;
+  // Share the ids in all our code scripts, and in the webext.
   globalThis.windowId = echo.sender.tab.windowId;
   globalThis.tabId = echo.sender.tab.id;
   globalThis.frameId = echo.sender.frameId;
-  globalThis.notifDefaults = {windowId, tabId, frameId};
+  globalThis.notifDefaults = webext.params.targetDetails = {windowId, tabId, frameId};
   try {
     unsafe.executeCode({
       webext,

@@ -38,7 +38,7 @@ async function onMessage(extension, msg, sender) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg, sender) {
-  console.warn('Received unhandled message %o from %o', msg, sender);
+  console.warn('Browser action received unhandled message %o from %o', msg, sender);
   return {
     error: 'Message is not handled by browser action',
     message: msg
@@ -344,6 +344,10 @@ ignoreNextButton.addEventListener('click', () => {
 allowCopyPasteButton.addEventListener('click', () => {
   webext.sendMessage({
     target: constants.TARGET_CONTENT_SCRIPT,
+    targetDetails: {
+      windowId,
+      tabId: activeTabId
+    },
     kind: constants.KIND_CS_ALLOW_COPY_PASTE
   });
 });
