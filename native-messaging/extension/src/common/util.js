@@ -439,6 +439,27 @@ export function getSizeText(size) {
   return `${roundNumber(size)}${sizeUnits[idx]}`;
 }
 
+const timeUnitFactors = [60 ,60, 24];
+const timeUnits = ['s', 'm', 'h', 'd'];
+
+// Gets human-readable representation of time.
+export function getTimeText(t) {
+  let s = '';
+  let ms = t - Math.floor(t);
+  t = Math.floor(t);
+  let idx = 0;
+  while ((idx + 1 < timeUnits.length) && (t >= timeUnitFactors[idx])) {
+    const factor = timeUnitFactors[idx];
+    s = `${padNumber(t % factor, 2)}${timeUnits[idx]}` + s;
+    t = Math.floor(t / factor);
+    idx++;
+  }
+  if (t || !s) s = `${t}${timeUnits[idx]}` + s;
+  if (ms) s += Math.floor(ms * 1000);
+
+  return s;
+}
+
 // Limits text size by using ellipsis.
 // If the text exceeds the given limit, its middle part is replaced by an
 // ellipsis unicode character.

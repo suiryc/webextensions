@@ -675,6 +675,19 @@ describe('util', function() {
 
   });
 
+  describe('getTimeText', function() {
+
+    it('should give human-readbable representation of time', function() {
+      assert.equal(util.getTimeText(0), '0s');
+      assert.equal(util.getTimeText(0.1234), '0s123');
+      assert.equal(util.getTimeText(60.1234), '1m00s123');
+      assert.equal(util.getTimeText(60 * 60), '1h00m00s');
+      assert.equal(util.getTimeText(24 * 60 * 60), '1d00h00m00s');
+      assert.equal(util.getTimeText(24 * 60 * 60 + 60 * 60 + 2 * 60 + 3 + 0.456), '1d01h02m03s456');
+    });
+
+  });
+
   describe('limitText', function() {
 
     it('should truncate the middle of text depending on size', function() {
