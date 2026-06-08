@@ -106,10 +106,10 @@ function updatePopup(msg) {
   itemTop -= window.mozInnerScreenY;
   itemMiddle -= window.mozInnerScreenY;
 
-  popup.innerHTML = `
+  util.setHtml(popup, `
     <div class="popup-title">${title}</div>
     <div class="popup-subtitle">${subtitle}</div>
-  `;
+  `);
 
   // Leave as much width as possible for the popup:
   //  - start with the width available between the left edges of the viewport
