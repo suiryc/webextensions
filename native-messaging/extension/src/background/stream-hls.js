@@ -143,6 +143,8 @@ class HLSStream extends HLSTagged {
     super();
     Object.assign(this, params);
     if (!this.uri) this.uri = this.tag?.uri;
+    let codecs = this.tag?.attributes['CODECS'];
+    if (codecs) this.codecs = codecs;
     this.determineName();
     this.determineDuration();
     this.video = this.determineRenditions('VIDEO');
@@ -175,7 +177,7 @@ class HLSStream extends HLSTagged {
   determineName() {
     let name;
     let tag = this.tag;
-    if (this.tag) {
+    if (tag) {
       name = tag.attributes['NAME'];
       if (!name && tag.attributes['RESOLUTION']) {
         name = tag.attributes['RESOLUTION'].height;

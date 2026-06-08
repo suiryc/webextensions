@@ -273,6 +273,7 @@ http://media.example.com/third.ts
           tag,
           tags: {},
           uri: tag.uri,
+          ...(tag.attributes['CODECS'] && {codecs: tag.attributes['CODECS']}),
           name,
           video: [],
           audio: [],
@@ -393,6 +394,7 @@ main/english-audio.m3u8
           tag,
           tags: {},
           uri: tag.uri,
+          ...(tag.attributes['CODECS'] && {codecs: tag.attributes['CODECS']}),
           name,
           video: [],
           audio: [
@@ -657,6 +659,7 @@ some-value
         raw: RAW_STREAM_EX1,
         tags: TAGS_STREAM_EX1,
         uri: 'http://example.com/audio-only.m3u8',
+        codecs: 'mp4a.40.5',
         name: '≤63.5Kbps',
         duration: 21.021,
         size: 170796,
