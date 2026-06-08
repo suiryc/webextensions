@@ -92,6 +92,7 @@ function setupDownloadEntry(source, download) {
   let node = cloneNode(listItemNode);
   node.classList.add('clickable');
 
+  let audio = download.details.audio;
   let videoSubtitle = download.details.subtitle;
   let subtitle = [];
   let tooltip = [];
@@ -132,26 +133,36 @@ function setupDownloadEntry(source, download) {
     subtitle.push(s);
     popupSubtitle_pushLine(util.textToHtml(`Size (hint): ${s}`));
   }
+  const hasHLSKey = !!source.hls.tags?.['EXT-X-KEY'];
   if (source.hls) {
-    subtitle.push(`🎞️${source.hls.name}`);
-    popupSubtitle_pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
-    if (source.hls.codecs) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
+    let s = '🎞️';
+    if (hasHLSKey) s += '🔑';
+    if (audio) s += '🔊';
+    s += source.hls.name;
+    subtitle.push(s);
     let tag = source.hls.tag;
-    if (tag) {
-      if (tag.attributes['RESOLUTION']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
-      if (tag.attributes['FRAME-RATE']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
-      if (!hadSize) {
-        // We did not have a size, but maybe there are bandwidth information.
-        if (tag.attributes['AVERAGE-BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
-        if (tag.attributes['BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
-      }
-      if (source.hls.duration) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
+    if (source.hls.codecs) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
+    if (tag?.attributes['RESOLUTION']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
+    if (tag?.attributes['FRAME-RATE']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
+    if (source.hls.duration) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
+    if (!hadSize) {
+      // We did not have a size, but maybe there are bandwidth information.
+      if (tag?.attributes['AVERAGE-BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
+      if (tag?.attributes['BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
     }
+    popupSubtitle_pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
   } else {
     if (extension) {
       subtitle.push(extension);
       popupSubtitle_pushLine(util.textToHtml(`Extension: ${extension}`));
     }
+  }
+  if (source.hls) {
+    let s = '';
+    if (hasHLSKey) s += '🔑';
+    if (audio) s += '🔊';
+    if (videoSubtitle) s += '💬';
+    if (s) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS features: 🎞️${s}`));
   }
   if (videoSubtitle) {
     subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
@@ -186,9 +197,13 @@ function setupDownloadEntry(source, download) {
     tooltip.push(util.limitText(source.forceUrl, TEXT_LIMIT_TOOLTIP));
     popupSubtitle_pushLine(`Forced URL: <span class='url'>${util.textToHtml(util.limitText(source.forceUrl, TEXT_LIMIT_POPUP))}</span>`);
   }
+  if (audio) {
+    tooltip.push(util.limitText(`🔊${audio.url}`, TEXT_LIMIT_TOOLTIP));
+    popupSubtitle_pushLine(`🔊Audio URL: <span class='url'>${util.textToHtml(util.limitText(audio.url, TEXT_LIMIT_POPUP))}</span>`);
+  }
   if (videoSubtitle) {
     tooltip.push(util.limitText(`💬${videoSubtitle.url}`, TEXT_LIMIT_TOOLTIP));
-    popupSubtitle_pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</url>`);
+    popupSubtitle_pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</span>`);
   }
 
   popupSubtitle = popupSubtitle.join('');
