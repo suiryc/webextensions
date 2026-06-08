@@ -49,6 +49,7 @@ export const constants = {
 
   TARGET_ID_CUSTOM_CONTENT_SCRIPT: 'custom content script',
   TARGET_ID_CONTENT_SCRIPT_TW: 'TW content script',
+  TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP: 'browser action popup content script',
 
   // Message known 'kind' field values
   KIND_ADD_VIDEO_SOURCE: 'addVideoSource',
@@ -58,6 +59,7 @@ export const constants = {
   KIND_CLEAR_MESSAGE: 'clearMessage',
   KIND_CONSOLE: 'console',
   KIND_CS_ALLOW_COPY_PASTE: 'csAllowCopyPaste',
+  KIND_CS_BROWSER_ACTION_POPUP_UPDATE: 'csBrowserActionPopupUpdate',
   KIND_DL_IGNORE_NEXT: 'dlIgnoreNext',
   KIND_DL_UPDATE_VIDEOS: 'dlUpdateVideos',
   KIND_DL_VIDEO: 'dlVideo',

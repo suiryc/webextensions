@@ -75,74 +75,202 @@ async function dl_updateVideos(sources, showTab) {
   }
   for (let source of sources) {
     for (let download of source.downloads) {
-      let node = cloneNode(listItemNode);
-      node.classList.add('clickable');
-      // Note: a default extension was chosen when applicable.
-      let { name, extension } = util.getFilenameExtension(download.details.file);
-      util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
-      let videoSubtitle = download.details.subtitle;
-      let subtitle = [];
-      let tooltip = [];
-      // Use source size, and extension (unless HLS).
-      if (download.details.size) {
-        subtitle.push(`${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`);
-      }
-      if ('size' in source) subtitle.push(util.getSizeText(source.size));
-      if (source.hls) {
-        subtitle.push(`🎞️${source.hls.name}`);
-      } else {
-        if (extension) subtitle.push(extension);
-      }
-      if (videoSubtitle) subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
-      let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
-      subtitle.push(hostname);
-      tooltip.push(util.limitText(source.url, 120));
-      subtitle = subtitle.join(' - ');
-      if (source.actualUrl) {
-        let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
-        if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
-          subtitle = `${subtitle}\nActual host: ${actualHostname}`;
-        }
-        tooltip.push(util.limitText(source.actualUrl, 120));
-      }
-      if (source.forceUrl) {
-        let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
-        if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
-          subtitle = `${subtitle}\nForced host: ${actualHostname}`;
-        }
-        tooltip.push(util.limitText(source.forceUrl, 120));
-      }
-      if (videoSubtitle) tooltip.push(util.limitText(`💬${videoSubtitle.url}`, 120));
-      util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
-      // Don't use a CSS tooltip, as it would likely not be displayed correctly
-      // (if at all) in the browser action popup view. Instead use some simple
-      // 'title' to let the browser display it.
-      node.setAttribute('title', tooltip.join('\n'));
-      node.addEventListener('click', data => {
-        // Triggering video download only requires to know:
-        //  - the 'source' (contains unique video id)
-        //  - download extra details: all original details are known by target
-        //    and don't need to be passed back
-        // Auto-download enabled by default, unless using non-main button
-        // or 'Ctrl' key.
-        let details = {
-          auto: (data.button == 0) && !data.ctrlKey
-        };
-        webext.sendMessage({
-          target: constants.TARGET_BACKGROUND_PAGE,
-          kind: constants.KIND_DL_VIDEO,
-          details,
-          source: download.source
-        });
-        // Close the browser action page.
-        window.close();
-      });
-      videosNode.appendChild(node);
+      setupDownloadEntry(source, download);
     }
   }
   videosItemNode.setAttribute('data-badge', sources.map(source => source.downloads.length).reduce((sum, v) => sum + v, 0));
   videosItemNode.classList.toggle('badge', true);
   if (showTab) document.querySelector('#tab-item-videos').click();
+}
+
+const TEXT_LIMIT_TOOLTIP = 120;
+const TEXT_LIMIT_POPUP = 400;
+
+let textForClipboard = undefined;
+
+function setupDownloadEntry(source, download) {
+  let node = cloneNode(listItemNode);
+  node.classList.add('clickable');
+
+  let videoSubtitle = download.details.subtitle;
+  let subtitle = [];
+  let tooltip = [];
+  let popupSubtitle = [];
+  let entryClipboard = [];
+
+  // Note: a default extension was chosen when applicable.
+  let { name, extension } = util.getFilenameExtension(download.details.file);
+  util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
+  entryClipboard.push(name);
+  entryClipboard.push('');
+
+  function popupSubtitle_pushLine(s) {
+    if (popupSubtitle.length && (popupSubtitle.at(-1) != '<hr>')) popupSubtitle.push('<br>');
+    popupSubtitle.push(s);
+    entryClipboard.push(util.htmlToText(s));
+  }
+
+  function popupSubtitle_newSection() {
+    popupSubtitle.push('<hr>');
+    entryClipboard.push('---');
+  }
+
+  // Use source size, and extension (unless HLS).
+  // Note: for HLS we may have information only in download details, but for
+  // direct download, we also have the size in the source.
+  let hadSize = false;
+  if ('size' in source) {
+    // Exact size known.
+    hadSize = true;
+    const s = util.getSizeText(source.size);
+    subtitle.push(s);
+    popupSubtitle_pushLine(util.textToHtml(`Size: ${s}`));
+  } else if (download.details.size) {
+    // Size hint known.
+    hadSize = true;
+    const s = `${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`;
+    subtitle.push(s);
+    popupSubtitle_pushLine(util.textToHtml(`Size (hint): ${s}`));
+  }
+  if (source.hls) {
+    subtitle.push(`🎞️${source.hls.name}`);
+    popupSubtitle_pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
+    if (source.hls.codecs) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
+    let tag = source.hls.tag;
+    if (tag) {
+      if (tag.attributes['RESOLUTION']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
+      if (tag.attributes['FRAME-RATE']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
+      if (!hadSize) {
+        // We did not have a size, but maybe there are bandwidth information.
+        if (tag.attributes['AVERAGE-BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
+        if (tag.attributes['BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
+      }
+      if (source.hls.duration) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
+    }
+  } else {
+    if (extension) {
+      subtitle.push(extension);
+      popupSubtitle_pushLine(util.textToHtml(`Extension: ${extension}`));
+    }
+  }
+  if (videoSubtitle) {
+    subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
+    if (videoSubtitle.lang) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles lang: ${videoSubtitle.lang}`));
+    if (videoSubtitle.name) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles name: ${videoSubtitle.name}`));
+  }
+  let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
+  subtitle.push(hostname);
+  if (!source.hls) {
+    popupSubtitle_newSection();
+    if (download.params.mimeFilename) popupSubtitle_pushLine(util.textToHtml(`MIME filename: ${download.params.mimeFilename}`));
+    if (download.params.mimeType) popupSubtitle_pushLine(util.textToHtml(`MIME type: ${download.params.mimeType}`));
+    popupSubtitle_pushLine(util.textToHtml(`URL filename: ${util.getFilename(download.details.url)}`));
+  }
+  popupSubtitle_newSection();
+  popupSubtitle_pushLine(`URL: <span class='url'>${util.textToHtml(util.limitText(source.url, TEXT_LIMIT_POPUP))}</span>`);
+  tooltip.push(util.limitText(source.url, TEXT_LIMIT_TOOLTIP));
+  subtitle = subtitle.join(' - ');
+  if (source.actualUrl) {
+    let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
+    if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+      subtitle = `${subtitle}\nActual host: ${actualHostname}`;
+    }
+    tooltip.push(util.limitText(source.actualUrl, TEXT_LIMIT_TOOLTIP));
+    popupSubtitle_pushLine(`Actual URL: <span class='url'>${util.textToHtml(util.limitText(source.actualUrl, TEXT_LIMIT_POPUP))}</span>`);
+  }
+  if (source.forceUrl) {
+    let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
+    if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
+      subtitle = `${subtitle}\nForced host: ${actualHostname}`;
+    }
+    tooltip.push(util.limitText(source.forceUrl, TEXT_LIMIT_TOOLTIP));
+    popupSubtitle_pushLine(`Forced URL: <span class='url'>${util.textToHtml(util.limitText(source.forceUrl, TEXT_LIMIT_POPUP))}</span>`);
+  }
+  if (videoSubtitle) {
+    tooltip.push(util.limitText(`💬${videoSubtitle.url}`, TEXT_LIMIT_TOOLTIP));
+    popupSubtitle_pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</url>`);
+  }
+
+  popupSubtitle = popupSubtitle.join('');
+  entryClipboard = entryClipboard.join('\n');
+  util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
+  // Don't use a CSS tooltip, as it would likely not be displayed correctly
+  // (if at all) in the browser action popup view. Instead use some simple
+  // 'title' to let the browser display it.
+  node.setAttribute('title', tooltip.join('\n'));
+
+  node.addEventListener('click', data => {
+    // Triggering video download only requires to know:
+    //  - the 'source' (contains unique video id)
+    //  - download extra details: all original details are known by target
+    //    and don't need to be passed back
+    // Auto-download enabled by default, unless using non-main button
+    // or 'Ctrl' key.
+    let details = {
+      auto: (data.button == 0) && !data.ctrlKey
+    };
+    webext.sendMessage({
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_DL_VIDEO,
+      details,
+      source: download.source
+    });
+    // Hide the popup.
+    cs_hidePopup();
+    // Close the browser action page.
+    window.close();
+  });
+
+  node.addEventListener('mouseenter', () => {
+    textForClipboard = entryClipboard;
+
+    const rect = node.getBoundingClientRect();
+    // IMPORTANT: mozInnerScreenX/Y is needeed for proper positioning.
+    // See the content script for details.
+    const containerTop = window.mozInnerScreenY;
+    const itemTop = containerTop + rect.top;
+    const pos = {
+      containerLeft: window.mozInnerScreenX,
+      itemTop,
+      itemMiddle: itemTop + (rect.height / 2)
+    };
+
+    // Show popup in webpage.
+    webext.sendMessage({
+      target: constants.TARGET_CONTENT_SCRIPT,
+      targetDetails: {
+        windowId,
+        tabId: activeTabId,
+        id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+      },
+      kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE,
+      action: 'show',
+      data: {
+        title: util.textToHtml(name),
+        subtitle: popupSubtitle
+      },
+      pos
+    });
+  });
+  node.addEventListener('mouseleave', cs_hidePopup);
+
+  videosNode.appendChild(node);
+}
+
+function cs_hidePopup() {
+  textForClipboard = undefined;
+
+  // Hide popup in webpage.
+  webext.sendMessage({
+    target: constants.TARGET_CONTENT_SCRIPT,
+    targetDetails: {
+      windowId,
+      tabId: activeTabId,
+      id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+    },
+    kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE,
+    action: 'hide'
+  });
 }
 
 // Adds message to display.
@@ -385,6 +513,12 @@ clearOtherMessagesButton.addEventListener('click', () => {
 // Open options page in browser tab when double-clicking 'Options' item.
 optionsItemNode.addEventListener('dblclick', () => {
   browser.runtime.openOptionsPage();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.ctrlKey && (ev.key == 'c')) {
+    if (textForClipboard) navigator.clipboard.writeText(textForClipboard);
+  }
 });
 
 // Get+add videos and application messages.

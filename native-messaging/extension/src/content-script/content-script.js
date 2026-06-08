@@ -4,6 +4,7 @@ import { constants } from '../common/constants.js';
 import { WebExtension } from '../common/messaging.js';
 import * as unsafe from '../common/unsafe.js';
 import { settings } from '../common/settings.js';
+import * as browserActionPopup from './browser-action-popup.js';
 import * as linksCatcher from './links-catcher.js';
 import * as tw from './tw.js';
 import * as video from './video.js';
@@ -85,6 +86,7 @@ let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CON
     console.log('Failure executing custom content script:', err);
   }
   try {
+    browserActionPopup.run();
     linksCatcher.run();
     tw.run();
     video.run();

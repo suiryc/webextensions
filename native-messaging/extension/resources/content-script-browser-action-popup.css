@@ -1,0 +1,48 @@
+#popup {
+  position: fixed;
+  min-width: 200px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  z-index: 2147483647;
+  overflow: visible;
+  animation: fadeIn 0.2s ease-out;
+  pointer-events: none;
+}
+
+/* Arrow pointing right */
+#popup::after {
+  content: "";
+  position: absolute;
+  top: var(--arrow-top, 20px);
+  right: calc(var(--arrow-length, 10px) * -1);
+  border-width: var(--arrow-length, 10px) 0 var(--arrow-length, 10px) var(--arrow-length, 10px);
+  border-style: solid;
+  border-color: transparent transparent transparent white;
+  transform: translateY(-50%);
+  filter: drop-shadow(1px 0px 1px rgba(0,0,0,0.1));
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.popup-title {
+  padding: 6px 6px 3px 6px;
+  font-weight: bold;
+  /* Browser often applies a default color */
+  color: #000;
+}
+
+.popup-subtitle {
+  padding: 3px 6px 6px 6px;
+  font-style: italic;
+  color: #000;
+}
+
+/* Break URL overflow anywhere. */
+.url {
+  word-break: break-all;
+}
