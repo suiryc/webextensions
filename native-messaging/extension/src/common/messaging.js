@@ -59,10 +59,55 @@ import { settings } from '../common/settings.js';
 //    - tabId
 //    - frameId
 //    - id: to target a specific 'local listener' in the content scripts
+//
+// At the Port level, we have:
+//  - postMessage: calls underlying Port.postMessage, with no response
+//  - postRequest: wraps postMessage/onMessage to correlate received message
+//    responses to previously sent request messages
+// At the application level, we mimic with:
+//  - postMessage: find the targets (ports or local targets) to send the message
+//    to, without response to manage
+//  - sendMessage: as postMessage, but manages the responses (Promises) to give
+//    back to caller
+//
+// A special '_routing' field is used in messages in order to indicate:
+//  - the target(s) to send the message to: 'target', 'targetId', 'targetDetails'
+//    as documented
+//  - whether this is a 'request', that is whether callers expects a response
+//    (carried through Promises) from the target(s)
+//  - whether this is a 'broadcast'
+//    - broadcast: any number of targets, matching the conditions, will receive
+//      the message, and an array (of Promises) is returned in case of request
+//    - non-broadcast: only one target is expected, so the first one matching
+//      the conditions will receive the message, and caller will only get back
+//      one response Promise in case of request
+//    - postMessage is by default broadcasting (if not specified)
+//
+// Implementation note
+// -------------------
+// Interaction between 'broadcast' 'request' and multiple targets with possible
+// (local/remote endpoint) local targets.
+// Since a script may go through the background script to reach the actual
+// target(s), and that each endpoint may dispatch to local targets, there is a
+// need to properly handle responses aggregation: arrays are used to return each
+// target response, and original caller is expected to receive a flat array with
+// all target(s) responses.
+// When an endoint sends back a response, it would need to wrap it inside an
+// array. When a routing component (e.g. the background script) dispatches a
+// request and receives the responses, it needs to expect an array and unwrap it
+// to flatten all elements before sending the response array back to the caller.
+// To simplify a bit the code:
+//  - when a component (endpoint or routing) knows its response is not an array
+//    kind, it can send it back as-is internally: only opaque values (received
+//    through sendMessage/onMessage typically) needs to be wrapped, since the
+//    real target may respond with an array to the caller (and we don't want to
+//    unwrap *this* array)
+//  - internally, when aggregating dispatched responses, gracefully handle a
+//    non-array response when creating the flat array of responses
 export class WebExtension {
 
   constructor(params) {
-    let self = this;
+    const self = this;
     if (!params.target) throw new Error('The target parameter is mandatory');
     self.params = params;
     // Properties managed by the extension.
@@ -75,14 +120,16 @@ export class WebExtension {
     // script logs: the console shows the log origin page.
     // Only content scripts console is associated to the viewed page.
     self.console = {};
-    for (let level of ['log', 'debug', 'info', 'warn', 'error']) {
+    for (const level of ['log', 'debug', 'info', 'warn', 'error']) {
       if (params.target != constants.TARGET_CONTENT_SCRIPT) {
         self.console[level] = console[level].bind(console);
       } else {
         self.console[level] = function (...args) {
-          self.sendMessage({
-            target: constants.TARGET_BACKGROUND_PAGE,
-            kind: constants.KIND_CONSOLE,
+          self.postMessage({
+            _routing: {
+              target: constants.TARGET_BACKGROUND_PAGE,
+              kind: constants.KIND_CONSOLE
+            },
             level: level,
             args: util.tryStructuredClone(args)
           });
@@ -110,7 +157,7 @@ export class WebExtension {
       key: `notif.${source}`,
       tabId: (defaults || {}).tabId,
       create: webext => {
-        let notif = {};
+        const notif = {};
         ['info', 'warn', 'error'].forEach(level => {
           notif[level] = function(details, error) {
             // Prepare details.
@@ -126,6 +173,7 @@ export class WebExtension {
   }
 
   onMessage(msg, sender) {
+    const _routing = msg._routing || {};
     // Notes:
     // When the browser.runtime.onMessage listener callback returns a Promise,
     // it is sent back to the sender; when it returns a value, the sender gets
@@ -138,22 +186,26 @@ export class WebExtension {
     if (sender.sender) actualSender = sender.sender;
     // In non-background scripts, we can check whether the sender is the port
     // we use to talk to the background script.
-    let isPort = !!sender.sender || (sender === this.portHandler?.port);
+    const isPort = !!sender.sender || (sender === this.portHandler?.port);
+
     // Ignore message when applicable.
     if (!this.isTarget(msg, false)) {
       // If we are the target as a dispatcher, and have targets, dispatch the
       // message.
-      if ((this.isBackground || this.isTarget(msg, true)) && (this.targets || (this.localTargets.length > 0))) return this.sendMessage(msg, isPort);
-      if (settings.debug.misc) console.log(`Ignore message %o: receiver target=<${this.params.target || ''}/${this.params.targetId || ''}> details=<${this.params.targetDetails?.windowId || ''}/${this.params.targetDetails?.tabId || ''}/${this.params.targetDetails?.frameId || ''}/${this.params.targetDetails?.id || ''}> does not match message target=<${msg.target || ''}/${msg.targetId || ''}> details=<${msg.targetDetails?.windowId || ''}/${msg.targetDetails?.tabId || ''}/${msg.targetDetails?.frameId || ''}/${msg.targetDetails?.id || ''}>`, msg);
+      if ((this.isBackground || this.isTarget(msg, true)) && (this.targets || (this.localTargets.length > 0))) return this._sendMessage(msg, isPort);
+      const selfTargetDetails = this.params.targetDetails;
+      const msgTargetDetails = _routing?.targetDetails;
+      if (settings.debug.misc) console.log(`Ignore message %o: receiver target=<${this.params.target || ''}/${this.params.targetId || ''}> details=<${selfTargetDetails?.windowId || ''}/${selfTargetDetails?.tabId || ''}/${selfTargetDetails?.frameId || ''}/${selfTargetDetails?.id || ''}> does not match message target=<${_routing.target || ''}/${_routing.targetId || ''}> details=<${msgTargetDetails?.windowId || ''}/${msgTargetDetails?.tabId || ''}/${msgTargetDetails?.frameId || ''}/${msgTargetDetails?.id || ''}>`, msg);
       return;
     }
+
     // In background script, we may need to know whether received message is
     // still 'fresh' when coming from a content script: if we set the sender
     // frame information and the sender is a tab, we can see whether the frame
     // matches a current one.
     if (this.isBackground && actualSender.tab && this.params.tabsHandler && msg.sender) {
-      let tab = actualSender.tab;
-      let frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
+      const tab = actualSender.tab;
+      const frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
       msg.sender.live = frameHandler && (frameHandler.url == msg.sender.frame.url);
       // Note:
       // Sometimes the sender tab url reported by the browser is not up-to-date.
@@ -161,18 +213,20 @@ export class WebExtension {
       // know (this is not an old message), use the tab URL we know right now.
       if (msg.sender.live) tab.url = frameHandler.tabHandler.url;
     }
-    switch (msg.kind || '') {
+
+    switch (_routing.kind) {
       case constants.KIND_ECHO:
         // Handle 'echo' message internally.
+        // Note: an object, so no need to wrap in array upon 'broadcast'.
         return Promise.resolve({
           msg,
           sender: actualSender
         });
 
       case constants.KIND_REGISTER_PORT:
-        let handler = this.registerPort(sender, msg);
+        const handler = this.registerPort(sender, msg);
         if (settings.debug.misc) console.log('Registered port=<%o> from message=<%o> with handler=<%o>', sender, msg, handler);
-        let tab = actualSender.tab;
+        const tab = actualSender.tab;
         if (!tab || !this.params.tabsHandler) return;
         // Hand over frame information to the tabs handler, which will check
         // whether this is a brand new one or is already known.
@@ -194,6 +248,7 @@ export class WebExtension {
         util.callMethod(this.params.tabsEventsObserver, msg.event.kind, msg.event.args);
         return;
     }
+
     let r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
     // This is also needed so that the response content (if not a Promise) is
@@ -210,20 +265,22 @@ export class WebExtension {
       // Format object: pure Errors are empty when sent.
       return {error: util.formatObject(error)};
     });
+    if (_routing.broadcast) r = r.then(util.arrayWrap);
     return r;
   }
 
   isTarget(msg, dispatcher) {
+    const _routing = msg?._routing || {};
     // If there is no target, every listener is a target.
-    if (!msg.target) return true;
+    if (!_routing.target) return true;
     // When target is defined, it must match.
-    if (msg.target != this.params.target) return false;
+    if (_routing.target != this.params.target) return false;
     // When checking as a dispatcher, only the 'target' needs to match.
     if (dispatcher) return true;
     // If a targetId is given/needed, we only need to match it.
-    if (msg.targetId || this.params.targetId) return (msg.targetId == this.params.targetId);
+    if (_routing.targetId || this.params.targetId) return (_routing.targetId == this.params.targetId);
     // Otherwise, optional target details also need to match.
-    let targetDetails = msg.targetDetails;
+    const targetDetails = _routing.targetDetails;
     if (!targetDetails) return true;
     if ((targetDetails.windowId !== undefined) && (this.params.targetDetails?.windowId != targetDetails.windowId)) return false;
     if ((targetDetails.tabId !== undefined) && (this.params.targetDetails?.tabId != targetDetails.tabId)) return false;
@@ -265,13 +322,11 @@ export class WebExtension {
     }
     // Remember the remote endpoint target kind once known (first message it
     // should send).
-    // Reminder: message did use 'name' to pass its (now target) name, since the
-    // 'target' field is resevred to route messages.
-    let target = msg?.name;
+    const target = msg?.target;
     if (!target) return handler;
     handler.params.target = target;
-    if (msg.targetId) handler.params.targetId = msg.targetId;
-    let targets = this.targets[target] || [];
+    if (msg._routing.targetId) handler.params.targetId = msg._routing.targetId;
+    const targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
     return handler;
@@ -279,7 +334,7 @@ export class WebExtension {
 
   unregisterPort(port, handler) {
     this.unregisterTabsEvents(handler);
-    let target = handler.params.target;
+    const target = handler.params.target;
     // Note: explicitly delete because if we don't know the target, we have
     // nothing else to do; and we don't want to keep the weak reference either.
     this.ports.delete(port);
@@ -293,11 +348,11 @@ export class WebExtension {
   }
 
   registerTabsEvents(port, events) {
-    let self = this;
+    const self = this;
     if (!events) return;
-    let handler = self.ports.get(port);
+    const handler = self.ports.get(port);
     if (!handler) return;
-    let setup = !self.tabsEventsTargets;
+    const setup = !self.tabsEventsTargets;
     if (setup) {
       self.tabsEventsTargets = {};
       constants.EVENTS_TABS.forEach(key => {
@@ -306,28 +361,28 @@ export class WebExtension {
     }
     self.unregisterTabsEvents(handler);
     handler.params.tabsEvents = events || [];
-    for (let key of handler.params.tabsEvents) {
+    for (const key of handler.params.tabsEvents) {
       self.tabsEventsTargets[key].add(handler);
     }
     self.observeTabsEvents(port, setup ? undefined : events);
   }
 
   unregisterTabsEvents(handler) {
-    for (let key of (handler.params.tabsEvents || [])) {
+    for (const key of (handler.params.tabsEvents || [])) {
       this.tabsEventsTargets[key].delete(handler);
     }
   }
 
   observeTabsEvents(observer, events) {
-    let self = this;
-    let tabsHandler = self.params.tabsHandler;
+    const self = this;
+    const tabsHandler = self.params.tabsHandler;
 
     if (tabsHandler) {
       // The tabs handler should be defined for the background script.
       // Post tabs events to observers.
       if (!events) {
         // Setup common proxy observer for the first actual observer.
-        let dummyObserver = {};
+        const dummyObserver = {};
         constants.EVENTS_TABS.forEach(key => {
           dummyObserver[key] = function() {
             let msg;
@@ -335,7 +390,9 @@ export class WebExtension {
             let getMsg = () => {
               if (msg) return msg;
               msg = {
-                kind: constants.KIND_TABS_EVENT,
+                _routing: {
+                  kind: constants.KIND_TABS_EVENT
+                },
                 event: {
                   kind: key,
                   args: util.toJSON([...arguments])
@@ -353,11 +410,13 @@ export class WebExtension {
         // For next observers, create a one-shot proxy observer to trigger
         // initial events. The next events will be proxyied by the common
         // proxy observer.
-        let dummyObserver = {};
+        const dummyObserver = {};
         events.forEach(key => {
           dummyObserver[key] = function() {
             observer.postMessage({
-              kind: constants.KIND_TABS_EVENT,
+              _routing: {
+                kind: constants.KIND_TABS_EVENT
+              },
               event: {
                 kind: key,
                 args: util.toJSON([...arguments])
@@ -377,15 +436,17 @@ export class WebExtension {
     // Register us, and pass events to the actual observer.
     // We automatically determine events that are handled.
     if (observer) {
-      let events = new Set();
+      const events = new Set();
       constants.EVENTS_TABS.forEach(key => {
         if (util.hasMethod(observer, key)) events.add(key);
       });
       self.params.tabsEventsObserver = observer;
       if (this.portHandler) this.portHandler.params.tabsEvents = events;
-      self.sendMessage({
-        target: constants.TARGET_BACKGROUND_PAGE,
-        kind: constants.KIND_REGISTER_TABS_EVENTS,
+      self.postMessage({
+        _routing: {
+          target: constants.TARGET_BACKGROUND_PAGE,
+          kind: constants.KIND_REGISTER_TABS_EVENTS
+        },
         events
       });
     }
@@ -401,13 +462,33 @@ export class WebExtension {
     this.portHandler.connect();
   }
 
+  // Posts message to matching target(s).
+  // Broadcasting is enabled by default.
+  postMessage(msg) {
+    msg._routing ||= {};
+    msg._routing.request = false;
+    if (msg._routing.broadcast === undefined) msg._routing.broadcast = true;
+    this._sendMessage(msg);
+  }
+
   // Send message, and return response (if applicable).
-  // Note: when inside background script, since we may target more than one
-  // recipient, the response is an array of all recipients result. Targeting
-  // ourself won't return an array however, but our response.
-  sendMessage(msg, dispatch) {
+  // Broadcasting means all targets will receive the message, and an array of
+  // responses is returned.
+  // Otherwise, only the first matching target will receive the message, and its
+  // response be sent back.
+  // Broadcasting is disabled by default.
+  // Specific case: when sending message to self, non-broadcast is enforced.
+  sendMessage(msg) {
+    msg._routing ||= {};
+    msg._routing.request = true;
+    return this._sendMessage(msg);
+  }
+
+  _sendMessage(msg, dispatch) {
+    const _routing = msg._routing;
+    const portMethod = _routing.request ? 'postRequest' : 'postMessage';
     // Include the sender information we have right now.
-    msg.sender = {
+    _routing.sender = {
       kind: this.params.target,
       frame: {
         url: location.href,
@@ -415,17 +496,21 @@ export class WebExtension {
       }
     };
 
-    let targetDetails = msg.targetDetails;
-    let promises = [];
+    const targetDetails = _routing.targetDetails;
+    const promises = [];
     // When the background script needs to send a message to given target(s),
     // do find the concerned Ports to post the message on.
-    if (this.targets && msg.target) {
-      // Message actually sent to self: send back our one response.
-      if (this.isTarget(msg)) return this.onMessage(msg, this);
+    if (this.targets && _routing.target) {
+      if (this.isTarget(msg)) {
+        // Message actually sent to self: only send our response.
+        let r = this.onMessage(msg, this);
+        if (_routing.broadcast) r = Promise.resolve(r).then(util.arrayWrap);
+        return r;
+      }
 
-      let knownPortHandlers = this.targets[msg.target] || [];
+      const knownPortHandlers = this.targets[_routing.target] || [];
       let targets;
-      if (targetDetails || msg.targetId) {
+      if (targetDetails || _routing.targetId) {
         targets = [];
         for (let portHandler of knownPortHandlers) {
           // Port remote endpoint will finely check received messages do really
@@ -436,9 +521,9 @@ export class WebExtension {
 
           // If there is no target, every port is a target.
           // When target is defined, it must match.
-          if (msg.target && (msg.target != portHandler.params.target)) continue;
+          if (_routing.target && (_routing.target != portHandler.params.target)) continue;
           // If a targetId is given/needed, it needs to match.
-          if ((msg.targetId || portHandler.params.targetId) && (msg.targetId != portHandler.params.targetId)) continue;
+          if ((_routing.targetId || portHandler.params.targetId) && (_routing.targetId != portHandler.params.targetId)) continue;
           // Optional target details, except id, also need to match.
           if (targetDetails) {
             if ((targetDetails.windowId !== undefined) && (portHandler.port?.sender?.tab?.windowId != targetDetails.windowId)) continue;
@@ -446,36 +531,60 @@ export class WebExtension {
             if ((targetDetails.frameId !== undefined) && (portHandler.port?.sender?.frameId != targetDetails.frameId)) continue;
           }
           // Every target/details do match.
+          // If not broadcasting, we are done with this target.
+          if (!_routing.broadcast) return portHandler[portMethod](msg);
           targets.push(portHandler);
         }
       } else {
         targets = knownPortHandlers;
       }
-      for (let target of targets) {
-        promises.push(target.postRequest(msg));
+      for (const target of targets) {
+        // We expect message to be handled by our messaging code, which will wrap
+        // the values upon broadcast already.
+        promises.push(target[portMethod](msg));
       }
     }
     // Reminder: local script do call sendMessage, so we need to ensure we can
     // dispatch this message to local targets; which has already been confirmed
     // when we are called from 'onMessage'.
-    if (this.isTarget(msg, true)) {
+    // Skip messages with targetId: this is for ports, not local targets.
+    if (!_routing.targetId && this.isTarget(msg, true)) {
       // When we have local targets, send to those that match.
       let localTargets;
       if (targetDetails) {
         localTargets = [];
-        for (let localTarget of this.localTargets) {
+        for (const localTarget of this.localTargets) {
           if ((targetDetails.id !== undefined) && (localTarget.id != targetDetails.id)) continue;
+          // If caller targets one endpoint, we are done.
+          if (!_routing.broadcast) return localTarget.onMessage(this, msg, _routing.sender);
           localTargets.push(localTarget);
         }
       } else {
         localTargets = this.localTargets;
       }
-      for (let localTarget of localTargets) {
-        promises.push(localTarget.onMessage(this, msg, msg.sender));
+      for (const localTarget of localTargets) {
+        // Since we expect local targets to return their response, we need to
+        // wrap it upon broadcast.
+        let r = localTarget.onMessage(this, msg, _routing.sender);
+        if (_routing.broadcast) r = Promise.resolve(r).then(util.arrayWrap);
+        promises.push(r);
       }
     }
     // If we found at least one acual target, that's it.
-    if (promises.length > 0) return Promise.all(promises);
+    if (promises.length > 0) {
+      let r = Promise.all(promises);
+      if (_routing.broadcast) {
+        // Time to unwrap/aggregate responses.
+        r = r.then(arr => {
+          let actual = [];
+          for (const v of arr) {
+            actual = util.arrayUnwrap(actual, v);
+          }
+          return actual;
+        });
+      }
+      return r;
+    }
 
     // Use dedicated Port when applicable: should mean we need to send the
     // message to the background script and let it dispatch it to the actual
@@ -485,8 +594,12 @@ export class WebExtension {
     // Port (connected to the background script): the message would loop between
     // the background script and us.
     if (!dispatch) {
-      let usePort = this.portHandler && this.portHandler.isConnected();
-      if (usePort) return this.portHandler.postRequest(msg);
+      const usePort = this.portHandler && this.portHandler.isConnected();
+      if (usePort) {
+        let r = this.portHandler[portMethod](msg);
+        if (_routing.broadcast) r = Promise.resolve(r).then(util.arrayWrap);
+        return r;
+      }
     }
 
     // Belt and suspenders: fallback to 'broadcasting' otherwise. This actually
@@ -501,14 +614,16 @@ export class WebExtension {
       if (settings.debug.misc) console.log(`Ignore message %o: non-background script did not find the target to dispatch to`, msg);
     } else {
       if (settings.debug.misc) console.log('Fallback to broadcasting message %o: non-background script did not find the target to dispatch to and is not connected to broadcast script', msg);
-      return browser.runtime.sendMessage(msg);
+      let r = browser.runtime.sendMessage(msg);
+      if (_routing.broadcast) r = r.then(util.arrayWrap);
+      return r;
     }
   }
 
   // Send a message directly to listeners in tab.
   // This entirely bypasses our message handling: any listener in the target tab
   // will receive this message (on its registered listening method, usually
-  // its onMessge one).
+  // its onMessage one).
   sendTabMessage(tabId, msg, options) {
     return browser.tabs.sendMessage(tabId, msg, options);
   }
@@ -520,17 +635,21 @@ export class WebExtension {
     // format the error, if present, so that it can be properly serialized.
     // (needed to transmit message between background and other scripts)
     if (details.error) details.error = util.formatObject(details.error);
-    this.sendMessage({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_NOTIFICATION,
+    this.postMessage({
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_NOTIFICATION
+      },
       details
     });
   }
 
   fetch(details) {
     return this.sendMessage(Object.assign({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_HTTP_FETCH
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_HTTP_FETCH
+      }
     }, details));
   }
 
@@ -566,7 +685,7 @@ class PortHandler {
   connect() {
     if (this.port) return;
 
-    let name = this.params.target;
+    const name = this.params.target;
     if (name == constants.TARGET_CONTENT_SCRIPT) {
       // Generate a unique content script UUID, shared between all content
       // scripts running in the frame.
@@ -577,25 +696,27 @@ class PortHandler {
     this.setPort(browser.runtime.connect());
     // Register us in background script.
     // Pass our name (the target) and targetId if defined.
-    // Reminder: we cannot use 'target' to pass our name, since this field name
-    // is used to route messages.
     this.postMessage({
-      kind: constants.KIND_REGISTER_PORT,
-      name,
+      _routing: {
+        kind: constants.KIND_REGISTER_PORT
+      },
+      target: name,
       ...this.webext.params.targetId && {targetId: this.webext.params.targetId}
     });
     // Re-register events to observe.
-    let events = this.params.tabsEvents || new Set();
+    const events = this.params.tabsEvents || new Set();
     if (events.size) {
       this.postMessage({
-        kind: constants.KIND_REGISTER_TABS_EVENTS,
+        _routing: {
+          kind: constants.KIND_REGISTER_TABS_EVENTS
+        },
         events
       });
     }
   }
 
   onDisconnect(port) {
-    let self = this;
+    const self = this;
 
     if (port !== self.port) {
       // This is not our connection; should not happen
@@ -606,14 +727,14 @@ class PortHandler {
     // If script simply ends (e.g. browser action page is closed), we get a
     // null error field.
     if (port.error == null) delete(port.error);
-    let error = port.error;
+    const error = port.error;
     if (error) console.warn('Extension port %o disconnected: %o', port, error);
     delete(self.port);
     // Wipe out current requests; reject any pending Promise.
     // Parent will either wipe us out (background script), or we should not
     // expect to receive any response as the remote endpoint is supposedly
     // dead.
-    for (let promise of Object.values(self.requests)) {
+    for (const promise of Object.values(self.requests)) {
       let msg = 'Remote script disconnected';
       if (error) msg += ` with error: ${util.formatObject(error)}`;
       promise.reject(msg);
@@ -640,7 +761,8 @@ class PortHandler {
 
   // Posts request and return reply through Promise.
   postRequest(msg, timeout) {
-    let self = this;
+    if (!msg._routing?.request) console.trace('Called postRequest for non-request message', msg);
+    const self = this;
     // Get a unique - non-used - id
     let correlationId;
     do {
@@ -649,8 +771,8 @@ class PortHandler {
     // The caller may need the passed message to remain unaltered, especially
     // the correlationId, which is used to reply to the original sender in case
     // of (background script) forwarding.
-    // To prevent any altering, duplicate the message.
-    msg = Object.assign({}, msg, {correlationId});
+    // To prevent any altering, duplicate the message routing.
+    msg._routing = Object.assign({}, msg._routing, {correlationId});
 
     // Post message
     self.postMessage(msg);
@@ -659,12 +781,12 @@ class PortHandler {
     // Note: since we don't 'await' from postMessage until here, we are sure to
     // set the promise before it is needed (when response is received).
     if (!timeout) timeout = this.defaultTimeout;
-    let promise = new asynchronous.Deferred().promise;
+    const promise = new asynchronous.Deferred().promise;
     let actualPromise = promise;
 
     // Special case: if we delegated a fetch request, convert the response
     // as needed.
-    if (msg.kind == constants.KIND_HTTP_FETCH) {
+    if (msg._routing.kind == constants.KIND_HTTP_FETCH) {
       actualPromise = actualPromise.then(r => {
         // Trigger real error when applicable.
         if (r.error) throw r.error;
@@ -672,7 +794,7 @@ class PortHandler {
         r = r.response;
         // And build binary wanted binary formats from base64.
         if (r.ok) {
-          let params = msg.params || {};
+          const params = msg.params || {};
           if (params.wantBytes || params.wantArrayBuffer || params.wantBlob) {
             r.bytes = Uint8Array.fromBase64(r.base64);
           }
@@ -684,7 +806,7 @@ class PortHandler {
             // If there is no Content-Type, since we don't want to guess it by
             // inspecting the data, 'application/octet-stream' is the HTTP
             // default.
-            let type = findHeaderValue(r.headers, 'Content-Type') || 'application/octet-stream';
+            const type = findHeaderValue(r.headers, 'Content-Type') || 'application/octet-stream';
             r.blob = new Blob([r.bytes], { type });
           }
         }
@@ -700,29 +822,36 @@ class PortHandler {
   }
 
   onMessage(msg, sender) {
-    let correlationId = msg.correlationId;
+    const _routing = msg._routing;
+    const correlationId = _routing?.correlationId;
     let callback = true;
     // Handle this message as a reponse when applicable.
     if (correlationId) {
-      let promise = this.requests[correlationId];
+      const promise = this.requests[correlationId];
       if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.
-        delete(msg.correlationId);
         // We either expect a reply in the 'reply' field, or an error in the
         // 'error' field. For simplicity, we don't transform an error into a
         // failed Promise, but let caller check whether this in an error
         // through the field.
-        let actual = 'reply' in msg ? msg.reply : msg;
-        if (actual && actual.warning) {
-          console.log('A warning was received in request response:', actual);
-          this.webext.notify({
-            title: 'Request response warning',
-            level: 'warning',
-            message: 'A warning was received in request response',
-            error: actual.warning,
-            silent: true
-          });
+        let actual = msg;
+        if ('reply' in _routing) {
+          actual = _routing.reply
+          if (actual && actual.warning) {
+            console.log('A warning was received in request response:', actual);
+            this.webext.notify({
+              title: 'Request response warning',
+              level: 'warning',
+              message: 'A warning was received in request response',
+              error: actual.warning,
+              silent: true
+            });
+          }
+        } else if ('error' in _routing) {
+          actual = {
+            error: _routing.error
+          };
         }
         promise.resolve(actual);
         callback = false;
@@ -733,7 +862,7 @@ class PortHandler {
   }
 
   async handleMessage(msg, sender) {
-    let self = this;
+    const self = this;
 
     // Take care of a possible endless request/response loop:
     //  - A sends a query to B
@@ -749,8 +878,9 @@ class PortHandler {
     //  - ...
     // In this specific case, break out of the loop by remembering the last
     // received correlationId: if we see it again, assume this is a loop.
-    if (msg.correlationId && (msg.correlationId === self.lastRequestId)) {
-      console.warn(`Detected request/response loop on correlationId=<${msg.correlationId}>`);
+    const correlationId = msg._routing?.correlationId;
+    if (correlationId && (correlationId === self.lastRequestId)) {
+      console.warn(`Detected request/response loop on correlationId=<${correlationId}>`);
       return;
     }
 
@@ -762,15 +892,25 @@ class PortHandler {
       r = Promise.reject(error);
     }
     // Don't handle reply if caller don't expect it.
-    if (!msg.correlationId) return;
-    self.lastRequestId = msg.correlationId;
+    if (!correlationId) return;
+    self.lastRequestId = correlationId;
     // Embed reply in 'reply' field, or error in 'error' field.
     r.then(v => {
-      self.postMessage({reply: v, correlationId: msg.correlationId});
+      self.postMessage({
+        _routing: {
+          correlationId,
+          reply: v
+        }
+      });
     }).catch(error => {
       console.error('Could not handle message %o reply %o: %o', msg, r, error);
       // Format object: pure Errors are empty when sent.
-      self.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
+      self.postMessage({
+        _routing: {
+          correlationId,
+          error: util.formatObject(error)
+        }
+      });
     });
   }
 
@@ -832,6 +972,14 @@ export class NativeApplication extends PortHandler {
     this.lastActivity = util.getTimestamp();
   }
 
+  // Posts request and return reply through Promise.
+  // Enforce 'request' mode for native application messaging (we call this
+  // method directly, and do not want to make 'request' mandatory to set there).
+  postRequest(msg) {
+    msg._routing.request = true;
+    return super.postRequest(msg);
+  }
+
   onDisconnect(port) {
     // Note: this.port is undefined if *we* asked to disconnect.
     if (this.port && (port !== this.port)) {
@@ -848,7 +996,7 @@ export class NativeApplication extends PortHandler {
     }
     delete(this.port);
     this.fragments = {};
-    for (let promise of Object.values(this.requests)) {
+    for (const promise of Object.values(this.requests)) {
       let msg = 'Native application disconnected';
       if (error) msg += ` with error: ${util.formatObject(error)}`;
       promise.reject(msg);
@@ -859,7 +1007,7 @@ export class NativeApplication extends PortHandler {
 
   onMessage(msg, sender) {
     this.lastActivity = util.getTimestamp();
-    if (msg.fragment) {
+    if (msg._routing?.fragment) {
       this.addFragment(msg);
     } else {
       super.onMessage(msg, sender);
@@ -872,19 +1020,19 @@ export class NativeApplication extends PortHandler {
   }
 
   addFragment(msg) {
-    let fragmentKind = msg.fragment;
-    let correlationId = msg.correlationId;
+    const fragmentKind = msg._routing.fragment;
+    const correlationId = msg._routing.correlationId;
 
     if (!correlationId) {
       console.warn('Dropping message %o: missing correlationId', msg)
       return;
     }
 
-    let previousFragment = this.fragments[correlationId];
+    const previousFragment = this.fragments[correlationId];
     if (!previousFragment) {
       if (fragmentKind === FRAGMENT_KIND_START) {
         // First fragment
-        msg.msgCreationTime = util.getTimestamp();
+        msg._routing.msgCreationTime = util.getTimestamp();
         this.fragments[correlationId] = msg;
       } else {
         console.warn('Dropping message %o: missing fragment start', msg);
@@ -899,13 +1047,13 @@ export class NativeApplication extends PortHandler {
     }
 
     delete(previousFragment.fragment);
-    previousFragment.content = (previousFragment.content || '') + (msg.content || '');
+    previousFragment._routing.content = (previousFragment._routing.content || '') + (msg._routing.content || '');
     previousFragment.msgCreationTime = util.getTimestamp();
     if (fragmentKind !== FRAGMENT_KIND_CONT) {
       // There is no need to enforce it: we suppose we received a
       // FRAGMENT_KIND_END fragment, which is the last fragment.
       delete(this.fragments[correlationId]);
-      this.onMessage(JSON.parse(previousFragment.content));
+      this.onMessage(JSON.parse(previousFragment._routing.content));
     }
     // else: fragment continuation already processed
   }
@@ -913,7 +1061,7 @@ export class NativeApplication extends PortHandler {
   idleCheck() {
     delete(this.idleId);
     // Re-schedule if idle not yet reached
-    let remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
+    const remaining = constants.IDLE_TIMEOUT - (util.getTimestamp() - this.lastActivity);
     if (remaining > 0) return this.scheduleIdleCheck(remaining + 1000);
     // Then get rid of old fragments if any
     if (this.fragments.length) this.janitoring();
@@ -930,10 +1078,10 @@ export class NativeApplication extends PortHandler {
 
   janitoring() {
     if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return;
-    for (let msg of Object.values(this.fragments)) {
-      if (util.getTimestamp() - msg.msgCreationTime > constants.FRAGMENTS_TTL) {
+    for (const msg of Object.values(this.fragments)) {
+      if (util.getTimestamp() - msg._routing.msgCreationTime > constants.FRAGMENTS_TTL) {
         console.warn('Dropping incomplete message %o: TTL reached', msg);
-        delete(this.fragments[msg.correlationId]);
+        delete(this.fragments[msg._routing.correlationId]);
       }
     }
     this.lastJanitoring = util.getTimestamp();

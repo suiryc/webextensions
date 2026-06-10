@@ -16,7 +16,8 @@ let app = new nativeMessaging.NativeApplication(onMessage);
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.
 async function onMessage(app, msg) {
-  switch (msg.kind) {
+  const _routing = msg._routing;
+  switch (_routing?.kind) {
     case constants.KIND_DOWNLOAD:
       return dl_save(app, msg);
       break;
@@ -35,8 +36,7 @@ async function onMessage(app, msg) {
 
     default:
       // Special case: empty message is a PING.
-      let props = Object.getOwnPropertyNames(msg);
-      if ((props.length == 1) && msg.hasOwnProperty('correlationId')) return {};
+      if ((Object.getOwnPropertyNames(msg).length == 1) && _routing && (Object.getOwnPropertyNames(_routing).length == 1) && _routing.hasOwnProperty('correlationId')) return {};
       else return unhandledMessage(msg);
       break;
   }
@@ -44,7 +44,7 @@ async function onMessage(app, msg) {
 
 // Logs unhandled messages received.
 function unhandledMessage(msg) {
-  console.warn(`Received unhandled message feature=<${msg.feature}> kind=<${msg.kind}> contentSize=${(msg.content || '').length}`)
+  console.warn(`Received unhandled message kind=<${msg._routing?.kind}> contentSize=${(msg.content || '').length}`)
   return {
     error: 'Message is not handled by native application',
     message: msg

@@ -9,7 +9,7 @@ import { settings } from '../common/settings.js';
 // Notes:
 // 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE:
       return updatePopup(msg);
       break;

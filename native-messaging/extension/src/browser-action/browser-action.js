@@ -13,7 +13,7 @@ settings.ready.then(() => trackFields());
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
       break;
@@ -47,7 +47,7 @@ function unhandledMessage(msg, sender) {
 
 // Next interception is being ignored.
 function dl_ignoreNext(msg) {
-  let ttl = msg.ttl / 1000;
+  const ttl = msg.ttl / 1000;
   ignoringNext = !!ttl;
   // Update displayed button text: append remaining TTL if any.
   if (ignoringNext) ignoreNextButton.textContent = `${ignoreNextText} (${ttl}s)`;
@@ -61,8 +61,10 @@ async function dl_updateVideos(sources, showTab) {
     // only run when popup is displayed which means our window is the focused
     // window, and requested sources are those of the focused window.
     sources = await webext.sendMessage({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_GET_DL_VIDEOS
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_GET_DL_VIDEOS
+      }
     });
   }
   videosNode.querySelectorAll(':scope > .list-item').forEach(node => {
@@ -73,8 +75,8 @@ async function dl_updateVideos(sources, showTab) {
     videosItemNode.removeAttribute('data-badge');
     return;
   }
-  for (let source of sources) {
-    for (let download of source.downloads) {
+  for (const source of sources) {
+    for (const download of source.downloads) {
       setupDownloadEntry(source, download);
     }
   }
@@ -89,18 +91,18 @@ const TEXT_LIMIT_POPUP = 400;
 let textForClipboard = undefined;
 
 function setupDownloadEntry(source, download) {
-  let node = cloneNode(listItemNode);
+  const node = cloneNode(listItemNode);
   node.classList.add('clickable');
 
-  let audio = download.details.audio;
-  let videoSubtitle = download.details.subtitle;
+  const audio = download.details.audio;
+  const videoSubtitle = download.details.subtitle;
   let subtitle = [];
-  let tooltip = [];
+  const tooltip = [];
   let popupSubtitle = [];
   let entryClipboard = [];
 
   // Note: a default extension was chosen when applicable.
-  let { name, extension } = util.getFilenameExtension(download.details.file);
+  const { name, extension } = util.getFilenameExtension(download.details.file);
   util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
   entryClipboard.push(name);
   entryClipboard.push('');
@@ -133,14 +135,14 @@ function setupDownloadEntry(source, download) {
     subtitle.push(s);
     popupSubtitle_pushLine(util.textToHtml(`Size (hint): ${s}`));
   }
-  const hasHLSKey = !!source.hls.tags?.['EXT-X-KEY'];
+  const hasHLSKey = !!source.hls?.tags?.['EXT-X-KEY'];
   if (source.hls) {
     let s = '🎞️';
     if (hasHLSKey) s += '🔑';
     if (audio) s += '🔊';
     s += source.hls.name;
     subtitle.push(s);
-    let tag = source.hls.tag;
+    const tag = source.hls.tag;
     if (source.hls.codecs) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
     if (tag?.attributes['RESOLUTION']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
     if (tag?.attributes['FRAME-RATE']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
@@ -169,7 +171,7 @@ function setupDownloadEntry(source, download) {
     if (videoSubtitle.lang) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles lang: ${videoSubtitle.lang}`));
     if (videoSubtitle.name) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles name: ${videoSubtitle.name}`));
   }
-  let hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
+  const hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
   subtitle.push(hostname);
   if (!source.hls) {
     popupSubtitle_newSection();
@@ -182,7 +184,7 @@ function setupDownloadEntry(source, download) {
   tooltip.push(util.limitText(source.url, TEXT_LIMIT_TOOLTIP));
   subtitle = subtitle.join(' - ');
   if (source.actualUrl) {
-    let actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
+    const actualHostname = (new URL(source.actualUrl).hostname).split('.').slice(-3).join('.');
     if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
       subtitle = `${subtitle}\nActual host: ${actualHostname}`;
     }
@@ -190,7 +192,7 @@ function setupDownloadEntry(source, download) {
     popupSubtitle_pushLine(`Actual URL: <span class='url'>${util.textToHtml(util.limitText(source.actualUrl, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (source.forceUrl) {
-    let actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
+    const actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
     if (actualHostname.localeCompare(hostname, undefined, {sensitivity: 'base'})) {
       subtitle = `${subtitle}\nForced host: ${actualHostname}`;
     }
@@ -221,12 +223,14 @@ function setupDownloadEntry(source, download) {
     //    and don't need to be passed back
     // Auto-download enabled by default, unless using non-main button
     // or 'Ctrl' key.
-    let details = {
+    const details = {
       auto: (data.button == 0) && !data.ctrlKey
     };
-    webext.sendMessage({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_DL_VIDEO,
+    webext.postMessage({
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_DL_VIDEO
+      },
       details,
       source: download.source
     });
@@ -251,14 +255,16 @@ function setupDownloadEntry(source, download) {
     };
 
     // Show popup in webpage.
-    webext.sendMessage({
-      target: constants.TARGET_CONTENT_SCRIPT,
-      targetDetails: {
-        windowId,
-        tabId: activeTabId,
-        id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+    webext.postMessage({
+      _routing: {
+        target: constants.TARGET_CONTENT_SCRIPT,
+        targetDetails: {
+          windowId,
+          tabId: activeTabId,
+          id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+        },
+        kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE
       },
-      kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE,
       action: 'show',
       data: {
         title: util.textToHtml(name),
@@ -276,14 +282,16 @@ function cs_hidePopup() {
   textForClipboard = undefined;
 
   // Hide popup in webpage.
-  webext.sendMessage({
-    target: constants.TARGET_CONTENT_SCRIPT,
-    targetDetails: {
-      windowId,
-      tabId: activeTabId,
-      id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_CONTENT_SCRIPT,
+      targetDetails: {
+        windowId,
+        tabId: activeTabId,
+        id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+      },
+      kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE
     },
-    kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE,
     action: 'hide'
   });
 }
@@ -321,34 +329,34 @@ class TabsObserver {
 
 }
 
-// Extension handler
-let webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
-let tabsObserver = new TabsObserver(webext);
-
 let windowId = -1;
 let activeTabId = -1;
 let refreshing = undefined;
 
-let ignoreNextButton = document.querySelector('#ignoreNext');
-let ignoreNextText = ignoreNextButton.textContent;
+const ignoreNextButton = document.querySelector('#ignoreNext');
+const ignoreNextText = ignoreNextButton.textContent;
 let ignoringNext = false;
-let allowCopyPasteButton = document.querySelector('#allowCopyPaste');
-let videosItemNode = document.querySelector('#videos-item');
-let videosNode = document.querySelector('#videos');
-let clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
-let clearOtherMessagesButton = document.querySelector('#clearOtherMessages');
-let messagesItemNode = document.querySelector('#messages-item');
-let activeMessagesItemNode = document.querySelector('#messages-active-item');
-let activeMessagesNode = document.querySelector('#messages-active');
-let otherMessagesItemNode = document.querySelector('#messages-other-item');
-let otherMessagesNode = document.querySelector('#messages-other');
-let optionsItemNode = document.querySelector('#options-item');
-let iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
-let iconInfoCircle = document.querySelector('#icon-info-circle');
-let listItemNode = document.querySelector('#list-item');
+const allowCopyPasteButton = document.querySelector('#allowCopyPaste');
+const videosItemNode = document.querySelector('#videos-item');
+const videosNode = document.querySelector('#videos');
+const clearActiveMessagesButton = document.querySelector('#clearActiveMessages');
+const clearOtherMessagesButton = document.querySelector('#clearOtherMessages');
+const messagesItemNode = document.querySelector('#messages-item');
+const activeMessagesItemNode = document.querySelector('#messages-active-item');
+const activeMessagesNode = document.querySelector('#messages-active');
+const otherMessagesItemNode = document.querySelector('#messages-other-item');
+const otherMessagesNode = document.querySelector('#messages-other');
+const optionsItemNode = document.querySelector('#options-item');
+const iconExclamationTriangle = document.querySelector('#icon-exclamation-triangle');
+const iconInfoCircle = document.querySelector('#icon-info-circle');
+const listItemNode = document.querySelector('#list-item');
+
+// Extension handler
+let webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
+let tabsObserver = new TabsObserver(webext);
 
 function cloneNode(node) {
-  let cloned = node.cloneNode(true);
+  const cloned = node.cloneNode(true);
   cloned.removeAttribute('id');
   return cloned;
 }
@@ -359,9 +367,9 @@ function replaceNode(node1, node2) {
 
 function addMessage(details) {
   if (details.windowId && (details.windowId != windowId)) return;
-  let tabId = details.tabId;
-  let level = details.level;
-  let node = cloneNode(listItemNode);
+  const tabId = details.tabId;
+  const level = details.level;
+  const node = cloneNode(listItemNode);
   node.details = details;
   let icon;
   let message = util.formatApplicationMessage(details);
@@ -380,8 +388,8 @@ function addMessage(details) {
   else if (details.source) util.setHtml(node.querySelector('.list-item-title'), details.source);
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
-  let tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
-  let tooltip = [];
+  const tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
+  const tooltip = [];
   if (details.source) tooltip.push(`Source: ${details.source}`);
   if (tabHandler) {
     if (tabHandler.title) tooltip.push(tabHandler.title);
@@ -410,8 +418,10 @@ function removeMessage(details) {
 async function refreshMessages(showTab) {
   // Ask (async) for messages to display.
   let details = webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_GET_EXT_MESSAGES
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_GET_EXT_MESSAGES
+    }
   });
 
   // Before continuing, wait for any ongoing refresh.
@@ -431,9 +441,9 @@ async function refreshMessages(showTab) {
     details = await(details);
     windowId = details.focusedWindowId;
     activeTabId = details.focusedTabId;
-    let messages = details.messages;
+    const messages = details.messages;
     if (messages && Array.isArray(messages) && messages.length) {
-      for (let details of messages) {
+      for (const details of messages) {
         addMessage(details);
       }
       if (showTab) document.querySelector('#tab-item-messages').click();
@@ -444,7 +454,7 @@ async function refreshMessages(showTab) {
 }
 
 function updateMessagesBadges() {
-  let activeMessagesCount = activeMessagesNode.children.length - 1;
+  const activeMessagesCount = activeMessagesNode.children.length - 1;
   if (activeMessagesCount > 0) {
     activeMessagesItemNode.setAttribute('data-badge', activeMessagesCount);
   } else {
@@ -453,7 +463,7 @@ function updateMessagesBadges() {
   activeMessagesItemNode.classList.toggle('badge', activeMessagesCount > 0);
   activeMessagesNode.classList.toggle('hidden', activeMessagesCount == 0);
 
-  let otherMessagesCount = otherMessagesNode.children.length - 1;
+  const otherMessagesCount = otherMessagesNode.children.length - 1;
   if (otherMessagesCount > 0) {
     otherMessagesItemNode.setAttribute('data-badge', otherMessagesCount);
   } else {
@@ -462,9 +472,9 @@ function updateMessagesBadges() {
   otherMessagesItemNode.classList.toggle('badge', otherMessagesCount > 0);
   otherMessagesNode.classList.toggle('hidden', otherMessagesCount == 0);
 
-  let messagesCount = activeMessagesCount + otherMessagesCount;
+  const messagesCount = activeMessagesCount + otherMessagesCount;
   if (messagesCount > 0) {
-    let sumupBadge = `${activeMessagesCount}`;
+    const sumupBadge = `${activeMessagesCount}`;
     if (otherMessagesCount) sumupBadge = `${sumupBadge}+${otherMessagesCount}`
     messagesItemNode.setAttribute('data-badge', sumupBadge);
   } else {
@@ -476,30 +486,36 @@ function updateMessagesBadges() {
 // Ignore next interception when requested.
 ignoreNextButton.addEventListener('click', () => {
   // Cancel if we are already igoring.
-  webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_DL_IGNORE_NEXT,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_DL_IGNORE_NEXT
+    },
     ttl: ignoringNext ? 0 : constants.IGNORE_NEXT_TTL
   });
 });
 
 // Allow copy/paste in page.
 allowCopyPasteButton.addEventListener('click', () => {
-  webext.sendMessage({
-    target: constants.TARGET_CONTENT_SCRIPT,
-    targetDetails: {
-      windowId,
-      tabId: activeTabId
-    },
-    kind: constants.KIND_CS_ALLOW_COPY_PASTE
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_CONTENT_SCRIPT,
+      targetDetails: {
+        windowId,
+        tabId: activeTabId
+      },
+      kind: constants.KIND_CS_ALLOW_COPY_PASTE
+    }
   });
 });
 
 // Clear messages when requested.
 clearActiveMessagesButton.addEventListener('click', () => {
-  webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_CLEAR_MESSAGES,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_CLEAR_MESSAGES
+    },
     windowId,
     tabId: activeTabId,
     otherTabs: false
@@ -511,9 +527,11 @@ clearActiveMessagesButton.addEventListener('click', () => {
   });
 });
 clearOtherMessagesButton.addEventListener('click', () => {
-  webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_CLEAR_MESSAGES,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_CLEAR_MESSAGES
+    },
     windowId,
     tabId: activeTabId,
     otherTabs: true

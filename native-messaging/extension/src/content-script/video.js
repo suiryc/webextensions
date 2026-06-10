@@ -171,9 +171,11 @@ function processVideo(node) {
     }
     if (subtitles.length) {
       for (let src of srcs) {
-        webext.sendMessage({
-          target: constants.TARGET_BACKGROUND_PAGE,
-          kind: constants.KIND_ADD_VIDEO_SUBTITLES,
+        webext.postMessage({
+          _routing: {
+            target: constants.TARGET_BACKGROUND_PAGE,
+            kind: constants.KIND_ADD_VIDEO_SUBTITLES
+          },
           url: src,
           subtitles
         });
@@ -199,9 +201,11 @@ function processVideo(node) {
       notifDefaults
     });
     util.cleanupFields(scriptResult);
-    webext.sendMessage(Object.assign({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_ADD_VIDEO_SOURCE,
+    webext.postMessage(Object.assign({
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_ADD_VIDEO_SOURCE
+      },
       url: src
     }, scriptResult));
   }

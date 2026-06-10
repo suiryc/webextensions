@@ -41,7 +41,7 @@ export class PropertiesHandler {
   }
 
   reset() {
-    for (let [key, entry] of Object.entries(this.properties)) {
+    for (const [key, entry] of Object.entries(this.properties)) {
       if (entry.keepOnReset) continue;
       delete(this.properties[key]);
     }
@@ -50,13 +50,13 @@ export class PropertiesHandler {
   // Note: creator can be passed by caller, e.g. when getting per-tab property
   // through a global handler.
   get(details, creator) {
-    let key = details.key;
-    let create = details.create;
+    const key = details.key;
+    const create = details.create;
     creator ||= this.creator;
 
     // Specifically manage per-tab properties when there is an handler.
     if (this.tabsHandler && (details.tabId !== undefined)) {
-      let tab = this.tabsHandler.tabs[details.tabId];
+      const tab = this.tabsHandler.tabs[details.tabId];
       if (!tab) {
         // Tab is not yet known: build the object right now, but do not cache it
         // (we wait for the tab to be known in order to use its cache).
@@ -80,6 +80,19 @@ export class PropertiesHandler {
 
 }
 
+// Wraps value in array.
+// Handles Promise.
+export function arrayWrap(v) {
+  return [v];
+}
+
+// Unwraps array elements into destination array.
+export function arrayUnwrap(dst, v) {
+  if (Array.isArray(v)) dst = dst.concat(v);
+  else dst.push(v);
+  return dst;
+}
+
 // Gets current timestamp (epoch in milliseconds).
 export function getTimestamp() {
   return (new Date()).getTime();
@@ -91,7 +104,7 @@ export function epoch() {
 }
 
 export function isEmptyObject(obj) {
-  for (let unused in obj) return false;
+  for (const unused in obj) return false;
   return true;
 }
 
@@ -113,7 +126,7 @@ export function tryStructuredClone(obj, processed) {
   // Create a Map upon first recursion, and share it: remember all cloned
   // objects by strict equality, to reuse them and clone the circular recursion.
   let r;
-  let recurse = function(child) {
+  const recurse = function(child) {
     processed = processed || new Map();
     processed.set(obj, r);
     return processed.has(child)
@@ -142,7 +155,7 @@ export function tryStructuredClone(obj, processed) {
   // Handle objects.
   r = {};
   Object.keys(obj).forEach(f => {
-    let v = obj[f];
+    const v = obj[f];
     // Don't include functions.
     if (typeof(v) == 'function') return;
     r[f] = recurse(v);
@@ -158,7 +171,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   // because we want to clone sibling values separately: remember all cloned
   // objects by strict equality.
   // Re-use formatting code to at least get the object kind.
-  let recurse = function(child) {
+  const recurse = function(child) {
     processed = new Set(processed || []);
     processed.add(obj);
     return processed.has(child)
@@ -194,7 +207,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   }
 
   function append(p, o) {
-    let s = recurse(o);
+    const s = recurse(o);
     return s ? `${p}; ${s}` : p;
   }
 
@@ -220,7 +233,7 @@ export function formatObject(obj, processed, recursiveLoop) {
     if (recursiveLoop) return s;
     let idx = 0;
     Object.keys(obj).forEach(f => {
-      let v = obj[f];
+      const v = obj[f];
       // Don't include functions
       if (typeof(v) == 'function') return;
       s += ` ${f}=<${recurse(v)}>`;
@@ -249,11 +262,11 @@ export function deepEqual(v1, v2) {
   // We have got two non-null objects.
 
   // There must be the same number of keys.
-  let keys = Object.keys(v1);
+  const keys = Object.keys(v1);
   if (Object.keys(v2).length !== keys.length) return false;
 
   // All fields must be equal.
-  for (let key of keys) {
+  for (const key of keys) {
     if (!deepEqual(v1[key], v2[key])) return false;
   }
 
@@ -263,8 +276,8 @@ export function deepEqual(v1, v2) {
 
 // Remove undefined and null fields.
 export function cleanupFields(obj) {
-  for (let f in obj) {
-    let v = obj[f];
+  for (const f in obj) {
+    const v = obj[f];
     if ((v === null) || (v === undefined)) delete(obj[f]);
   }
 }
@@ -283,7 +296,7 @@ export function toJSON(obj, processed) {
   // Create a Set in first recursion level, and duplicate it in each recursion
   // because we want to clone sibling values separately: remember all cloned
   // objects by strict equality.
-  let recurse = function(child) {
+  const recurse = function(child) {
     processed = new Set(processed || []);
     processed.add(obj);
     return processed.has(child)
@@ -293,7 +306,7 @@ export function toJSON(obj, processed) {
 
   // Handle arrays.
   if (Array.isArray(obj)) {
-    let r = [];
+    const r = [];
     obj.forEach(v => r.push(recurse(v)));
     return r;
   }
@@ -301,8 +314,8 @@ export function toJSON(obj, processed) {
   // Handle objects.
   // Check whether 'toJSON' has been defined to get a lighter version of
   // the object.
-  let r = obj.toJSON ? obj.toJSON() : Object.assign({}, obj);
-  for (let [key, value] of Object.entries(r)) {
+  const r = obj.toJSON ? obj.toJSON() : Object.assign({}, obj);
+  for (const [key, value] of Object.entries(r)) {
     if (typeof(value) == 'function') delete(r[key]);
     else r[key] = recurse(value);
   }
@@ -343,11 +356,11 @@ export function normalizeUrl(url, log, label) {
 export function parseSiteUrl(url) {
   // First ensure we have an URL object
   url = new URL(url);
-  let hostname = url.hostname;
-  let nameParts = hostname.split('.');
-  let name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
+  const hostname = url.hostname;
+  const nameParts = hostname.split('.');
+  const name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
   // pathname starts with '/', so splitting creates an empty entry in first position.
-  let pathParts = (url.pathname != '/')
+  const pathParts = (url.pathname != '/')
     ? url.pathname.split('/').slice(1).map(decodeURIComponent)
     : []
     ;
@@ -382,9 +395,9 @@ export function getFilename(url, filename) {
 // Gets file name and extension.
 // Extension is lowercased.
 export function getFilenameExtension(filename, defaultExtension) {
-  let idx = (filename || '').lastIndexOf('.');
-  let name = (idx > 0) ? filename.slice(0, idx) : filename;
-  let extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : '';
+  const idx = (filename || '').lastIndexOf('.');
+  const name = (idx > 0) ? filename.slice(0, idx) : filename;
+  const extension = (idx > 0) ? filename.slice(idx + 1).toLowerCase().trim() : '';
   return {
     name: name || '',
     extension: extension || defaultExtension || ''
@@ -406,7 +419,7 @@ export function roundNumber(num, dec, precision) {
   if (num == 0) return 0;
   if (dec === undefined) {
     if (precision === undefined) precision = 3;
-    let threshold = Math.pow(10, precision - 1);
+    const threshold = Math.pow(10, precision - 1);
     let tmp = Math.abs(num);
     if (tmp >= threshold) return Math.round(num);
 
@@ -421,7 +434,7 @@ export function roundNumber(num, dec, precision) {
 }
 
 export function padNumber(num, chars) {
-  let s = '' + num;
+  const s = '' + num;
   return (s.length >= chars) ? s : ('0'.repeat(chars) + s).slice(-chars);
 }
 
@@ -445,7 +458,7 @@ const timeUnits = ['s', 'm', 'h', 'd'];
 // Gets human-readable representation of time.
 export function getTimeText(t) {
   let s = '';
-  let ms = t - Math.floor(t);
+  const ms = t - Math.floor(t);
   t = Math.floor(t);
   let idx = 0;
   while ((idx + 1 < timeUnits.length) && (t >= timeUnitFactors[idx])) {
@@ -478,7 +491,7 @@ export function limitText(s, limit) {
 // Executes given callback if any once ready.
 // Returns a Promise resolved when ready, with passed callback result if any.
 export function waitForDocument(callback) {
-  let d = new asynchronous.Deferred();
+  const d = new asynchronous.Deferred();
 
   function complete() {
     if (callback) d.completeWith(callback);
@@ -503,7 +516,7 @@ export function setHtml(node, html) {
   // Then parse/sanitize the html string.
   // For our usage, this should be enough. Alternatively we may use a real
   // sanitizer/purifier like DOMPurify.
-  let dom = new DOMParser().parseFromString(`<template>${html}</template>`, 'text/html').head;
+  const dom = new DOMParser().parseFromString(`<template>${html}</template>`, 'text/html').head;
   // Finally inject the content.
   node.appendChild(dom.firstElementChild.content);
 }
@@ -514,7 +527,7 @@ export function setHtml(node, html) {
 // When innerHTML is set on a 'template' node, content is populated.
 // When nodes are manipulated, childNodes/children is populated.
 export function htmlToElement(html) {
-  let template = document.createElement('template');
+  const template = document.createElement('template');
   setHtml(template, html);
   return template.firstChild;
 }
@@ -523,7 +536,7 @@ export function htmlToElement(html) {
 // html tags are stripped, only text remains.
 export function htmlToText(html) {
   if (!html) return '';
-  let template = document.createElement('template');
+  const template = document.createElement('template');
   setHtml(template, html);
   return template.textContent;
 }
@@ -536,20 +549,20 @@ export function htmlToText(html) {
 // It works as needed when using a 'div' node.
 export function textToHtml(text) {
   if (!text) return '';
-  let el = document.createElement('div');
+  const el = document.createElement('div');
   el.textContent = text;
   return el.innerHTML.replace(/\n/g, '<br>');;
 }
 
 // Displays a browser notification and hide it after TTL (milliseconds).
 export function browserNotification(notification, ttl) {
-  let id = uuidv4();
+  const id = uuidv4();
   // Add our icon if necessary.
   // Note: with Firefox on Windows 10 the notification icon will be inserted in
   // a 80px square and SVG will be scaled to fit inside, similarly to what is
   // done for the pages (e.g options and browser action) icons.
   if (!('iconUrl' in notification)) notification['iconUrl'] = browser.runtime.getURL('/resources/icon.svg');
-  let p = browser.notifications.create(id, notification);
+  const p = browser.notifications.create(id, notification);
   if (ttl) {
     // We need to wait for the notification to be created in order to be able
     // to clear it.
@@ -572,8 +585,8 @@ export function log(details) {
   }
 
   let msg = [];
-  let args = [];
-  let title = stripHtml(details.title);
+  const args = [];
+  const title = stripHtml(details.title);
   if (title) {
     if (details.source) {
       msg.push('[%s] %s');
@@ -583,8 +596,8 @@ export function log(details) {
     }
     args.push(title);
   }
-  let message = stripHtml(details.message);
-  let error = details.error;
+  const message = stripHtml(details.message);
+  const error = details.error;
 
   if (message) {
     if (!msg.length && details.source) {
@@ -631,9 +644,9 @@ export function notification(details) {
 
 // Formats application message (optional content/error).
 export function formatApplicationMessage(details) {
-  let message = details.message;
-  let error = details.error;
-  let msg = [];
+  const message = details.message;
+  const error = details.error;
+  const msg = [];
   if (message) msg.push(message);
   if (error) msg.push(`Error: ${formatObject(error)}`);
   return msg.join('\n');

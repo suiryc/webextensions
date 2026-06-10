@@ -70,11 +70,11 @@ class NativeSource extends stream.Transform {
       // Process message when applicable
       if ((this.messageLength >= 0) && (this.buffer.length >= this.messageLength)) {
         // Message received, decode it
-        let message = this.buffer.slice(0, this.messageLength);
+        const message = this.buffer.slice(0, this.messageLength);
         this.buffer = this.buffer.slice(this.messageLength);
         // Reset message size to prepare for next message
         this.messageLength = -1;
-        let obj = JSON.parse(message.toString());
+        const obj = JSON.parse(message.toString());
         this.push(obj);
         // Loop to process next message is possible
         continue;
@@ -132,7 +132,7 @@ class NativeSink extends stream.Writable {
     } catch (unused) {
       let error = 'Could not JSON.stringify message';
       Object.keys(msg).forEach(key => {
-        let value = msg[key];
+        const value = msg[key];
         try {
           JSON.stringify(value);
         } catch (unused) {
@@ -145,9 +145,7 @@ class NativeSink extends stream.Writable {
           delete(msg[key]);
         }
       });
-      // Do not overwrite pre-existing 'error' field.
-      if (!msg.error) msg.error = error;
-      else msg.jsonError = error;
+      msg._routing.error = error;
       // Belt and suspenders: in case cleaned message still fails ...
       try {
         json = JSON.stringify(msg);
@@ -170,8 +168,8 @@ class NativeSink extends stream.Writable {
     }
 
     // Prepare to send the message (uint32 size and JSON content).
-    let buf = Buffer.from(json);
-    let len = Buffer.alloc(UINT32_SIZE);
+    const buf = Buffer.from(json);
+    const len = Buffer.alloc(UINT32_SIZE);
     this.writeUInt32.call(len, buf.length, 0);
     // Send the native message (size then content).
     this.stdout_write(len);
@@ -179,37 +177,36 @@ class NativeSink extends stream.Writable {
   }
 
   writeFragments(msg, json) {
-    let length = json.length;
+    const length = json.length;
     // We will send 'fragments' linked by a correlation id.
-    let fragment = {
-      feature: msg.feature,
+    const _routing = {
       kind: msg.kind,
       correlationId: uuidv4()
     };
 
     // Prepare and send each fragment.
     for (let offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
-      fragment.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
-      fragment.fragment = (offset == 0
+      _routing.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
+      _routing.fragment = (offset == 0
         ? FRAGMENT_KIND_START
         : (offset + MSG_SPLIT_SIZE >= length
             ? FRAGMENT_KIND_END
             : FRAGMENT_KIND_CONT
           )
       );
-      this.writeMessage(fragment, true);
+      this.writeMessage({_routing}, true);
     }
   }
 
 }
 
-// Handles application messages
+// Handles application incoming messages
 class NativeHandler extends stream.Writable {
 
   // We receive objects to handle by the application.
   // The application may return an asynchronous response, in which case we
-  // automatically propagate the incoming message information: feature, kind
-  // and correlation id if any.
+  // automatically propagate the incoming message information: kind and
+  // correlation id if any.
   // If the application response is not an object, it is ignored.
   // Errors are propagated.
 
@@ -223,7 +220,7 @@ class NativeHandler extends stream.Writable {
   }
 
   _write(msg, encoding, done) {
-    let self = this;
+    const self = this;
     let r;
     // Enforce Promise, so that we handle both synchronous/asynchronous reply.
     try {
@@ -232,14 +229,25 @@ class NativeHandler extends stream.Writable {
       r = Promise.reject(error);
     }
     // Don't handle reply if caller don't expect it.
-    if (!msg.correlationId) return;
+    const correlationId = msg._routing?.correlationId;
+    if (!correlationId) return;
     // Embed reply in 'reply' field, or error in 'error' field.
-    r.then(v => {
-      self.app.postMessage({reply: v, correlationId: msg.correlationId});
+    r.then(reply => {
+      self.app.postMessage({
+        _routing: {
+          correlationId,
+          reply
+        }
+      });
     }).catch(error => {
       console.error('Could not handle message %o: %o', msg, error);
       // Format object: pure Errors are empty when sent.
-      self.app.postMessage({error: util.formatObject(error), correlationId: msg.correlationId});
+      self.app.postMessage({
+        _routing: {
+          correlationId,
+          error: util.formatObject(error)
+        }
+      });
     });
     // Note: implementation is expected to pass a 'done' callback, possibly a
     // 'nop' function of not given by actual caller.
@@ -252,14 +260,14 @@ class NativeHandler extends stream.Writable {
 export class NativeApplication {
 
   constructor(handler) {
-    let self = this;
+    const self = this;
     // Wrap stdout/stderr to transform it into (log) native messages
     self.stdout_write = process.stdout.write.bind(process.stdout);
     self.wrapOutput(process.stdout, 'info');
     self.wrapOutput(process.stderr, 'error');
 
     // Wrap console logging to transform it into (log) native messages
-    for (let level of ['log', 'debug', 'info', 'warn', 'error']) {
+    for (const level of ['log', 'debug', 'info', 'warn', 'error']) {
       self.wrapConsole(level);
     }
 
@@ -302,7 +310,7 @@ export class NativeApplication {
   }
 
   shutdown(code) {
-    let self = this;
+    const self = this;
     if (self.sink) {
       // Belt and suspenders: force exit after timeout.
       if (code) process.exitCode = code;
@@ -326,10 +334,12 @@ export class NativeApplication {
   }
 
   wrapOutput(output, level) {
-    let self = this;
+    const self = this;
     output.write = function (chunk, encoding, done) {
       self.postMessage({
-        kind: constants.KIND_CONSOLE,
+        _routing: {
+          kind: constants.KIND_CONSOLE
+        },
         level: level,
         content: chunk.replace(/\r?\n+$/, '')
       });
@@ -358,10 +368,12 @@ export class NativeApplication {
   }
 
   wrapConsole(level) {
-    let self = this;
+    const self = this;
     console[level] = function (...args) {
       self.postMessage({
-        kind: constants.KIND_CONSOLE,
+        _routing: {
+          kind: constants.KIND_CONSOLE
+        },
         level: level,
         args: args
       });
@@ -370,7 +382,9 @@ export class NativeApplication {
 
   notify(details) {
     this.postMessage({
-      kind: constants.KIND_NOTIFICATION,
+      _routing: {
+        kind: constants.KIND_NOTIFICATION
+      },
       details: details
     });
   }

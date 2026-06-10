@@ -12,6 +12,37 @@ import * as util from '../common/util.js';
 
 describe('util', function() {
 
+  describe('arrayWrap', function() {
+
+    it('should handle value', function() {
+      assert.deepEqual([undefined], util.arrayWrap());
+      assert.deepEqual([0], util.arrayWrap(0));
+      assert.deepEqual([false], util.arrayWrap(false));
+      assert.deepEqual([''], util.arrayWrap(''));
+      assert.deepEqual([{}], util.arrayWrap({}));
+      assert.deepEqual([[]], util.arrayWrap([]));
+      assert.deepEqual([[{}]], util.arrayWrap([{}]));
+    });
+
+  });
+
+  describe('arrayUnwrap', function() {
+
+    it('should handle array', function() {
+      assert.deepEqual([], util.arrayUnwrap([], []));
+      assert.deepEqual([1, 2], util.arrayUnwrap([], [1, 2]));
+      assert.deepEqual([1, 2], util.arrayUnwrap([1], [2]));
+      assert.deepEqual([{}], util.arrayUnwrap([], [{}]));
+      assert.deepEqual([{}, {}], util.arrayUnwrap([{}], [{}]));
+    });
+
+    it('should handle value', function() {
+      assert.deepEqual([1, 2], util.arrayUnwrap([1], 2));
+      assert.deepEqual([{}, {}], util.arrayUnwrap([{}], {}));
+    });
+
+  });
+
   function testCloning(cloningF) {
     function test(v, expected) {
       if (expected === undefined) expected = v;

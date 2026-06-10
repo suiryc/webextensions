@@ -65,8 +65,10 @@ class DlMngrClient {
     util.cleanupFields(details);
     util.cleanupFields(params);
 
-    // Set 'kind' field, in case we pass this message to the native app.
-    details.kind = constants.KIND_DOWNLOAD;
+    // Set routing 'kind' field, in case we pass this message to the native app.
+    details._routing = {
+      kind: constants.KIND_DOWNLOAD
+    };
     // Fill requested fields.
     if (params.addCookie && !details.cookie) {
       try {
@@ -325,9 +327,11 @@ export class RequestsHandler extends http.RequestsHandler {
         return;
       }
       // Otherwise update displayed TTL and loop.
-      self.webext.sendMessage({
-        target: constants.TARGET_BROWSER_ACTION,
-        kind: constants.KIND_DL_IGNORE_NEXT,
+      self.webext.postMessage({
+        _routing: {
+          target: constants.TARGET_BROWSER_ACTION,
+          kind: constants.KIND_DL_IGNORE_NEXT
+        },
         ttl: self.ignoringNext.ttl
       });
       self.ignoringNext.timeout = setTimeout(decrement, ttlStep);
@@ -340,9 +344,11 @@ export class RequestsHandler extends http.RequestsHandler {
     // Nothing to do it we are not ignoring.
     if (!this.ignoringNext) return;
     if (this.ignoringNext.timeout) clearTimeout(this.ignoringNext.timeout);
-    this.webext.sendMessage({
-      target: constants.TARGET_BROWSER_ACTION,
-      kind: constants.KIND_DL_IGNORE_NEXT,
+    this.webext.postMessage({
+      _routing: {
+        target: constants.TARGET_BROWSER_ACTION,
+        kind: constants.KIND_DL_IGNORE_NEXT
+      },
       ttl: 0
     });
     delete(this.ignoringNext);

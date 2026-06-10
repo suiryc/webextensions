@@ -9,7 +9,7 @@ import { settings } from '../common/settings.js';
 // Notes:
 // 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_TW_WARN_CONCURRENT:
       return warnConcurrent(msg);
       break;
@@ -87,9 +87,11 @@ export async function run() {
   }
 
   if (ready) {
-    webext.sendMessage({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_CHECK_NATIVE_APP
+    webext.postMessage({
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_CHECK_NATIVE_APP
+      }
     }).then(r => {
       if (r.error) {
         displayModal('Native application is not working', {
@@ -160,9 +162,11 @@ function checkConcurrent() {
   // Remove fragment from URL so that querying tabs will work as expected: in
   // Firefox 69, querying does not take into account the fragment part in tabs
   // URL, but the queried URL is used as-is (with its fragment if present).
-  webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_TW_CHECK_CONCURRENT,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_TW_CHECK_CONCURRENT
+    },
     url: util.normalizeUrl(document.URL)
   });
 }
@@ -258,9 +262,11 @@ function injectMessageBox() {
     let content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
-    webext.sendMessage({
-      target: constants.TARGET_BACKGROUND_PAGE,
-      kind: constants.KIND_TW_SAVE,
+    webext.postMessage({
+      _routing: {
+        target: constants.TARGET_BACKGROUND_PAGE,
+        kind: constants.KIND_TW_SAVE
+      },
       path,
       content
     }).then(r => {

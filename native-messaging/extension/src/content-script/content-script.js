@@ -17,7 +17,7 @@ import * as video from './video.js';
 // to messages if asked: so each listener would log that it does not handle
 // messages kind meant for other scripts.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_CS_ALLOW_COPY_PASTE:
       return cs_allowCopyPaste(msg);
       break;
@@ -38,14 +38,14 @@ function unhandledMessage(msg, sender) {
 }
 
 function cs_allowCopyPaste(msg) {
-  let allowCtrlCV = function(evt) {
-    let key = evt.key?.toLowerCase();
+  const allowCtrlCV = function(evt) {
+    const key = evt.key?.toLowerCase();
     if (evt.ctrlKey && ((key == 'c') || (key == 'v'))) {
       evt.stopImmediatePropagation();
     }
     return true;
   };
-  let allow = function(evt) {
+  const allow = function(evt) {
     evt.stopImmediatePropagation();
     return true;
   };
@@ -65,9 +65,11 @@ let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CON
   // to be ready. It is also better to wait for it before using 'webext'.
   await settings.ready;
   // Ping the background script, to get and remember our window/tab/frame ids.
-  let echo = await webext.sendMessage({
-    target: constants.TARGET_BACKGROUND_PAGE,
-    kind: constants.KIND_ECHO
+  const echo = await webext.sendMessage({
+    _routing: {
+      target: constants.TARGET_BACKGROUND_PAGE,
+      kind: constants.KIND_ECHO
+    }
   });
   // Share the ids in all our code scripts, and in the webext.
   globalThis.windowId = echo.sender.tab.windowId;

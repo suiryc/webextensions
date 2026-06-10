@@ -68,7 +68,7 @@ browser.runtime.onInstalled.addListener(function(details) {
 // Handles received extension messages.
 // Note: 'async' so that we don't block and process the code asynchronously.
 async function onMessage(extension, msg, sender) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_CHECK_NATIVE_APP:
       return ext_checkNativeApp(msg);
       break;
@@ -139,7 +139,7 @@ async function onMessage(extension, msg, sender) {
 
 // Handles messages received from native application.
 async function onNativeMessage(app, msg) {
-  switch (msg.kind || '') {
+  switch (msg._routing?.kind) {
     case constants.KIND_CONSOLE:
       return app_console(app, msg);
       break;
@@ -179,15 +179,17 @@ function tw_checkConcurrent(msg) {
       for (let tab of tabs) {
         // We cannot send a message to a discarded tab.
         if (tab.discarded) continue;
-        webext.sendMessage({
-          target: constants.TARGET_CONTENT_SCRIPT,
-          targetDetails: {
-            windowId: tab.windowId,
-            tabId: tab.id,
-            frameId: 0,
-            id: constants.TARGET_ID_CONTENT_SCRIPT_TW
-          },
-          kind: constants.KIND_TW_WARN_CONCURRENT
+        webext.postMessage({
+          _routing: {
+            target: constants.TARGET_CONTENT_SCRIPT,
+            targetDetails: {
+              windowId: tab.windowId,
+              tabId: tab.id,
+              frameId: 0,
+              id: constants.TARGET_ID_CONTENT_SCRIPT_TW
+            },
+            kind: constants.KIND_TW_WARN_CONCURRENT
+          }
         });
       }
     }
@@ -265,9 +267,7 @@ function ext_getMessages(msg) {
 
 function dl_addVideoSource(msg, sender) {
   msg = Object.assign({}, msg);
-  delete(msg.correlationId);
-  delete(msg.target);
-  delete(msg.kind);
+  delete(msg._routing);
   return videoSourceHandler.addSource(Object.assign({
     windowId: sender.tab.windowId,
     tabId: sender.tab.id,
@@ -278,9 +278,7 @@ function dl_addVideoSource(msg, sender) {
 
 function dl_addVideoSubtitles(msg, sender) {
   msg = Object.assign({}, msg);
-  delete(msg.correlationId);
-  delete(msg.target);
-  delete(msg.kind);
+  delete(msg._routing);
   return videoSourceHandler.addSubtitles(Object.assign({
     windowId: sender.tab.windowId,
     tabId: sender.tab.id,
@@ -370,9 +368,11 @@ async function addExtensionMessage(details) {
     }
   }
 
-  webext.sendMessage({
-    target: constants.TARGET_BROWSER_ACTION,
-    kind: constants.KIND_EXT_MESSAGE,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BROWSER_ACTION,
+      kind: constants.KIND_EXT_MESSAGE
+    },
     details
   });
   applicationMessages.push(details);
@@ -388,9 +388,11 @@ async function addExtensionMessage(details) {
 }
 
 function removeExtensionMessage(uid) {
-  webext.sendMessage({
-    target: constants.TARGET_BROWSER_ACTION,
-    kind: constants.KIND_CLEAR_MESSAGE,
+  webext.postMessage({
+    _routing: {
+      target: constants.TARGET_BROWSER_ACTION,
+      kind: constants.KIND_CLEAR_MESSAGE
+    },
     details: {uid}
   });
   applicationMessages = applicationMessages.filter(details => details.uid !== uid);
@@ -476,9 +478,11 @@ class TabsObserver {
     // Only the focused window browser page could be listening (and thus
     // running): no need to notify it of sources for other windows.
     if (this.tabsHandler.focusedWindowId == windowId) {
-      webext.sendMessage({
-        target: constants.TARGET_BROWSER_ACTION,
-        kind: constants.KIND_DL_UPDATE_VIDEOS,
+      webext.postMessage({
+        _routing: {
+          target: constants.TARGET_BROWSER_ACTION,
+          kind: constants.KIND_DL_UPDATE_VIDEOS
+        },
         sources
       });
     }
@@ -527,7 +531,9 @@ try {
   nativeApp.connect();
   console.info(`Native application ${nativeApp.appId} starting`);
   nativeApp.postRequest({
-    kind: constants.KIND_SPECS
+    _routing: {
+      kind: constants.KIND_SPECS
+    }
   }).then(specs => {
     console.log(`Native application ${nativeApp.appId} started:`, specs);
   }).catch(err => {
