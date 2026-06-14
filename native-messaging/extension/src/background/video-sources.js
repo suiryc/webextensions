@@ -132,7 +132,6 @@ export class VideoSourceNamer {
   }
 
   titleStripRegexp(regexp, params) {
-    params = params || {};
     const matches = this.title.match(regexp);
     if (matches) {
       const idx = this.title.indexOf(matches[0]);

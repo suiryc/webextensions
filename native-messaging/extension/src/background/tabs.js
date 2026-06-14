@@ -666,18 +666,19 @@ export class TabsHandler {
   }
 
   updateTab(tab, tabChanges) {
-    let tabHandler = this.tabs[tab.id];
+    const tabHandler = this.tabs[tab.id];
     if (!tabHandler) {
       // Belt and suspenders: tab is not known yet, add it instead.
-      tabHandler = this.addTab(tab, false);
-    } else {
-      const windowId = tab.windowId;
-      const tabId = tab.id;
-      const changes = tabHandler.update(tab);
-      if (!util.isEmptyObject(changes)) {
-        Object.assign(tabChanges, changes);
-        this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges, tab });
-      }
+      this.addTab(tab, false);
+      return;
+    }
+
+    const windowId = tab.windowId;
+    const tabId = tab.id;
+    const changes = tabHandler.update(tab);
+    if (!util.isEmptyObject(changes)) {
+      Object.assign(tabChanges, changes);
+      this.notifyObservers(constants.EVENT_TAB_UPDATED, { windowId, tabId, tabHandler, tabChanges, tab });
     }
   }
 

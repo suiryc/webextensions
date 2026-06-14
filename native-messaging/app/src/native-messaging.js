@@ -139,7 +139,7 @@ class NativeSink extends stream.Writable {
           // Belt and suspenders: in case formatObject fails too ...
           try {
             error += ` key=<${key}> value=<${util.formatObject(value)}>`;
-          } catch (error) {
+          } catch (unused) {
             error += ` key=<${key}> value=<(failed to stringify)>`;
           }
           delete(msg[key]);

@@ -11,7 +11,6 @@ describe('http', function() {
     function test(headers, name, expected) {
       // Test findHeader
       let r = http.findHeader(headers, name);
-      r = http.findHeader(headers, name);
       assert.deepEqual(r, expected);
       // Ensure that findHeader returns the original object.
       assert.equal(http.findHeader(headers, name), http.findHeader(headers, name));

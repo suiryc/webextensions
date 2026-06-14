@@ -60,7 +60,7 @@ if (!nonEmpty(params.dlMngrPath)) {
   process.exit(1);
 }
 
-let f = Promise.resolve();
+let f;
 console.log('');
 console.log('>> Creating application');
 console.log(`>>> Nodejs command: ${nodeCommand}`);
