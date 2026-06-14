@@ -511,7 +511,7 @@ allowCopyPasteButton.addEventListener('click', () => {
 
 // Clear messages when requested.
 clearActiveMessagesButton.addEventListener('click', () => {
-  webext.postMessage({
+  webext.sendMessage({
     _routing: {
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_CLEAR_MESSAGES
@@ -527,7 +527,7 @@ clearActiveMessagesButton.addEventListener('click', () => {
   });
 });
 clearOtherMessagesButton.addEventListener('click', () => {
-  webext.postMessage({
+  webext.sendMessage({
     _routing: {
       target: constants.TARGET_BACKGROUND_PAGE,
       kind: constants.KIND_CLEAR_MESSAGES

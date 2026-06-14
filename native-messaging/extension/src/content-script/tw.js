@@ -87,7 +87,7 @@ export async function run() {
   }
 
   if (ready) {
-    webext.postMessage({
+    webext.sendMessage({
       _routing: {
         target: constants.TARGET_BACKGROUND_PAGE,
         kind: constants.KIND_CHECK_NATIVE_APP
@@ -262,7 +262,7 @@ function injectMessageBox() {
     const content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
-    webext.postMessage({
+    webext.sendMessage({
       _routing: {
         target: constants.TARGET_BACKGROUND_PAGE,
         kind: constants.KIND_TW_SAVE
