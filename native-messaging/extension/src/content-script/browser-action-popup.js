@@ -12,11 +12,9 @@ async function onMessage(extension, msg, sender) {
   switch (msg._routing?.kind) {
     case constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE:
       return updatePopup(msg);
-      break;
 
     default:
       return unhandledMessage(msg, sender);
-      break;
   }
 }
 

@@ -16,7 +16,6 @@ async function onMessage(extension, msg, sender) {
   switch (msg._routing?.kind) {
     default:
       return unhandledMessage(msg, sender);
-      break;
   }
 }
 

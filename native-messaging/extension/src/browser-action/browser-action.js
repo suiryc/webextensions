@@ -16,23 +16,18 @@ async function onMessage(extension, msg, sender) {
   switch (msg._routing?.kind) {
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
-      break;
 
     case constants.KIND_DL_UPDATE_VIDEOS:
       return dl_updateVideos(msg.sources);
-      break;
 
     case constants.KIND_EXT_MESSAGE:
       return ext_addMessage(msg);
-      break;
 
     case constants.KIND_CLEAR_MESSAGE:
       return ext_clearMessage(msg);
-      break;
 
     default:
       return unhandledMessage(msg, sender);
-      break;
   }
 }
 

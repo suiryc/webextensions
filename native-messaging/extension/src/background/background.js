@@ -71,69 +71,54 @@ async function onMessage(extension, msg, sender) {
   switch (msg._routing?.kind) {
     case constants.KIND_CHECK_NATIVE_APP:
       return ext_checkNativeApp(msg);
-      break;
 
     case constants.KIND_TW_CHECK_CONCURRENT:
       return tw_checkConcurrent(msg);
-      break;
 
     case constants.KIND_TW_SAVE:
       // Protection: we really do expect this message to come from a tab.
       if (!sender.tab) return unhandledMessage(msg, sender);
       return tw_save(msg);
-      break;
 
     case constants.KIND_HTTP_FETCH:
       return await http_fetch(msg);
-      break;
 
     case constants.KIND_DL_IGNORE_NEXT:
       return dl_ignoreNext(msg);
-      break;
 
     case constants.KIND_DL_VIDEO:
       return dl_downloadVideo(msg);
-      break;
 
     case constants.KIND_DOWNLOAD:
       return dl_download(msg);
-      break;
 
     case constants.KIND_GET_DL_VIDEOS:
       return dl_getVideos(msg);
-      break;
 
     case constants.KIND_CLEAR_MESSAGES:
       return ext_clearMessages(msg);
-      break;
 
     case constants.KIND_GET_EXT_MESSAGES:
       return ext_getMessages(msg);
-      break;
 
     case constants.KIND_ADD_VIDEO_SOURCE:
       // We may receive messages from scripts injected before disabling video
       // interception.
       if (!settings.video.intercept) return;
       return dl_addVideoSource(msg, sender);
-      break;
 
     case constants.KIND_ADD_VIDEO_SUBTITLES:
       if (!settings.video.intercept) return;
       return dl_addVideoSubtitles(msg, sender);
-      break;
 
     case constants.KIND_CONSOLE:
       return ext_console(msg, sender);
-      break;
 
     case constants.KIND_NOTIFICATION:
       return await notification(msg.details || {}, sender);
-      break;
 
     default:
       return unhandledMessage(msg, sender);
-      break;
   }
 }
 
@@ -142,15 +127,12 @@ async function onNativeMessage(app, msg) {
   switch (msg._routing?.kind) {
     case constants.KIND_CONSOLE:
       return app_console(app, msg);
-      break;
 
     case constants.KIND_NOTIFICATION:
       return await notification(msg.details || {}, app);
-      break;
 
     default:
       return unhandledNativeMessage(app, msg);
-      break;
   }
 }
 

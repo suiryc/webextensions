@@ -20,11 +20,9 @@ async function onMessage(extension, msg, sender) {
   switch (msg._routing?.kind) {
     case constants.KIND_CS_ALLOW_COPY_PASTE:
       return cs_allowCopyPaste(msg);
-      break;
 
     default:
       return unhandledMessage(msg, sender);
-      break;
   }
 }
 

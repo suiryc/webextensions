@@ -99,7 +99,6 @@ switch (os.platform()) {
 
   default:
     throw Error(`Unhandled platform=<${os.platform()}>`)
-    break;
 }
 
 f.then(() => {
