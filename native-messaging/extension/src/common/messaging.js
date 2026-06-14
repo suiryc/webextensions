@@ -223,7 +223,7 @@ export class WebExtension {
           sender: actualSender
         });
 
-      case constants.KIND_REGISTER_PORT:
+      case constants.KIND_REGISTER_PORT: {
         const handler = this.registerPort(sender, msg);
         if (settings.debug.misc) console.log('Registered port=<%o> from message=<%o> with handler=<%o>', sender, msg, handler);
         const tab = actualSender.tab;
@@ -238,6 +238,7 @@ export class WebExtension {
           csUuid: msg.csUuid
         });
         return;
+      }
 
       case constants.KIND_REGISTER_TABS_EVENTS:
         this.registerTabsEvents(sender, msg.events);
