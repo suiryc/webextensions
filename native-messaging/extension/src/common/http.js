@@ -100,6 +100,14 @@ export async function http_fetch(msg) {
       });
       contentPromises.push(promise);
     }
+    if (params.wantArrayBuffer) {
+      const promise = new asynchronous.Deferred().promise;
+      r.clone().arrayBuffer().then(v => {
+        response.arrayBuffer = v;
+        promise.resolve();
+      });
+      contentPromises.push(promise);
+    }
     if (params.wantBlob) {
       const promise = new asynchronous.Deferred().promise;
       r.clone().blob().then(v => {
@@ -108,21 +116,13 @@ export async function http_fetch(msg) {
       });
       contentPromises.push(promise);
     }
-    if (params.wantBytes) {
-      const promise = new asynchronous.Deferred().promise;
-      r.bytes().then(v => {
-        response.bytes = v;
-        promise.resolve();
-      });
-      contentPromises.push(promise);
-    }
     // Last format to handle: don't clone this one, and ensure original response
     // is consumed.
-    if (params.wantArrayBuffer || params.wantBase64) {
+    if (params.wantBytes || params.wantBase64) {
       const promise = new asynchronous.Deferred().promise;
-      r.arrayBuffer().then(v => {
-        if (params.wantArrayBuffer) response.arrayBuffer = v;
-        if (params.wantBase64) response.base64 = Buffer.from(v).toString('base64');
+      r.bytes().then(v => {
+        if (params.wantBytes) response.bytes = v;
+        if (params.wantBase64) response.base64 = v.toBase64();
         promise.resolve();
       });
       contentPromises.push(promise);
