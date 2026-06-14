@@ -1,7 +1,6 @@
 'use strict';
 
 import { constants } from '../common/constants.js';
-import * as util from '../common/util.js';
 import * as asynchronous from '../common/asynchronous.js';
 import { settings, trackFields } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';

@@ -129,17 +129,17 @@ class NativeSink extends stream.Writable {
     //    - in case the message had an 'error' field, use another field name
     try {
       json = JSON.stringify(msg);
-    } catch (unused) {
+    } catch {
       let error = 'Could not JSON.stringify message';
       Object.keys(msg).forEach(key => {
         const value = msg[key];
         try {
           JSON.stringify(value);
-        } catch (unused) {
+        } catch {
           // Belt and suspenders: in case formatObject fails too ...
           try {
             error += ` key=<${key}> value=<${util.formatObject(value)}>`;
-          } catch (unused) {
+          } catch {
             error += ` key=<${key}> value=<(failed to stringify)>`;
           }
           delete(msg[key]);
@@ -149,7 +149,7 @@ class NativeSink extends stream.Writable {
       // Belt and suspenders: in case cleaned message still fails ...
       try {
         json = JSON.stringify(msg);
-      } catch(unused) {
+      } catch {
         json = JSON.stringify({
           correlationId: msg.correlationId,
           error: 'Could not JSON.stringify message, nor clean it'

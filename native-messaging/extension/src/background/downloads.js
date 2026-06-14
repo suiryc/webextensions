@@ -662,7 +662,6 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   async manageClick(info, tab) {
-    const self = this;
     // If mediaType is defined (e.g. 'video', 'audio' or 'image'), user clicked
     // on this kind of HTML element, instead of a plain link. In this case
     // srcUrl is the 'src' value of the element (while linkUrl is the URL target

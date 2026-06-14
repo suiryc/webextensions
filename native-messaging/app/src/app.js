@@ -11,7 +11,7 @@ import * as settings from './settings.js';
 import * as util from './util.js';
 
 
-const app = new nativeMessaging.NativeApplication(onMessage);
+new nativeMessaging.NativeApplication(onMessage);
 
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.

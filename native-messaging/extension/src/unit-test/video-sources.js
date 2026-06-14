@@ -3,7 +3,6 @@
 import * as assert from 'assert';
 import * as util from '../common/util.js';
 import { VideoSource, VideoSourceNamer } from '../background/video-sources.js';
-import * as vs from '../background/video-sources.js';
 
 describe('VideoSourceNamer', function() {
 

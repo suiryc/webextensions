@@ -403,8 +403,6 @@ function updateStatus(windowId) {
     // Note: 0 and '' are both considered false.
     let hasMessages = '';
     let badgeBackgroundColor = 'blue';
-    const tabHandler = tabsHandler.getActiveTab(windowId);
-    const tabId = tabHandler ? tabHandler.id : -1;
     for (const details of applicationMessages) {
       if (details.windowId && (details.windowId != windowId)) continue;
       // Note: don't filter out messages of other tabs; we wish to see the

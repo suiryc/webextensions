@@ -81,8 +81,8 @@ function installApp() {
 function getTemplatePath(p) {
   const dirname = path.dirname(p);
   const extname = path.extname(p);
-  const basename = path.basename(p);
-  return path.join(dirname, `${path.basename(p, extname)}-template${extname}`);
+  const basename = path.basename(p, extname);
+  return path.join(dirname, `${basename}-template${extname}`);
 }
 
 function getIgnoredFiles() {

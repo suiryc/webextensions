@@ -1141,7 +1141,6 @@ class VideoSourceTabHandler {
     }
 
     let playlist;
-    const requestHeaders = requestDetails.sent?.requestHeaders || [];
     const newRequestHeaders = requestDetails.newRequestHeaders();
     try {
       // Notes:
@@ -1900,11 +1899,9 @@ export class VideoSourceHandler {
   // Tab/frame observer
 
   tabUpdated(details) {
-    const self = this;
     const tabId = details.tabId;
-    const frameId = details.frameId;
     const { handler } = this.getTabHandler({
-      tabId: details.tabId,
+      tabId,
       frameId: 0
     }, false);
     if (!handler) return;

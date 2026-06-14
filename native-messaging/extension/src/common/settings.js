@@ -80,7 +80,7 @@ async function getStorageValue(key, value) {
   keys[key] = value;
   try {
     return (await browser.storage.local.get(keys))[key];
-  } catch (error) {
+  } catch {
     return value;
   }
 }
@@ -413,7 +413,7 @@ class ExtensionSetting {
     self.listeners.forEach(listener => {
       try {
         listener(self, oldValue, newValue);
-      } catch (error) {
+      } catch {
         // We don't care if a listener fails
       }
     });
