@@ -688,6 +688,8 @@ const REGEX_FWS = /^(\s*)([\s\S]*)$/m;
 // RFC 7230
 // https://tools.ietf.org/html/rfc7230#section-3.2.6
 // Any VCHAR, except delimiters - DQUOTE and "(),/:;<=>?@[\]{}"
+// Note: tell eslint that we do know we check for control characters here.
+// eslint-disable-next-line no-control-regex
 const REGEX_TOKEN = /^([^\x00-\x20\x7F"(),/:;<=>?@[\\\]{}]*)([\s\S]*)$/m;
 
 export class HeaderParser {
