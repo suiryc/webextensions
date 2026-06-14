@@ -19,11 +19,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-export const install = gulp.series(deployApp, installApp, buildExt_dev);
-export const buildExt = buildExt_dev;
+export const install = gulp.series(lint, deployApp, installApp, _buildExt('development', false));
+export const buildExt = _buildExt('development', true);
 export const watch = gulp.series(install, watchChanges);
 export default install;
 
+function buildPatternSources(root) {
+  // Note: for globs, path.posix is needed (\\ escapement conflict on Windows)
+  return path.posix.join(root, 'src', '**', '*');
+}
 
 // Enrich settings with constants ...
 const extensionPath = 'extension';
@@ -31,8 +35,7 @@ const appPath = 'app';
 const settings = Object.assign({
   appInstallScript: path.join(appPath, 'src', 'install.js'),
   appPaths: [
-    // Note: for globs, path.posix is needed (\\ escapement conflict on Windows)
-    path.posix.join(appPath, 'src', '*.js'),
+    buildPatternSources(appPath),
     path.join(appPath, 'package.json')
   ],
   extensionTemplatedPaths: [
@@ -143,32 +146,31 @@ async function webpackBundle(mode) {
   await deferred;
 }
 
-async function _buildExt(webpackMode) {
-  const fill = function(p) {
-    const dirname = path.dirname(p);
-    const basename = path.basename(p);
-    const template = getTemplatePath(p);
-    return gulp.src(template)
-      .pipe(rename(basename))
-      .pipe(replace('__EXTENSION_ID__', settings.extensionId))
-      .pipe(replace('__EXTENSION_SLUG__', settings.extensionSlug))
-      .pipe(replace('__APPLICATION_ID__', settings.applicationId))
-      .pipe(gulp.dest(dirname));
+function _buildExt(webpackMode, linting) {
+  return async function () {
+    const fill = function(p) {
+      const dirname = path.dirname(p);
+      const basename = path.basename(p);
+      const template = getTemplatePath(p);
+      return gulp.src(template)
+        .pipe(rename(basename))
+        .pipe(replace('__EXTENSION_ID__', settings.extensionId))
+        .pipe(replace('__EXTENSION_SLUG__', settings.extensionSlug))
+        .pipe(replace('__APPLICATION_ID__', settings.applicationId))
+        .pipe(gulp.dest(dirname));
+    };
+    await Promise.all(settings.extensionTemplatedPaths.map(async path => {
+      await fill(path);
+    }));
+
+    await unitTestExt();
+    if (linting) await lint();
+    await webpackBundle(webpackMode);
   };
-  await Promise.all(settings.extensionTemplatedPaths.map(async path => {
-    await fill(path);
-  }));
-
-  await unitTestExt();
-  await webpackBundle(webpackMode);
-}
-
-async function buildExt_dev() {
-  await _buildExt('development');
 }
 
 async function buildExt_prod() {
-  await _buildExt('production');
+  await _buildExt('production', true)();
 }
 
 export async function unitTestExt() {
@@ -176,6 +178,18 @@ export async function unitTestExt() {
   await util.spawn('node',
     [path.join(__dirname, 'node_modules', 'mocha', 'bin', 'mocha')].concat(files),
     { cwd: extensionPath });
+}
+
+export async function lint() {
+  await util.spawn('node', [
+      path.join(__dirname, 'node_modules', 'eslint', 'bin', 'eslint.js'),
+      'gulpfile-settings.js',
+      'gulpfile.js',
+      'app/src/**/*.js',
+      'extension/src/**/*.js',
+      '--cache'
+    ], { cwd: __dirname }
+  );
 }
 
 export async function packageExt() {
@@ -200,7 +214,12 @@ export async function signExt() {
 }
 
 function watchChanges() {
-  gulp.watch(settings.appPaths.concat([`!${settings.appInstallScript}`]), deployApp);
+  // Notes:
+  // We want to lint when source files are modified.
+  // 'appPaths' also contains 'package.json', and 'extensionTemplatedPaths'
+  // contains 'manifest.json', but these are not supposed to change often.
+  // So don't bother doing finer watchers.
+  gulp.watch(settings.appPaths.concat([`!${settings.appInstallScript}`]), gulp.series(lint, deployApp));
   gulp.watch(settings.appInstallScript, install);
   const extensionTemplatePaths = settings.extensionTemplatedPaths.map(p => getTemplatePath(p));
   // Follow changes in sources and templates.
@@ -208,7 +227,9 @@ function watchChanges() {
   // There is also no need to follow resources, since they are directly pointed
   // to in manifest.
   const extensionPaths = [
-    path.posix.join(extensionPath, 'src', '**', '*')
+    buildPatternSources(extensionPath)
   ].concat(extensionTemplatePaths).concat(settings.extensionTemplatedPaths.map(p => `!${p}`));
-  gulp.watch(extensionPaths, buildExt_dev);
+  gulp.watch(extensionPaths, _buildExt('development', true));
+  // Follow changes in eslint or gulp setup.
+  gulp.watch(['eslint.config.js', 'gulpfile-settings.js', 'gulpfile.js'], lint);
 }
