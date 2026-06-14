@@ -1,4 +1,5 @@
 .eslintcache
+extension/.amo-upload-uuid
 extension/manifest.json
 extension/dist/
 extension/src/common/constants.js
