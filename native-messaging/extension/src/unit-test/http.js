@@ -68,7 +68,7 @@ describe('HeaderParser', function() {
     it('should skip any whitespace', function() {
       [' ', '\t', '\r', '\n'].forEach(c => {
         const parser = new http.HeaderParser(`${c}a`);
-        assert.equal(parser.skipFWS(), (c != '\n') ? c : ' ');
+        assert.equal(parser.skipFWS(), (c !== '\n') ? c : ' ');
         assert.equal(parser.value, 'a');
       })
     });

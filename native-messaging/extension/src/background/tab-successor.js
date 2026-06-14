@@ -197,7 +197,7 @@ export class TabSuccessor {
       if (options?.insert) {
         // Predecessors of tabId now use the first of tabIds as successor.
         for (const tabHandler of Object.values(tabHandlers)) {
-          if (tabHandler.successorTabId != tabId) return;
+          if (tabHandler.successorTabId !== tabId) return;
           self.setSuccessorTabId(tabHandler.id, tabIdsFirst);
         }
       }
@@ -399,7 +399,7 @@ export class TabSuccessor {
       return;
     }
     // Belt and suspenders: we expect previousTabId to not be the activated tab.
-    if (details.previousTabId == details.tabId) return;
+    if (details.previousTabId === details.tabId) return;
 
     // Remember the anchor for a short while, in case it is removed too fast
     // (possibly before our moveInSuccession gets processed).
@@ -430,7 +430,7 @@ export class TabSuccessor {
     // Check if any other tab used it as successor, and chain to the removed tab
     // successor.
     for (tabHandler of this.getTabsList()) {
-      if (tabHandler.successorTabId != tabId) continue;
+      if (tabHandler.successorTabId !== tabId) continue;
       if (successorTabId > 0) {
         tabHandler.successorTabId = successorTabId;
         if (recentlyAnchored) await this.chainTabs([tabHandler], successorTabId);
@@ -483,16 +483,16 @@ export class TabSuccessor {
         return tabs;
       }, {}
     );
-    const wTabs = this.getTabsList().filter(tab => tab.windowId == windowId);
+    const wTabs = this.getTabsList().filter(tab => tab.windowId === windowId);
     for (const t of wTabs) {
       t.highlighted = wTabsQueried[t.id]?.highlighted;
     }
     // If multiple tabs are highlighted, and the ation is requested on one of
     // them, it is applied on all of them.
     const highlighted = wTabs.filter(t => t.highlighted);
-    let tabs = highlighted.some(t => t.id == tab.id) ? highlighted : [tab];
+    let tabs = highlighted.some(t => t.id === tab.id) ? highlighted : [tab];
     // We cannot discard 'about:' tabs, except 'newtab', 'home' and 'privatebrowsing'.
-    tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url == 'about:newtab') || (tab.url == 'about:home') || (tab.url == 'about:privatebrowsing'));
+    tabs = tabs.filter((tab) => !tab.url.startsWith('about:') || (tab.url === 'about:newtab') || (tab.url === 'about:home') || (tab.url === 'about:privatebrowsing'));
     if (settings.debug.tabs.successor) console.log('Unload tabs:', tabs);
     // We cannot discard the active tab: in this case we must first select
     // another one (its successor).
@@ -651,7 +651,7 @@ export class TabSuccessor {
       // check any chain that would be the successor of our chain last tab.
       let chainSuccessor = undefined;
       for (const chainExisting of tabsByWindow[tab.windowId].chains) {
-        if (chainExisting[0].id == info.id) {
+        if (chainExisting[0].id === info.id) {
           chainSuccessor = chainExisting;
           break;
         }

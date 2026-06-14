@@ -56,7 +56,7 @@ export class HLSPlaylist extends HLSTagged {
       .map(line => line.trim())
       .filter(line => {
         return line.length && (
-          (line[0] != '#') || line.startsWith('#EXT')
+          (line[0] !== '#') || line.startsWith('#EXT')
         );
       });
 
@@ -68,14 +68,14 @@ export class HLSPlaylist extends HLSTagged {
 
     // First line must be the format identifier tag.
     let line = lines.shift();
-    if (line != '#EXTM3U') {
+    if (line !== '#EXTM3U') {
       if (params.debug) console.log(`Ignore HLS content without format identifier tag in first line=<${line}>`);
       return;
     }
 
     while (lines.length) {
       line = lines.shift();
-      if (line[0] != '#') {
+      if (line[0] !== '#') {
         if (params.debug) console.log(`Ignore HLS non-tag line=<${line}>`);
         continue;
       }
@@ -110,7 +110,7 @@ export class HLSPlaylist extends HLSTagged {
   }
 
   getRenditions(groupId) {
-    return this.getTags('EXT-X-MEDIA').filter(r => r.attributes['GROUP-ID'] == groupId);
+    return this.getTags('EXT-X-MEDIA').filter(r => r.attributes['GROUP-ID'] === groupId);
   }
 
   static parseTag(line) {
@@ -130,7 +130,7 @@ export class HLSPlaylist extends HLSTagged {
   }
 
   static parseURI(line) {
-    return (line[0] == '#') ? undefined : line;
+    return (line[0] === '#') ? undefined : line;
   }
 
 }
@@ -166,7 +166,7 @@ class HLSStream extends HLSTagged {
     return this.getTags('EXT-X-KEY').map(tag => {
       const method = tag.attributes['METHOD'];
       let url;
-      if (method != 'NONE') url = new URL(tag.attributes['URI'], this.getURL()).href;
+      if (method !== 'NONE') url = new URL(tag.attributes['URI'], this.getURL()).href;
       return {
         method,
         url
@@ -380,7 +380,7 @@ export class HLSTagParser {
   }
 
   parseQuotedString() {
-    if (!this.value.length || (this.value[0] != '"')) return undefined;
+    if (!this.value.length || (this.value[0] !== '"')) return undefined;
 
     // Quoted string ends on next quote.
     // Note: keep the quotes, caller will handle value type.
@@ -392,7 +392,7 @@ export class HLSTagParser {
     } else {
       const s = this.skipOffset(idx + 1, 0);
       if (this.value.length) {
-        if (this.value[0] != ',') {
+        if (this.value[0] !== ',') {
           // There are extra data after quote and before next parameter.
           // Should not happen: ignore the extra data.
           const idxComma = this.value.indexOf(',');
@@ -437,12 +437,12 @@ export class HLSTagParser {
 
   static parseString(s) {
     if (!s.length) return s;
-    if ((s[0] == '"') && (s[s.length-1] == '"')) return s.substring(1, s.length-1);
+    if ((s[0] === '"') && (s[s.length-1] === '"')) return s.substring(1, s.length-1);
     return s;
   }
 
   static parseBoolean(s) {
-    return s == 'YES';
+    return s === 'YES';
   }
 
   static parseResolution(s) {

@@ -187,7 +187,7 @@ class NativeSink extends stream.Writable {
     // Prepare and send each fragment.
     for (let offset = 0; offset < length; offset += MSG_SPLIT_SIZE) {
       _routing.content = json.slice(offset, offset + MSG_SPLIT_SIZE);
-      _routing.fragment = (offset == 0
+      _routing.fragment = (offset === 0
         ? FRAGMENT_KIND_START
         : (offset + MSG_SPLIT_SIZE >= length
             ? FRAGMENT_KIND_END

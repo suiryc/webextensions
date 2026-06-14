@@ -161,7 +161,7 @@ function processVideo(node) {
     for (const track of Array.from(node.getElementsByTagName('track'))) {
       // 'subtitles' kind is expected, but sometimes 'captions' is actually used
       // instead. Send both to handle and let it decide.
-      if ((track.kind != 'subtitles') && (track.kind != 'captions')) continue;
+      if ((track.kind !== 'subtitles') && (track.kind !== 'captions')) continue;
       subtitles.push({
         kind: track.kind,
         name: track.label,
@@ -222,7 +222,7 @@ function processVideo(node) {
   // for it, in case it become possible in the future.
   const sourceObserver = new MutationObserver(function(mutations, observer) {
     for (const mutation of mutations) {
-      if ((mutation.attributeName == 'src') || (mutation.attributeName == 'currentSrc')) {
+      if ((mutation.attributeName === 'src') || (mutation.attributeName === 'currentSrc')) {
         processVideoSource();
         // Stop observing once we have a source url.
         if (nonEmpty('src') || nonEmpty('currentSrc')) unobserve('mutation');

@@ -306,7 +306,7 @@ export class VideoSource {
   }
 
   setTabTitle(title) {
-    if (!title || (this.tabTitle == title)) return;
+    if (!title || (this.tabTitle === title)) return;
     this.tabTitle = title;
     this.needRefresh = true;
   }
@@ -350,7 +350,7 @@ export class VideoSource {
 
   setRedirection(url) {
     // Ignore url if already used.
-    if ((url == this.url) || (url == this.actualUrl)) return;
+    if ((url === this.url) || (url === this.actualUrl)) return;
     this.actualUrl = url;
     this.addUrl(url);
     // Ensure we re-build downloadSite unless forceUrl is used.
@@ -364,13 +364,13 @@ export class VideoSource {
   }
 
   setFilename(filename) {
-    if (!filename || (this.filename == filename)) return;
+    if (!filename || (this.filename === filename)) return;
     this.filename = filename;
     this.needRefresh = true;
   }
 
   setSize(size) {
-    if (!Number.isInteger(size) || (this.size == size)) return;
+    if (!Number.isInteger(size) || (this.size === size)) return;
     this.size = size;
     this.needRefresh = true;
   }
@@ -417,7 +417,7 @@ export class VideoSource {
 
   findSubtitle(subtitle) {
     for (const known of this.subtitleEntries) {
-      if (known.subtitle.url == subtitle.url) return known.subtitle;
+      if (known.subtitle.url === subtitle.url) return known.subtitle;
     }
   }
 
@@ -436,7 +436,7 @@ export class VideoSource {
 
     // Replace known one by fresh one.
     for (const entryHandler of this.subtitleEntries) {
-      if (entryHandler.subtitle.url == subtitle.url) {
+      if (entryHandler.subtitle.url === subtitle.url) {
         entryHandler.subtitle = subtitle;
         this.needRefresh = true;
         break;
@@ -790,7 +790,7 @@ export class VideoSource {
           // Auto-download enabled by default, unless using non-main button
           // or 'Ctrl' key.
           self.download(entryHandler, {
-            auto: (data.button == 0) && !data.modifiers.includes('Ctrl')
+            auto: (data.button === 0) && !data.modifiers.includes('Ctrl')
           });
         }
       });
@@ -1056,7 +1056,7 @@ class VideoSourceTabHandler {
         // Update some fields if needed.
         if (update) {
           for (const [field, value] of Object.entries(update)) {
-            if (!source[field] && (value !== undefined) && (value !== null)) {
+            if (!source[field] && (value != null)) {
               // Notes:
               // If source has a 'setXXX' method for the field, call it.
               // None of the fields we (current callers) update here require to
@@ -1280,7 +1280,7 @@ class VideoSourceTabHandler {
             const actualStream = playlistStream.isStream();
             if (actualStream) {
               const segments = actualStream.getTags('EXTINF');
-              if ((segments.length == 1) && segments.at(0).uri) {
+              if ((segments.length === 1) && segments.at(0).uri) {
                 const uri = segments.at(0).uri;
                 console.log(`HLS stream subtitles url=<${url}> is actually an HLS segment pointing to uri=<${uri}>`);
                 url = uri;
@@ -1412,7 +1412,7 @@ class VideoSourceTabHandler {
   async download(details, downloadDetails) {
     for (const source of this.sources) {
       for (const entryHandler of source.downloadEntries) {
-        if (entryHandler.download.source.downloadId == details.downloadId) {
+        if (entryHandler.download.source.downloadId === details.downloadId) {
           return await source.download(entryHandler, downloadDetails);
         }
       }
@@ -1436,7 +1436,7 @@ class VideoSourceTabHandler {
     // Ensure we received a message from the current tab: either sender as been
     // determined 'live', or its tab URL matches ours.
     // If not, ignore the source.
-    if ((details.tabUrl != tabHandler.url) && (!details.sender || !details.sender.live)) return this.ignoreDownload(details, 'Tab URL mismatch');
+    if ((details.tabUrl !== tabHandler.url) && (!details.sender || !details.sender.live)) return this.ignoreDownload(details, 'Tab URL mismatch');
     // Ignore urls that we can't download.
     if (!http.canDownload(url)) return this.ignoreDownload(details, 'URL not handled');
     // Ignore apparent content types that we don't want to download.
@@ -1529,7 +1529,7 @@ class VideoSourceTabHandler {
     // Extract redirected url when applicable.
     // Note: even though it should have no meaning/purpose in our case, url may
     // contain a fragment; so normalize it.
-    if (Math.floor(statusCode / 100) == 3) location = util.normalizeUrl(http.findHeaderValue(response.responseHeaders, 'Location'), settings.debug.video, 'Location');
+    if (Math.floor(statusCode / 100) === 3) location = util.normalizeUrl(http.findHeaderValue(response.responseHeaders, 'Location'), settings.debug.video, 'Location');
 
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) {
@@ -1598,7 +1598,7 @@ class VideoSourceTabHandler {
       // than to detect HLS: these are expected to be done by site script, e.g.
       // to get server information, or the player which is streaming.
       // So don't buffer these type of requests.
-      if (!skip) skip = requestDetails.type == 'xmlhttprequest';
+      if (!skip) skip = requestDetails.type === 'xmlhttprequest';
       if (!skip) {
         // Remember this response, in case an associated video source is added
         // later.
@@ -1632,7 +1632,7 @@ class VideoSourceTabHandler {
 
     // Only process standard success code. This filters out errors and
     // non-standard successes.
-    if ((statusCode != 200) && (statusCode != 206)) {
+    if ((statusCode !== 200) && (statusCode !== 206)) {
       if (settings.debug.video) console.log(`Not handling tab=<${response.tabId}> frame=<${response.frameId}> video source id=<${source.id}> response=<%o>: Response code=<${statusCode}> not managed`, response);
       return;
     }

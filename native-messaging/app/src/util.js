@@ -63,7 +63,7 @@ export function formatObject(obj, processed, recursiveLoop) {
       s += ` ${f}=<${recurse(v)}>`;
       idx++;
     });
-    if (idx == 0) s += ' (empty)';
+    if (idx === 0) s += ' (empty)';
   }
   return s;
 }

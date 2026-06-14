@@ -38,7 +38,7 @@ function unhandledMessage(msg, sender) {
 function cs_allowCopyPaste(msg) {
   const allowCtrlCV = function(evt) {
     const key = evt.key?.toLowerCase();
-    if (evt.ctrlKey && ((key == 'c') || (key == 'v'))) {
+    if (evt.ctrlKey && ((key === 'c') || (key === 'v'))) {
       evt.stopImmediatePropagation();
     }
     return true;

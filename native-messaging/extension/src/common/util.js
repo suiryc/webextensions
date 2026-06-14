@@ -7,7 +7,7 @@ import { settings } from './settings.js';
 
 // Notes:
 // Possible ways to check whether global variable is set:
-//  - typeof(variable) !== 'undefined'
+//  - typeof(variable) != 'undefined'
 //  - {globalThis,global,window}.variable !== undefined
 //  - 'variable' in {globalThis,global,window}
 // 'window' only exists in browser, although not everywhere (e.g. not in Web
@@ -204,7 +204,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   // Handle requests.
   if ((obj instanceof XMLHttpRequest) || (('status' in obj) && ('statusText' in obj))) {
     if (!obj.status && !obj.statusText) return 'XHR failed';
-    if (obj.status == 200) return 'XHR succeeded';
+    if (obj.status === 200) return 'XHR succeeded';
     return `XHR status=<${obj.status}> statusText=<${obj.statusText}>`;
   }
 
@@ -241,7 +241,7 @@ export function formatObject(obj, processed, recursiveLoop) {
       s += ` ${f}=<${recurse(v)}>`;
       idx++;
     });
-    if (idx == 0) s += ' (empty)';
+    if (idx === 0) s += ' (empty)';
   }
   return s;
 }
@@ -362,7 +362,7 @@ export function parseSiteUrl(url) {
   const nameParts = hostname.split('.');
   const name = ((nameParts.length > 1) ? nameParts.slice(-2, -1)[0] : hostname).toLowerCase();
   // pathname starts with '/', so splitting creates an empty entry in first position.
-  const pathParts = (url.pathname != '/')
+  const pathParts = (url.pathname !== '/')
     ? url.pathname.split('/').slice(1).map(decodeURIComponent)
     : []
     ;
@@ -419,7 +419,7 @@ export function filenameWithExtension(filename, extension) {
 
 // Round number to the requested precision (3 digits by default).
 export function roundNumber(num, dec, precision) {
-  if (num == 0) return 0;
+  if (num === 0) return 0;
   if (dec === undefined) {
     if (precision === undefined) precision = 3;
     const threshold = Math.pow(10, precision - 1);
@@ -578,7 +578,7 @@ export function browserNotification(notification, ttl) {
 }
 
 export function log(details) {
-  if (details.level == 'warning') details.level = 'warn';
+  if (details.level === 'warning') details.level = 'warn';
   if (details.logged) return;
   let level = details.level || 'info';
   if (!(level in console)) level = 'info';

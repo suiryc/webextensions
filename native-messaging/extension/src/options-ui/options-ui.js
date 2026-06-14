@@ -90,14 +90,14 @@ exportButton.addEventListener('click', () => {
       }
       v = v.split('\n');
       // Only prepend prefix if value is multi-line.
-      if (v.length == 1) return v[0];
+      if (v.length === 1) return v[0];
       return `${prefix}${v.join(`\n${prefix}`)}`;
     }
     function toComment(obj) {
       let s = [];
       for (const key of Object.keys(obj)) {
         const v = stringify(obj[key], '  ').split('\n');
-        if (v.length == 1) {
+        if (v.length === 1) {
           s.push(`${key}: ${v[0]}`);
         } else {
           s.push(`${key}:`);
@@ -150,7 +150,7 @@ importFile.addEventListener('change', function() {
   }
 
   reader.onloadend = function(event) {
-    if (event.target.readyState == FileReader.DONE) {
+    if (event.target.readyState === FileReader.DONE) {
       try {
         // Remove comment lines we add upon exporting.
         const json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');

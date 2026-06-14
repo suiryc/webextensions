@@ -103,7 +103,7 @@ function setupDownloadEntry(source, download) {
   entryClipboard.push('');
 
   function popupSubtitle_pushLine(s) {
-    if (popupSubtitle.length && (popupSubtitle.at(-1) != '<hr>')) popupSubtitle.push('<br>');
+    if (popupSubtitle.length && (popupSubtitle.at(-1) !== '<hr>')) popupSubtitle.push('<br>');
     popupSubtitle.push(s);
     entryClipboard.push(util.htmlToText(s));
   }
@@ -219,7 +219,7 @@ function setupDownloadEntry(source, download) {
     // Auto-download enabled by default, unless using non-main button
     // or 'Ctrl' key.
     const details = {
-      auto: (data.button == 0) && !data.ctrlKey
+      auto: (data.button === 0) && !data.ctrlKey
     };
     webext.postMessage({
       _routing: {
@@ -361,7 +361,7 @@ function replaceNode(node1, node2) {
 }
 
 function addMessage(details) {
-  if (details.windowId && (details.windowId != windowId)) return;
+  if (details.windowId && (details.windowId !== windowId)) return;
   const tabId = details.tabId;
   const level = details.level;
   const node = cloneNode(listItemNode);
@@ -369,10 +369,10 @@ function addMessage(details) {
   let icon;
   let message = util.formatApplicationMessage(details);
 
-  if (level == 'error') {
+  if (level === 'error') {
     icon = cloneNode(iconExclamationTriangle);
     icon.classList.add('icon-error');
-  } else if (level == 'warn') {
+  } else if (level === 'warn') {
     icon = cloneNode(iconExclamationTriangle);
     icon.classList.add('icon-warning');
   } else {
@@ -392,7 +392,7 @@ function addMessage(details) {
   }
   if (tooltip.length) node.setAttribute('title', tooltip.join('\n'));
 
-  ((tabId == activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
+  ((tabId === activeTabId) ? activeMessagesNode : otherMessagesNode).appendChild(node);
   updateMessagesBadges();
 }
 
@@ -456,7 +456,7 @@ function updateMessagesBadges() {
     activeMessagesItemNode.removeAttribute('data-badge');
   }
   activeMessagesItemNode.classList.toggle('badge', activeMessagesCount > 0);
-  activeMessagesNode.classList.toggle('hidden', activeMessagesCount == 0);
+  activeMessagesNode.classList.toggle('hidden', activeMessagesCount === 0);
 
   const otherMessagesCount = otherMessagesNode.children.length - 1;
   if (otherMessagesCount > 0) {
@@ -465,7 +465,7 @@ function updateMessagesBadges() {
     otherMessagesItemNode.removeAttribute('data-badge');
   }
   otherMessagesItemNode.classList.toggle('badge', otherMessagesCount > 0);
-  otherMessagesNode.classList.toggle('hidden', otherMessagesCount == 0);
+  otherMessagesNode.classList.toggle('hidden', otherMessagesCount === 0);
 
   const messagesCount = activeMessagesCount + otherMessagesCount;
   if (messagesCount > 0) {
@@ -544,7 +544,7 @@ optionsItemNode.addEventListener('dblclick', () => {
 });
 
 document.addEventListener('keydown', (ev) => {
-  if (ev.ctrlKey && (ev.key == 'c')) {
+  if (ev.ctrlKey && (ev.key === 'c')) {
     if (textForClipboard) navigator.clipboard.writeText(textForClipboard);
   }
 });

@@ -52,15 +52,15 @@ export class Deferred {
   }
 
   static proxied_isFulfilled() {
-    return this.state == 'fulfilled';
+    return this.state === 'fulfilled';
   }
 
   static proxied_isRejected() {
-    return this.state == 'rejected';
+    return this.state === 'rejected';
   }
 
   static proxied_isCompleted() {
-    return this.state != 'pending';
+    return this.state !== 'pending';
   }
 
   static proxied_then(onFulfilled, onRejected) {

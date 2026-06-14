@@ -233,7 +233,7 @@ function injectMessageBox() {
     const otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
     // Note: when developing and reloading extension, we may see our previous
     // injected element, so filter us.
-    if (otherExtension && (otherExtension != constants.EXTENSION_ID)) {
+    if (otherExtension && (otherExtension !== constants.EXTENSION_ID)) {
       // We are not alone.
       displayModal('TiddlyWiki save extension already running', {
         body: `Extension '${otherExtension}' is already taking care of saving files.\n` +

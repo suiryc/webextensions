@@ -121,7 +121,7 @@ export class WebExtension {
     // Only content scripts console is associated to the viewed page.
     self.console = {};
     for (const level of ['log', 'debug', 'info', 'warn', 'error']) {
-      if (params.target != constants.TARGET_CONTENT_SCRIPT) {
+      if (params.target !== constants.TARGET_CONTENT_SCRIPT) {
         self.console[level] = console[level].bind(console);
       } else {
         self.console[level] = function (...args) {
@@ -161,7 +161,7 @@ export class WebExtension {
         ['info', 'warn', 'error'].forEach(level => {
           notif[level] = function(details, error) {
             // Prepare details.
-            if (typeof(details) !== 'object') details = {message: details, error};
+            if (typeof(details) != 'object') details = {message: details, error};
             details = Object.assign({source}, defaults, details, {level});
             webext.notify(details);
           };
@@ -206,7 +206,7 @@ export class WebExtension {
     if (this.isBackground && actualSender.tab && this.params.tabsHandler && msg.sender) {
       const tab = actualSender.tab;
       const frameHandler = this.params.tabsHandler.getFrame({tabId: tab.id, frameId: msg.sender.frame.id, csUuid: msg.csUuid});
-      msg.sender.live = frameHandler && (frameHandler.url == msg.sender.frame.url);
+      msg.sender.live = frameHandler && (frameHandler.url === msg.sender.frame.url);
       // Note:
       // Sometimes the sender tab url reported by the browser is not up-to-date.
       // Since we could determine the frame that sent the message is the one we
@@ -278,18 +278,18 @@ export class WebExtension {
     // If there is no target, every listener is a target.
     if (!_routing.target) return true;
     // When target is defined, it must match.
-    if (_routing.target != this.params.target) return false;
+    if (_routing.target !== this.params.target) return false;
     // When checking as a dispatcher, only the 'target' needs to match.
     if (dispatcher) return true;
     // If a targetId is given/needed, we only need to match it.
-    if (_routing.targetId || this.params.targetId) return (_routing.targetId == this.params.targetId);
+    if (_routing.targetId || this.params.targetId) return (_routing.targetId === this.params.targetId);
     // Otherwise, optional target details also need to match.
     const targetDetails = _routing.targetDetails;
     if (!targetDetails) return true;
-    if ((targetDetails.windowId !== undefined) && (this.params.targetDetails?.windowId != targetDetails.windowId)) return false;
-    if ((targetDetails.tabId !== undefined) && (this.params.targetDetails?.tabId != targetDetails.tabId)) return false;
-    if ((targetDetails.frameId !== undefined) && (this.params.targetDetails?.frameId != targetDetails.frameId)) return false;
-    if ((targetDetails.id !== undefined) && (this.params.targetDetails?.id != targetDetails.id)) return false;
+    if ((targetDetails.windowId !== undefined) && (this.params.targetDetails?.windowId !== targetDetails.windowId)) return false;
+    if ((targetDetails.tabId !== undefined) && (this.params.targetDetails?.tabId !== targetDetails.tabId)) return false;
+    if ((targetDetails.frameId !== undefined) && (this.params.targetDetails?.frameId !== targetDetails.frameId)) return false;
+    if ((targetDetails.id !== undefined) && (this.params.targetDetails?.id !== targetDetails.id)) return false;
     // Every target/details do match.
     return true;
   }
@@ -525,14 +525,14 @@ export class WebExtension {
 
           // If there is no target, every port is a target.
           // When target is defined, it must match.
-          if (_routing.target && (_routing.target != portHandler.params.target)) continue;
+          if (_routing.target && (_routing.target !== portHandler.params.target)) continue;
           // If a targetId is given/needed, it needs to match.
-          if ((_routing.targetId || portHandler.params.targetId) && (_routing.targetId != portHandler.params.targetId)) continue;
+          if ((_routing.targetId || portHandler.params.targetId) && (_routing.targetId !== portHandler.params.targetId)) continue;
           // Optional target details, except id, also need to match.
           if (targetDetails) {
-            if ((targetDetails.windowId !== undefined) && (portHandler.port?.sender?.tab?.windowId != targetDetails.windowId)) continue;
-            if ((targetDetails.tabId !== undefined) && (portHandler.port?.sender?.tab?.id != targetDetails.tabId)) continue;
-            if ((targetDetails.frameId !== undefined) && (portHandler.port?.sender?.frameId != targetDetails.frameId)) continue;
+            if ((targetDetails.windowId !== undefined) && (portHandler.port?.sender?.tab?.windowId !== targetDetails.windowId)) continue;
+            if ((targetDetails.tabId !== undefined) && (portHandler.port?.sender?.tab?.id !== targetDetails.tabId)) continue;
+            if ((targetDetails.frameId !== undefined) && (portHandler.port?.sender?.frameId !== targetDetails.frameId)) continue;
           }
           // Every target/details do match.
           // If not broadcasting, we are done with this target.
@@ -558,7 +558,7 @@ export class WebExtension {
       if (targetDetails) {
         localTargets = [];
         for (const localTarget of this.localTargets) {
-          if ((targetDetails.id !== undefined) && (localTarget.id != targetDetails.id)) continue;
+          if ((targetDetails.id !== undefined) && (localTarget.id !== targetDetails.id)) continue;
           // If caller targets one endpoint, we are done.
           if (!_routing.broadcast) return localTarget.onMessage(this, msg, _routing.sender);
           localTargets.push(localTarget);
@@ -690,7 +690,7 @@ class PortHandler {
     if (this.port) return;
 
     const name = this.params.target;
-    if (name == constants.TARGET_CONTENT_SCRIPT) {
+    if (name === constants.TARGET_CONTENT_SCRIPT) {
       // Generate a unique content script UUID, shared between all content
       // scripts running in the frame.
       this.csUuid = globalThis.csUuid = globalThis.csUuid || util.uuidv4();
@@ -790,7 +790,7 @@ class PortHandler {
 
     // Special case: if we delegated a fetch request, convert the response
     // as needed.
-    if (msg._routing.kind == constants.KIND_HTTP_FETCH) {
+    if (msg._routing.kind === constants.KIND_HTTP_FETCH) {
       actualPromise = actualPromise.then(r => {
         // Trigger real error when applicable.
         if (r.error) throw r.error;

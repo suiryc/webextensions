@@ -87,8 +87,8 @@ class DlMngrClient {
       if (params.mimeType) comment.push(`MIME type: ${params.mimeType}`);
       comment.push(`URL filename: ${util.getFilename(details.url)}`);
       if (params.tabTitle) comment.push(`Page title: ${params.tabTitle}`);
-      if (params.tabUrl && (params.tabUrl != details.url)) comment.push(`Page URL: ${params.tabUrl}`);
-      if (params.linkText && (params.linkText != details.url)) comment.push(`Link text: ${params.linkText}`);
+      if (params.tabUrl && (params.tabUrl !== details.url)) comment.push(`Page URL: ${params.tabUrl}`);
+      if (params.linkText && (params.linkText !== details.url)) comment.push(`Link text: ${params.linkText}`);
       if (params.extraComments) {
         if (Array.isArray(params.extraComments)) comment = comment.concat(params.extraComments);
         else comment.push(params.extraComments);
@@ -520,7 +520,7 @@ export class RequestsHandler extends http.RequestsHandler {
       // Catch any error to return the initial state.
       return [download];
     }).then(r => {
-      const d = r.find(d => d.id == download.id);
+      const d = r.find(d => d.id === download.id);
       if (d) download = d;
 
       // Don't process completed downloads.
@@ -753,7 +753,7 @@ class RequestDetails extends http.RequestDetails {
 
     // Only process standard success code. This filters out errors, redirects,
     // and non-standard successes (like range requests).
-    if ((statusCode != 200) && (statusCode != 206)) return handler.manageRequest(this, false, `Response code=<${statusCode}> not managed`);
+    if ((statusCode !== 200) && (statusCode !== 206)) return handler.manageRequest(this, false, `Response code=<${statusCode}> not managed`);
     // Special case (Firefox):
     // If content has been partially downloaded (cache) and the server supports
     // ranges, the request we saw is somehow fake (does not contain the 'Range'
@@ -764,7 +764,7 @@ class RequestDetails extends http.RequestDetails {
     // In this case, still check if we would intercept from the first response
     // (indicates remaining size). As a side effect the second response will not
     // be intercepted due to missing matching request (we consume it here).
-    if ((statusCode == 206) && http.findHeaderValue(this.sent.requestHeaders, 'Range')) return handler.manageRequest(this, false, 'Skip partial content request');
+    if ((statusCode === 206) && http.findHeaderValue(this.sent.requestHeaders, 'Range')) return handler.manageRequest(this, false, 'Skip partial content request');
 
     // Parse response to get content length, type, disposition.
     this.parseResponse(settings.interceptSize);

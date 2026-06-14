@@ -295,7 +295,7 @@ class Settings extends SettingsBranch {
         if (!Array.isArray(newKeys)) newKeys = [newKeys];
         let remove = true;
         for (newKey of newKeys) {
-          if (newKey == key) {
+          if (newKey === key) {
             // We are actually keeping the old key.
             remove = false;
             continue;
@@ -481,9 +481,9 @@ class ExtensionSetting {
     // value change after some time).
     field.addEventListener('change', () => self.validateField(true));
     const fieldType = (field.type || field.tagName).toLowerCase();
-    if (fieldType =='checkbox') {
+    if (fieldType === 'checkbox') {
       self.getFieldValue = function() { return this.field.checked; }
-    } else if ((fieldType == 'text') || (fieldType == 'textarea')) {
+    } else if ((fieldType === 'text') || (fieldType === 'textarea')) {
       field.addEventListener('input', () => self.validateField(false));
     }
 

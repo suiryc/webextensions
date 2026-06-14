@@ -12,7 +12,7 @@ export function canDownload(url) {
   const els = url.split(':');
   if (els < 2) return false;
   const scheme = els[0].toLowerCase();
-  return ((scheme == 'http') || (scheme == 'https'));
+  return ((scheme === 'http') || (scheme === 'https'));
 }
 
 export function findHeader(headers, name) {
@@ -243,7 +243,7 @@ export class RequestDetails {
   isRedirection() {
     // Note: in the case of '304' ('not modified') response, we get a 'cached'
     // response right after (at least in Firefox).
-    return (Math.floor(this.statusCode / 100) == 3);
+    return (Math.floor(this.statusCode / 100) === 3);
   }
 
   parseResponse(interceptSize) {
@@ -251,11 +251,11 @@ export class RequestDetails {
     const { statusCode, responseHeaders } = this;
 
     let contentLength;
-    if (statusCode == 200) {
+    if (statusCode === 200) {
       // Get content length. Use undefined if unknown.
       contentLength = findHeaderValue(responseHeaders, 'Content-Length');
     }
-    if (statusCode == 206) {
+    if (statusCode === 206) {
       // Determine content length through range response.
       const range = findHeaderValue(responseHeaders, 'Content-Range');
       if (range && (range.split(' ').shift().toLowerCase() === 'bytes')) {
@@ -504,7 +504,7 @@ export class ContentType {
 
     if (!this.mimeType) return;
     const els = this.mimeType.split('/');
-    if (els.length != 2) return;
+    if (els.length !== 2) return;
     this.mainType = els[0];
     this.subType = els[1];
   }
@@ -523,7 +523,7 @@ export class ContentType {
       for (const matcher of matchers) {
         if (matcher instanceof RegExp) {
           if (matcher.test(extension)) guessed = mt;
-        } else if (matcher == extension) {
+        } else if (matcher === extension) {
           guessed = mt;
         }
         if (guessed !== undefined) break mtLoop;
@@ -542,7 +542,7 @@ export class ContentType {
   // matcher, consider this is the main extension for this mime type.
   getMimeExtension() {
     for (const [mt, matchers] of Object.entries(mimeTypesExt)) {
-      if (mt != this.mimeType) continue;
+      if (mt !== this.mimeType) continue;
       for (const matcher of matchers) {
         if (typeof(matcher) === 'string') return matcher;
       }
@@ -591,7 +591,7 @@ export class ContentType {
     // criteria.
     //if (!this.is('video', 'mp2t') && !this.is('text', 'plain')) return false;
     const extension = util.getFilenameExtension(filename).extension || '';
-    return extension == hlsFileExtension;
+    return extension === hlsFileExtension;
   }
 
   isSubtitle() {
@@ -629,7 +629,7 @@ export class ContentDisposition {
     this.kind = parser.parseToken();
     // Special case: some servers don't return a disposition type, but only
     // parameters (without leading ';').
-    if (parser.value && (parser.value[0] == '=')) {
+    if (parser.value && (parser.value[0] === '=')) {
       parser.value = `;${this.kind}${parser.value}`;
       this.kind = '';
     }
@@ -746,16 +746,16 @@ export class HeaderParser {
       string += this.skipFWS();
       if (!this.value) break;
       const char = this.skipChar();
-      if (char == endChar) {
+      if (char === endChar) {
         recursiveLevel--;
         continue;
       }
-      if (char == recursiveChar) {
+      if (char === recursiveChar) {
         string += recursiveChar;
         recursiveLevel++;
         continue;
       }
-      if (char == '\\') string += this.skipChar();
+      if (char === '\\') string += this.skipChar();
       else string += char;
     }
     this.skipFWS();
@@ -766,7 +766,7 @@ export class HeaderParser {
   skipComment() {
     this.skipFWS();
     if (!this.value) return;
-    if (this.value[0] != '(') return;
+    if (this.value[0] !== '(') return;
     this.parseEscapedString(true, ')', '(');
     this.skipFWS();
   }
@@ -781,9 +781,9 @@ export class HeaderParser {
     let string;
     this.skipFWS();
     if (!this.value) return;
-    if (this.value[0] == '"') {
+    if (this.value[0] === '"') {
       string = this.parseEscapedString(true, '"');
-      if (endChar && this.value && (this.value[0] != endChar)) {
+      if (endChar && this.value && (this.value[0] !== endChar)) {
         const idx = this.value.indexOf(endChar);
         if (idx > 0) {
           string = `${string}${this.value.substring(0, idx).trim()}`;
@@ -820,7 +820,7 @@ export class HeaderParser {
   // Only properly handles UTF-8 and latin1/iso-8859-1.
   decodeString(string) {
     const els = string.split('\'', 3);
-    if (els.length != 3) return string;
+    if (els.length !== 3) return string;
     const charset = els[0].toLowerCase();
     string = els[2];
     // Value is URL-encoded.
@@ -871,7 +871,7 @@ export class HeaderParser {
 
     this.skipFWS();
     if (!this.value) return;
-    if (this.value[0] != '=') return;
+    if (this.value[0] !== '=') return;
     this.skipChar();
 
     const value = this.parseValue(noComment);
@@ -895,12 +895,12 @@ export class HeaderParser {
     const parameters = {};
     this.skipFWS();
     if (!this.value) return parameters;
-    if (this.value[0] != ';') return parameters;
+    if (this.value[0] !== ';') return parameters;
     this.skipChar();
     while (true) {
       if (!this.parseParameter(parameters, noComment)) break;
       if (!this.value) break;
-      if (this.value[0] != ';') break;
+      if (this.value[0] !== ';') break;
       this.skipChar();
     }
 
@@ -924,7 +924,7 @@ export class HeaderParser {
       while (true) {
         const section = parameter.sections[idx++];
         if (!section) break;
-        if (section.encoded != encoded) {
+        if (section.encoded !== encoded) {
           _flush();
           valueTmp = section.value;
           encoded = section.encoded;
@@ -945,7 +945,7 @@ export class HeaderParser {
     const mainType = this.parseToken();
     if (!mainType) return;
     if (!this.value) return;
-    if (this.value[0] != '/') return;
+    if (this.value[0] !== '/') return;
     this.skipChar();
     const subType = this.parseToken();
     if (!subType) return;
@@ -1014,19 +1014,19 @@ export class Cookie {
   }
 
   find(name) {
-    const cookie = this.cookies.find(a => a[0] == name);
+    const cookie = this.cookies.find(a => a[0] === name);
     if (cookie) return cookie[1];
   }
 
   findAll(name) {
-    return this.cookies.filter(a => a[0] == name).map(a => a[1]);
+    return this.cookies.filter(a => a[0] === name).map(a => a[1]);
   }
 
   remove(name, first) {
     delete(this.cookie);
     let found = false;
     this.cookies = this.cookies.filter(a => {
-      if (a[0] != name) return true;
+      if (a[0] !== name) return true;
       const keep = first && found;
       found = true;
       return keep;
@@ -1045,7 +1045,7 @@ export class Cookie {
     let found = false;
     const cookies = [];
     this.cookies.forEach(c => {
-      if (c[0] != name) {
+      if (c[0] !== name) {
         cookies.push(c);
         return;
       }

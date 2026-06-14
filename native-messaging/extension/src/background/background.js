@@ -233,8 +233,8 @@ function ext_clearMessages(msg) {
       // Messages sent by non-window code (e.g. background script) have no
       // windowId and are considered as 'Other tabs' (we don't bother setting a
       // dedicated section for such messages): clear them when applicable.
-      if ((details.windowId || !msg.otherTabs) && (details.windowId != windowId)) return true;
-      const matchTab = details.tabId == msg.tabId;
+      if ((details.windowId || !msg.otherTabs) && (details.windowId !== windowId)) return true;
+      const matchTab = details.tabId === msg.tabId;
       return msg.otherTabs ? matchTab : !matchTab;
     });
   }
@@ -310,7 +310,7 @@ function ext_console(msg, sender) {
   // If first argument is a string, assume it can be a format, and thus prepend
   // to the string itself. Otherwise prepend to the arguments array.
   let senderId = msg.sender.kind;
-  if (senderId == constants.TARGET_CONTENT_SCRIPT) {
+  if (senderId === constants.TARGET_CONTENT_SCRIPT) {
     senderId = `win=${sender.tab.windowId},tab=${sender.tab.id},frame=${sender.frameId}`
   }
   if (typeof(args[0]) == 'string') args[0] = `[${senderId}] ${args[0]}`;
@@ -404,10 +404,10 @@ function updateStatus(windowId) {
     let hasMessages = '';
     let badgeBackgroundColor = 'blue';
     for (const details of applicationMessages) {
-      if (details.windowId && (details.windowId != windowId)) continue;
+      if (details.windowId && (details.windowId !== windowId)) continue;
       // Note: don't filter out messages of other tabs; we wish to see the
       // visual hint to know there messages for this window.
-      if (details.level == 'error') {
+      if (details.level === 'error') {
         hasMessages = '!';
         badgeBackgroundColor = 'red';
       } else if (!hasMessages) {
@@ -461,7 +461,7 @@ class TabsObserver {
     videosSources[windowId] = sources;
     // Only the focused window browser page could be listening (and thus
     // running): no need to notify it of sources for other windows.
-    if (this.tabsHandler.focusedWindowId == windowId) {
+    if (this.tabsHandler.focusedWindowId === windowId) {
       webext.postMessage({
         _routing: {
           target: constants.TARGET_BROWSER_ACTION,

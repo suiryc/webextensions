@@ -47,12 +47,12 @@ class FrameHandler {
   // Resets frame, which is about to be (re)used.
   reset(details, notify) {
     this.csUuid = details.csUuid;
-    const sameUrl = this.url == details.url;
+    const sameUrl = this.url === details.url;
     this.setUrl(details.url);
     // Belt and suspenders: trigger parent tab refreshing if we are the main frame.
     // It should receive an onUpdated due to e.g. url change, but we prefer ensure
     // it will refresh.
-    if (this.id == 0) this.tabHandler.refresh();
+    if (this.id === 0) this.tabHandler.refresh();
     // For each script (id), remember the associated promise, resolved with its
     // injection success and result/error.
     this.scripts = {};
@@ -66,7 +66,7 @@ class FrameHandler {
         csUuid: this.csUuid,
         sameUrl
       });
-      if (this.id == 0) this.getTabsHandler().notifyObservers(constants.EVENT_TAB_RESET, notifyDetails);
+      if (this.id === 0) this.getTabsHandler().notifyObservers(constants.EVENT_TAB_RESET, notifyDetails);
       this.getTabsHandler().notifyObservers(constants.EVENT_FRAME_RESET, notifyDetails);
     }
   }
@@ -137,7 +137,7 @@ class TabHandler {
     //
     // At least refresh what could change: title, active, discarded, ...
     const changes = {};
-    if (tab.title != self.title) self.title = changes.title = tab.title;
+    if (tab.title !== self.title) self.title = changes.title = tab.title;
     self.active = tab.active;
     // For 'discarded' notification, ignore when we are merely adding the tab
     // (discovered after querying existing tabs).
@@ -160,11 +160,11 @@ class TabHandler {
 
     // Freshly created tab title is often the url without scheme. In this case,
     // listen to changes (and unlisten once tab loading is complete).
-    if ((tab.status == 'loading') && tab.url.endsWith(tab.title)) self.addTitleListener();
+    if ((tab.status === 'loading') && tab.url.endsWith(tab.title)) self.addTitleListener();
     // When page has been loaded, let some more time for title change.
-    if (tab.status == 'complete') self.scheduleRemoveTitleListener();
+    if (tab.status === 'complete') self.scheduleRemoveTitleListener();
 
-    if (tab.url != self.url) {
+    if (tab.url !== self.url) {
       self.url = changes.url = tab.url;
 
       // Ensure main frame URL is up to date too.
@@ -184,7 +184,7 @@ class TabHandler {
   }
 
   isFocused() {
-    return (this.getTabsHandler().focusedTab.id == this.id);
+    return (this.getTabsHandler().focusedTab.id === this.id);
   }
 
   addTitleListener() {
@@ -271,7 +271,7 @@ class TabHandler {
     if (frameHandler) {
       // If the uuid is the same, we already know this frame (content script
       // maybe reconnected, or there are multiple content scripts running).
-      if (frameHandler.csUuid == details.csUuid) return;
+      if (frameHandler.csUuid === details.csUuid) return;
       // If this is the main frame, we expect the tab to be reused (reloading
       // or navigation to new url): update handler with fresh tab information.
       // Note: since we reset (and remove) non-main frames in this case, we
@@ -587,8 +587,8 @@ export class TabsHandler {
     // Refresh concerned window tabs 'active' information if necessary.
     if (!tabHandler || !tabHandler.active) {
       for (const handler of Object.values(this.tabs)) {
-        if (handler.windowId != windowId) continue;
-        handler.updateTabField('active', handler.id == tabId);
+        if (handler.windowId !== windowId) continue;
+        handler.updateTabField('active', handler.id === tabId);
       }
     }
     if (settings.debug.misc) console.log(`Activated window=<${windowId}> tab=<${tabId}>`);
@@ -616,7 +616,7 @@ export class TabsHandler {
     const tabHandler = focusedTab.handler;
     // Belt and suspenders: if window and tab ids are the same, but tab handler
     // was not known yet, send the notification with the handler.
-    if ((windowId == previousWindowId) && (tabId == previousTabId) && (tabHandler === previousTabHandler)) return;
+    if ((windowId === previousWindowId) && (tabId === previousTabId) && (tabHandler === previousTabHandler)) return;
     this.notifyObservers(constants.EVENT_TAB_FOCUSED, {
       previousWindowId,
       previousTabId,

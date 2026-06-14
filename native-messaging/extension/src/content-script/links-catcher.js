@@ -173,7 +173,7 @@ function debugSample(kind) {
   if (!samples) return debug;
 
   const now = util.epoch();
-  if (samples.mark != now) {
+  if (samples.mark !== now) {
     samples.mark = now;
     if (samples.skipped > 0) {
       debug(`[LinksCatcher] Skipped samples=<${samples.skipped}> kind=<${kind}>`);
@@ -233,7 +233,7 @@ class LinkHandler {
     // at this position ('elementFromPoint') is the node itself or a child.
     // Unfortunately it only works for points in the current viewport.
     const style = getComputedStyle(this.link);
-    if ((style.display == 'none') || (style.visibility == 'hidden')) return false;
+    if ((style.display === 'none') || (style.visibility === 'hidden')) return false;
 
     const rect = getNodeRect(this.link);
     this.hint = rect;
@@ -248,7 +248,7 @@ class LinkHandler {
       rect = getNodeRect(this.link);
       const hint = this.hint;
       this.hint = rect;
-      modified = (rect.top != hint.top) || (rect.bottom != hint.bottom) || (rect.left != hint.left) || (rect.right != hint.right);
+      modified = (rect.top !== hint.top) || (rect.bottom !== hint.bottom) || (rect.left !== hint.left) || (rect.right !== hint.right);
       if (!modified) return modified;
     }
 
@@ -709,7 +709,7 @@ class LinksCatcher {
       scrollY = ev.screenY - (screenHeight - WINDOW_SCROLL_EDGE);
     }
 
-    if ((scrollX != 0) || (scrollY != 0)) {
+    if ((scrollX !== 0) || (scrollY !== 0)) {
       debugSample('scroll')(`[LinksCacther] Scroll x=<${scrollX}> y=<${scrollY}>`);
       window.scrollBy(scrollX, scrollY);
       this.refreshLinksPosition();
@@ -724,7 +724,7 @@ class LinksCatcher {
       const distincts = Object.keys(this.linksHandler.distincts).length;
       const caught = this.linksHandler.caught;
       let text = `${caught}`;
-      if (distincts != caught) text = `${distincts}/${caught}`;
+      if (distincts !== caught) text = `${distincts}/${caught}`;
       this.linksCountNode.textContent = text;
       const rect = getNodeRect(this.linksCountNode);
       let left = endPos.x + LINKS_COUNT_MARGIN;
@@ -788,9 +788,9 @@ class LinksCatcher {
     const leftToRight = this.catchZone.leftToRight;
     handlers.sort((h1, h2) => {
       const vertical = topToBottom ? (h1.rect.top - h2.rect.top) : (h2.rect.bottom - h1.rect.bottom);
-      if (vertical != 0) return vertical;
+      if (vertical !== 0) return vertical;
       const horizontal = leftToRight ? (h1.rect.left - h2.rect.left) : (h2.rect.right - h1.rect.right);
-      if (horizontal != 0) return horizontal;
+      if (horizontal !== 0) return horizontal;
     });
     // Keep unique links.
     for (const handler of handlers) {
@@ -804,10 +804,10 @@ class LinksCatcher {
   // Handles 'mousedown': starts catch zone and follows mouse
   handleMouseDown(ev) {
     // Right button triggers context menu right away on Linux.
-    //if (ev.buttons != constants.MOUSE_BUTTON_RIGHT) return;
-    if ((ev.buttons != constants.MOUSE_BUTTON_LEFT) || !ev.shiftKey) return;
+    //if (ev.buttons !== constants.MOUSE_BUTTON_RIGHT) return;
+    if ((ev.buttons !== constants.MOUSE_BUTTON_LEFT) || !ev.shiftKey) return;
     this.init();
-    this.skipContextMenu = (ev.buttons == constants.MOUSE_BUTTON_RIGHT);
+    this.skipContextMenu = (ev.buttons === constants.MOUSE_BUTTON_RIGHT);
     // When using left button, disabling selection does not work well if there is
     // already some selected elements. Resetting the selection fixes it.
     if (ev.shiftKey) {
