@@ -55,6 +55,10 @@ function cs_allowCopyPaste(msg) {
   });
 }
 
+// Note: if we don't pre-declare these, eslint will complain. However, we need
+// to wait for the 'echo' message response for these to be actually filled.
+let windowId, tabId, frameId, notifDefaults;
+
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)
 const webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
@@ -70,10 +74,12 @@ const webext = globalThis.webext = new WebExtension({ target: constants.TARGET_C
     }
   });
   // Share the ids in all our code scripts, and in the webext.
-  globalThis.windowId = echo.sender.tab.windowId;
-  globalThis.tabId = echo.sender.tab.id;
-  globalThis.frameId = echo.sender.frameId;
-  globalThis.notifDefaults = webext.params.targetDetails = {windowId, tabId, frameId};
+  // Note: assigning 'xxx' is needed for this script, and 'globalThis.xxx' for
+  // other scripts.
+  windowId = globalThis.windowId = echo.sender.tab.windowId;
+  tabId = globalThis.tabId = echo.sender.tab.id;
+  frameId = globalThis.frameId = echo.sender.frameId;
+  notifDefaults = globalThis.notifDefaults = webext.params.targetDetails = {windowId, tabId, frameId};
   try {
     unsafe.executeCode({
       webext,
