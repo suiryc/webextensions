@@ -418,7 +418,7 @@ export class HLSTagParser {
       // Ignore any error here.
     }
     try {
-      return new BigInt(s);
+      return BigInt(s);
     } catch {
       // Ignore any error here.
     }
