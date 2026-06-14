@@ -190,7 +190,7 @@ function getSavePath(message) {
   if (pathname.indexOf("file://localhost/") === 0) {
     pathname = `file://${pathname.substr(16)}`;
   }
-  if (/^file\:\/\/\/[A-Z]\:\//i.test(pathname)) {
+  if (/^file:\/\/\/[A-Z]:\//i.test(pathname)) {
     // Windows path file:///x:/blah/blah --> x:\blah\blah
     pathname = pathname.substr(8).replace(/\//g, "\\");
   } else if (pathname.indexOf("file://///") === 0) {

@@ -688,7 +688,7 @@ const REGEX_FWS = /^(\s*)([\s\S]*)$/m;
 // RFC 7230
 // https://tools.ietf.org/html/rfc7230#section-3.2.6
 // Any VCHAR, except delimiters - DQUOTE and "(),/:;<=>?@[\]{}"
-const REGEX_TOKEN = /^([^\x00-\x20\x7F"\(\),\/:;<=>\?@\[\\\]\{\}]*)([\s\S]*)$/m;
+const REGEX_TOKEN = /^([^\x00-\x20\x7F"(),/:;<=>?@[\\\]{}]*)([\s\S]*)$/m;
 
 export class HeaderParser {
 

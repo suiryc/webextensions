@@ -87,7 +87,7 @@ describe('HeaderParser', function() {
   describe('#parseToken', function() {
 
     it('should match all token characters', function() {
-      const token = "!#$%&'*+-.^_\`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const token = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
       '" \r\n\t(),/:;<=>?@[\\]{}]'.split('').forEach(c => {
         const parser = new http.HeaderParser(`${token}${c}`);
         const r = parser.parseToken();
@@ -108,13 +108,13 @@ describe('HeaderParser', function() {
   describe('#skipComment', function() {
 
     it('should skip comment', function() {
-      const parser = new http.HeaderParser('(anything "whatever" \(\))b');
+      const parser = new http.HeaderParser('(anything "whatever" ())b');
       parser.skipComment();
       assert.equal(parser.value, 'b');
     });
 
     it('should handle recursive comment', function() {
-      const parser = new http.HeaderParser('(anything ("whatever") \(\))b');
+      const parser = new http.HeaderParser('(anything ("whatever") ())b');
       parser.skipComment();
       assert.equal(parser.value, 'b');
     });
