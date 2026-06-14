@@ -743,16 +743,11 @@ export class VideoSource {
               headers: this.newRequestHeaders
             }, params: {
               debug: settings.trace.video,
-              wantBytes: true
+              wantBase64: true
             }
           });
           if (response.ok) {
-            // See: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
-            const rawS = Array.from(
-              response.bytes,
-              (byte) => String.fromCodePoint(byte)
-            ).join('');
-            key.raw = btoa(rawS);
+            key.raw = response.base64;
           } else {
             this.webext.notify({
               title: 'Failed to download HLS key',
