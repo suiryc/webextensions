@@ -208,7 +208,9 @@ function getSavePath(message) {
   }
   try {
     pathname = decodeURI(pathname);
-  } catch {}
+  } catch {
+    // Ignore any error here.
+  }
   return pathname;
 }
 

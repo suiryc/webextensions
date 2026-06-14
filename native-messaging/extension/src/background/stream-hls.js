@@ -314,7 +314,9 @@ export class HLSTagParser {
     if (!valueParser) valueParser = HLSTagParser.parseString;
     try {
       tagV = valueParser(tagV);
-    } catch {}
+    } catch {
+      // Ignore any error here.
+    }
 
     return tagV;
   }
@@ -359,7 +361,9 @@ export class HLSTagParser {
       if (!valueParser) valueParser = HLSTagParser.parseString;
       try {
         attValue = valueParser(attValue);
-      } catch { }
+      } catch {
+        // Ignore any error here.
+      }
       attributes[attName] = attValue;
     }
 
@@ -410,10 +414,14 @@ export class HLSTagParser {
     if (!/^[0-9]+$/.test(s)) return 0;
     try {
       return parseInt(s);
-    } catch { }
+    } catch {
+      // Ignore any error here.
+    }
     try {
       return new BigInt(s);
-    } catch { }
+    } catch {
+      // Ignore any error here.
+    }
     return 0;
   }
 
@@ -421,7 +429,9 @@ export class HLSTagParser {
     try {
       const v = parseFloat(s);
       if (!isNaN(v)) return v;
-    } catch { }
+    } catch {
+      // Ignore any error here.
+    }
     return 0;
   }
 

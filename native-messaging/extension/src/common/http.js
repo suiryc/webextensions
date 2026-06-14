@@ -826,7 +826,8 @@ export class HeaderParser {
       // decodeURIComponent decodes UTF-8 URL-encoded values.
       try {
         string = decodeURIComponent(string);
-      } catch (error) {
+      } catch {
+        // Ignore any error here.
       }
     } else {
       // Otherwise, simply unescape the value.
@@ -835,7 +836,8 @@ export class HeaderParser {
       // charsets. But in HTTP only UTF-8 is mandatory (and sensible to use).
       try {
         string = unescape(string);
-      } catch (error) {
+      } catch {
+        // Ignore any error here.
       }
     }
     return string;

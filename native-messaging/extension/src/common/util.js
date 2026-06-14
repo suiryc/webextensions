@@ -114,7 +114,9 @@ export function tryStructuredClone(obj, processed) {
   // Try native structured clone.
   try {
     return structuredClone(obj);
-  } catch { }
+  } catch {
+    // Ignore any error here.
+  }
   // Clean/sanitize value if it failed.
 
   // Ignore functions.
@@ -385,7 +387,8 @@ export function getFilename(url, filename) {
   if (!filename || !filename.trim().length) {
     try {
       filename = decodeURIComponent(new URL(url).pathname.split('/').pop());
-    } catch (error) {
+    } catch {
+      // Ignore any error here.
     }
   }
   // Normalize: empty value if needed.

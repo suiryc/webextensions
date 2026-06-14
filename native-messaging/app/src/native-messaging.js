@@ -303,7 +303,9 @@ export class NativeApplication {
           // Format object: pure Errors are empty when sent.
           error: util.formatObject(error)
         });
-      } catch { }
+      } catch {
+        // Ignore any error here.
+      }
       // End the stream before exiting with the nominal value.
       self.shutdown(1);
     });

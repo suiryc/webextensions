@@ -118,7 +118,8 @@ class TabHandler {
   async refresh() {
     try {
       this.update(await browser.tabs.get(this.id));
-    } catch (error) {
+    } catch {
+      // Ignore any error here.
     }
   }
 

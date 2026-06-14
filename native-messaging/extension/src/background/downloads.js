@@ -483,7 +483,8 @@ export class RequestsHandler extends http.RequestsHandler {
     try {
       const tab = await browser.tabs.get(requestDetails.sent.tabId);
       tabTitle = tab.title;
-    } catch (error) {
+    } catch {
+      // Ignore any error here.
     }
     const r = await dlMngr.download({
       url,
