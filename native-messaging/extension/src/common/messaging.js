@@ -387,7 +387,7 @@ export class WebExtension {
           dummyObserver[key] = function() {
             let msg;
             // Use arrow function so that 'arguments' is the parent one.
-            let getMsg = () => {
+            const getMsg = () => {
               if (msg) return msg;
               msg = {
                 _routing: {
@@ -512,7 +512,7 @@ export class WebExtension {
       let targets;
       if (targetDetails || _routing.targetId) {
         targets = [];
-        for (let portHandler of knownPortHandlers) {
+        for (const portHandler of knownPortHandlers) {
           // Port remote endpoint will finely check received messages do really
           // target it. However, we can filter out those that should not match
           // and prevent uselessly sending a message to these.

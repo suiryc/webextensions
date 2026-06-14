@@ -11,7 +11,7 @@ import * as settings from './settings.js';
 import * as util from './util.js';
 
 
-let app = new nativeMessaging.NativeApplication(onMessage);
+const app = new nativeMessaging.NativeApplication(onMessage);
 
 // Handles extension messages.
 // 'async' so that we don't block and process the code asynchronously.
@@ -70,15 +70,15 @@ function dl_save(app, msg) {
   // of it, and usually when done all the attached processes are terminated.
   // To break out of the Job, the CREATE_BREAKAWAY_FROM_JOB CreateProcess
   // creation flag is needed, which seems possible in python but not nodejs.
-  let deferred = new util.Deferred();
+  const deferred = new util.Deferred();
   // We always ask for the WebSocket port, so that next requests can be posted
   // directly from the browser.
   // Work with JSON format:
   //  - pass details as one-line JSON through spawned process stdin
   //  - read response as JSON (WebSocket port) and pass it to caller
-  let args = ['--ws', '--json'];
+  const args = ['--ws', '--json'];
   // Note: 'spawn' uses 'pipe' stdio by default, which is what we want here.
-  let child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
+  const child = child_process.spawn(settings.dlMngrInterpreter, [settings.dlMngrPath, '--'].concat(args), {
     detached: true
   });
   // Don't forget to end stdin after writing our JSON, so that process sees EOF
@@ -106,10 +106,10 @@ function dl_save(app, msg) {
   // There is no such issue with Python 3 though.
   //
   // So we 'simply' wait for the process to exit or fail.
-  let stdout = {
+  const stdout = {
     data: Buffer.allocUnsafe(0)
   };
-  let stderr = {
+  const stderr = {
     data: Buffer.allocUnsafe(0)
   };
 
@@ -128,14 +128,14 @@ function dl_save(app, msg) {
     // Upon 'exit', code or signal will be null; normalize for easier handling.
     if (!details.code) details.code = 0;
     if (!details.signal) delete details.signal;
-    let response = { };
+    const response = { };
     // We consider the action failed if either:
     //  - the application wrote on stderr: (belt and suspenders) we actually
     //    only expect this to happen with a non-0 return code
     //  - return code is non-0
     //  - application was interrupted by a signal
     //  - an error happened for the child process itself
-    let error = [];
+    const error = [];
     // We really failed if either there is:
     //  - an error code
     //  - a signal
@@ -202,7 +202,7 @@ function dl_save(app, msg) {
 
 async function http_fetch(app, msg) {
   try {
-    let r = await fetch(msg.resource, msg.options);
+    const r = await fetch(msg.resource, msg.options);
 
     // Note: we will need to copy/adapt response fields (and retrieved content)
     // so that it fits in the JSON message we will send back to caller.
@@ -214,12 +214,12 @@ async function http_fetch(app, msg) {
     // extension automatically decodes in our messaging implementation).
 
     // Extract headers name/value.
-    let headers = [];
-    for (let [name, value] of r.headers.entries()) {
+    const headers = [];
+    for (const [name, value] of r.headers.entries()) {
       headers.push({name, value});
     }
     // Copy response fields.
-    let response = {
+    const response = {
       headers,
       ok: r.ok,
       redirected: r.redirected,
@@ -246,10 +246,10 @@ async function http_fetch(app, msg) {
     // other here.
     // For binary formats, since the data needs to fit in the JSON response, we
     // get it as base64, and let caller build the wanted formats from this.
-    let params = msg.params || {};
-    let contentPromises = [];
+    const params = msg.params || {};
+    const contentPromises = [];
     if (params.wantJson) {
-      let promise = new util.Deferred().promise;
+      const promise = new util.Deferred().promise;
       r.clone().json().then(v => {
         response.json = v;
         promise.resolve();
@@ -257,7 +257,7 @@ async function http_fetch(app, msg) {
       contentPromises.push(promise);
     }
     if (params.wantText) {
-      let promise = new util.Deferred().promise;
+      const promise = new util.Deferred().promise;
       r.clone().text().then(v => {
         response.text = v;
         promise.resolve();
@@ -267,7 +267,7 @@ async function http_fetch(app, msg) {
     // Last format to handle: don't clone this one, and ensure original response
     // is consumed.
     if (params.wantArrayBuffer || params.wantBlob || params.wantBytes || params.wantBase64) {
-      let promise = new util.Deferred().promise;
+      const promise = new util.Deferred().promise;
       r.arrayBuffer().then(v => {
         response.base64 = Buffer.from(v).toString('base64');
         promise.resolve();
@@ -293,10 +293,10 @@ async function http_fetch(app, msg) {
 }
 
 function tw_save(app, msg) {
-  let deferred = new util.Deferred();
+  const deferred = new util.Deferred();
 
   fs.writeFile(msg.path, msg.content, err => {
-    let response = { };
+    const response = { };
     if (err) response.error = err;
     deferred.resolve(response);
   });

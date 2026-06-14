@@ -18,7 +18,7 @@ function findShadows(node) {
   // Note: depending on node type (e.g. text node), there may be no children
   // available and thus no 'getElementsByTagName' method.
   if (node.getElementsByTagName) {
-    for (let child of node.getElementsByTagName('*')) {
+    for (const child of node.getElementsByTagName('*')) {
       if (child.shadowRoot instanceof Node) processShadow(child);
     }
   }
@@ -26,7 +26,7 @@ function findShadows(node) {
 
 function processShadow(node) {
   // Observe and find video in each child.
-  for (let child of node.shadowRoot.children) {
+  for (const child of node.shadowRoot.children) {
     if (child.tagName !== 'VIDEO') nodesObserver.observe(child, { childList: true, subtree: true });
     findVideo(child);
   }
@@ -43,7 +43,7 @@ function findVideo(node) {
   // Note: depending on node type (e.g. text node), there may be no children
   // available and thus no 'getElementsByTagName' method.
   if (node.getElementsByTagName) {
-    for (let v of node.getElementsByTagName('video')) {
+    for (const v of node.getElementsByTagName('video')) {
       processVideo(v);
     }
   }
@@ -143,10 +143,10 @@ function processVideo(node) {
   }
 
   function getSources() {
-    let srcs = new Set();
+    const srcs = new Set();
     // Gather src set in video tag.
     ['src', 'currentSrc'].forEach(field => {
-      let src = getField(field);
+      const src = getField(field);
       if (src) srcs.add(src);
     });
     return srcs;
@@ -154,11 +154,11 @@ function processVideo(node) {
 
   function addVideoSubtitles() {
     if (!settings.video.subtitles.intercept) return;
-    let srcs = getSources();
+    const srcs = getSources();
     if (!srcs.size) return;
 
-    let subtitles = [];
-    for (let track of Array.from(node.getElementsByTagName('track'))) {
+    const subtitles = [];
+    for (const track of Array.from(node.getElementsByTagName('track'))) {
       // 'subtitles' kind is expected, but sometimes 'captions' is actually used
       // instead. Send both to handle and let it decide.
       if ((track.kind != 'subtitles') && (track.kind != 'captions')) continue;
@@ -170,7 +170,7 @@ function processVideo(node) {
       });
     }
     if (subtitles.length) {
-      for (let src of srcs) {
+      for (const src of srcs) {
         webext.postMessage({
           _routing: {
             target: constants.TARGET_BACKGROUND_PAGE,
@@ -188,12 +188,12 @@ function processVideo(node) {
     // Prevent sending message until a given amount of time has elapsed since
     // the content script started.
     await delayed;
-    let args = {
+    const args = {
       params: {
         src
       }
     };
-    let scriptResult = await unsafe.executeCode({
+    const scriptResult = await unsafe.executeCode({
       webext,
       name: 'download refining',
       args,
@@ -211,7 +211,7 @@ function processVideo(node) {
   }
 
   async function processVideoSource() {
-    for (let src of getSources()) {
+    for (const src of getSources()) {
       await addVideoSource(src);
     }
     addVideoSubtitles();
@@ -220,8 +220,8 @@ function processVideo(node) {
   // 'src' changes observer.
   // Unfortunately, we actually cannot observe 'currentSrc' changes. Still ask
   // for it, in case it become possible in the future.
-  let sourceObserver = new MutationObserver(function(mutations, observer) {
-    for (let mutation of mutations) {
+  const sourceObserver = new MutationObserver(function(mutations, observer) {
+    for (const mutation of mutations) {
       if ((mutation.attributeName == 'src') || (mutation.attributeName == 'currentSrc')) {
         processVideoSource();
         // Stop observing once we have a source url.
@@ -269,9 +269,9 @@ function processVideo(node) {
   }
 }
 
-let nodesObserver = new MutationObserver(function(mutations, observer) {
-  for (let mutation of mutations) {
-    for (let added of mutation.addedNodes) {
+const nodesObserver = new MutationObserver(function(mutations, observer) {
+  for (const mutation of mutations) {
+    for (const added of mutation.addedNodes) {
       findVideo(added);
     }
   }
@@ -280,7 +280,7 @@ let nodesObserver = new MutationObserver(function(mutations, observer) {
 export async function run() {
   if (!settings.video.intercept || !document.URL.startsWith('http')) return;
 
-  let refined = await unsafe.executeCode({
+  const refined = await unsafe.executeCode({
     webext,
     name: 'interception refining',
     args: {

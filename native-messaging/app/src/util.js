@@ -11,7 +11,7 @@ export function formatObject(obj, processed, recursiveLoop) {
   // because we want to clone sibling values separately: remember all cloned
   // objects by strict equality.
   // Re-use formatting code to at least get the object kind.
-  let recurse = function(child) {
+  const recurse = function(child) {
     processed = new Set(processed || []);
     processed.add(obj);
     return processed.has(child)
@@ -57,7 +57,7 @@ export function formatObject(obj, processed, recursiveLoop) {
     if (recursiveLoop) return s;
     let idx = 0;
     Object.keys(obj).forEach(f => {
-      let v = obj[f];
+      const v = obj[f];
       // Don't include functions
       if (typeof(v) == 'function') return;
       s += ` ${f}=<${recurse(v)}>`;
@@ -83,7 +83,7 @@ export class Deferred {
     this.promise.reject = this.reject;
     // Plug useful functions, in case they are called on Deferred instead of
     // our embedded promise.
-    for (let f of ['catch', 'finally', 'then']) {
+    for (const f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
       if (!this.promise[f]) continue;
       this[f] = this.promise[f].bind(this.promise);
@@ -94,8 +94,8 @@ export class Deferred {
 
 // Spawns process, piping stdin/stdout/stderr, and returns Promise.
 export function spawn(command, args, options) {
-  let d = new Deferred();
-  let p = child_process.spawn(command, args, Object.assign({ shell : true, stdio: 'inherit' }, options));
+  const d = new Deferred();
+  const p = child_process.spawn(command, args, Object.assign({ shell : true, stdio: 'inherit' }, options));
   p.on('exit', (code, signal) => {
     if (code || signal) d.reject(`${command} execution failed`);
     else d.resolve();

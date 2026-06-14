@@ -17,7 +17,7 @@ console.log(`Starting ${constants.EXTENSION_ID} version ${browser.runtime.getMan
 
 // Detect addon installation/updating.
 browser.runtime.onInstalled.addListener(function(details) {
-  let temporary = details.temporary ? ' (temporarily)' : '';
+  const temporary = details.temporary ? ' (temporarily)' : '';
   let msg = `Installed${temporary} extension`;
   switch (details.reason) {
     case 'install':
@@ -176,7 +176,7 @@ function tw_checkConcurrent(msg) {
   // Get tabs with the target URL, and trigger warning if there are more than one.
   browser.tabs.query({url: msg.url}).then(tabs => {
     if (tabs.length > 1) {
-      for (let tab of tabs) {
+      for (const tab of tabs) {
         // We cannot send a message to a discarded tab.
         if (tab.discarded) continue;
         webext.postMessage({
@@ -204,10 +204,10 @@ function tw_save(msg) {
 
 // Delegate HTTP fetch to native app, fallback to native fetch upon issue.
 async function http_fetch(msg) {
-  let timeout = msg?.params?.timeout;
+  const timeout = msg?.params?.timeout;
 
   try {
-    let response = await nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
+    const response = await nativeApp.postRequest(msg, timeout || constants.HTTP_FETCH_TIMEOUT);
     if (msg.params.debug) console.log('Delegated fetch:', msg, response);
     if (response.status < 400) return response;
   } catch(error) {
@@ -239,7 +239,7 @@ function dl_getVideos(msg) {
 
 // Clears extension messages.
 function ext_clearMessages(msg) {
-  let windowId = msg.windowId;
+  const windowId = msg.windowId;
   if (!windowId) {
     applicationMessages = [];
   } else {
@@ -248,7 +248,7 @@ function ext_clearMessages(msg) {
       // windowId and are considered as 'Other tabs' (we don't bother setting a
       // dedicated section for such messages): clear them when applicable.
       if ((details.windowId || !msg.otherTabs) && (details.windowId != windowId)) return true;
-      let matchTab = details.tabId == msg.tabId;
+      const matchTab = details.tabId == msg.tabId;
       return msg.otherTabs ? matchTab : !matchTab;
     });
   }
@@ -257,7 +257,7 @@ function ext_clearMessages(msg) {
 
 // Gets extension messages to display.
 function ext_getMessages(msg) {
-  let focusedTab = tabsHandler.focusedTab;
+  const focusedTab = tabsHandler.focusedTab;
   return {
     focusedWindowId: focusedTab.windowId,
     focusedTabId: focusedTab.id,
@@ -305,7 +305,7 @@ function app_console(app, msg) {
 
   let level = msg.level || 'info';
   if (!(level in console)) level = 'info';
-  let args = ('args' in msg) ? msg.args : [ msg.content ];
+  const args = ('args' in msg) ? msg.args : [ msg.content ];
   // Prepend the native application id to distinguish its logs from the
   // webextension ones.
   // If first argument is a string, assume it can be a format, and thus prepend
@@ -319,7 +319,7 @@ function app_console(app, msg) {
 function ext_console(msg, sender) {
   let level = msg.level || 'log';
   if (!(level in console)) level = 'log';
-  let args = ('args' in msg) ? msg.args : [ msg.content ];
+  const args = ('args' in msg) ? msg.args : [ msg.content ];
   // Prepend the sender to distinguish its logs from the webextension ones.
   // If first argument is a string, assume it can be a format, and thus prepend
   // to the string itself. Otherwise prepend to the arguments array.
@@ -352,7 +352,7 @@ async function addExtensionMessage(details) {
   // First check whether we already know this message (not discarded/cleaned yet).
   // Gather important fields first, and build a hash from obtained data.
   let uid = [];
-  for (let key of ['windowId', 'tabId', 'level', 'source', 'title']) {
+  for (const key of ['windowId', 'tabId', 'level', 'source', 'title']) {
     uid.push(`${details[key]}`);
   }
   uid.push(util.formatApplicationMessage(details));
@@ -361,7 +361,7 @@ async function addExtensionMessage(details) {
   uid = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(uid));
   uid = Array.from(new Uint8Array(uid)).map((b) => b.toString(16).padStart(2, '0')).join('');
   details.uid = uid;
-  for (let msg of applicationMessages) {
+  for (const msg of applicationMessages) {
     if (msg.uid === details.uid) {
       console.log('Discarding duplicate message:', details);
       return false;
@@ -417,9 +417,9 @@ function updateStatus(windowId) {
     // Note: 0 and '' are both considered false.
     let hasMessages = '';
     let badgeBackgroundColor = 'blue';
-    let tabHandler = tabsHandler.getActiveTab(windowId);
-    let tabId = tabHandler ? tabHandler.id : -1;
-    for (let details of applicationMessages) {
+    const tabHandler = tabsHandler.getActiveTab(windowId);
+    const tabId = tabHandler ? tabHandler.id : -1;
+    for (const details of applicationMessages) {
       if (details.windowId && (details.windowId != windowId)) continue;
       // Note: don't filter out messages of other tabs; we wish to see the
       // visual hint to know there messages for this window.
@@ -458,7 +458,7 @@ class TabsObserver {
   }
 
   tabActivated(details) {
-    let sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
+    const sources = details.tabHandler ? this.videoSourceHandler.getSources(details.tabHandler) : [];
     this.updateVideos(details.windowId, sources);
   }
 
@@ -467,9 +467,9 @@ class TabsObserver {
   }
 
   videosUpdated(details) {
-    let tabHandler = details.tabHandler;
+    const tabHandler = details.tabHandler;
     if (!tabHandler.active) return;
-    let sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
+    const sources = this.videoSourceHandler.getSources(tabHandler, details.sources);
     this.updateVideos(tabHandler.windowId, sources);
   }
 
@@ -493,7 +493,7 @@ class TabsObserver {
 
 
 let applicationMessages = [];
-let videosSources = {};
+const videosSources = {};
 
 // In order to properly handle/receive messages from other scripts, we need to
 // listen right now, and thus need to create our WebExtension instance now.
@@ -546,9 +546,9 @@ try {
   dlMngr.setup(webext, nativeApp);
   requestsHandler = new RequestsHandler(webext);
   // Handle tab successor (tab closing).
-  let tabSuccessor = new TabSuccessor(tabsHandler);
+  const tabSuccessor = new TabSuccessor(tabsHandler);
   // Handle menus.
-  let menuHandler = new MenuHandler(tabSuccessor, requestsHandler);
+  const menuHandler = new MenuHandler(tabSuccessor, requestsHandler);
   // Handle video sources.
   videoSourceHandler = new VideoSourceHandler(webext, tabsHandler, menuHandler);
   new TabsObserver(tabsHandler, videoSourceHandler);

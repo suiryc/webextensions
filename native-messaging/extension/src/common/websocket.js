@@ -56,7 +56,7 @@ export class WebSocketClient {
   }
 
   postRequest(msg, timeout) {
-    let self = this;
+    const self = this;
     // Get a unique - non-used - id
     let correlationId;
     do {
@@ -69,7 +69,7 @@ export class WebSocketClient {
 
     // Setup response handling
     if (!timeout) timeout = constants.WEBSOCKET_RESPONSE_TIMEOUT;
-    let promise = new asynchronous.Deferred().promise;
+    const promise = new asynchronous.Deferred().promise;
     self.requests[correlationId] = promise;
     return asynchronous.promiseThen(asynchronous.promiseOrTimeout(promise, timeout), () => {
       // Automatic cleanup of request
@@ -86,9 +86,9 @@ export class WebSocketClient {
     // Code 1000 is used when *we* request disconnection.
     if (event.code === 1000) return;
     delete(this.ws);
-    let msg = `WebSocket closed with code=<${event.code}> reason=<${event.reason}> clean=<${event.wasClean}>`;
+    const msg = `WebSocket closed with code=<${event.code}> reason=<${event.reason}> clean=<${event.wasClean}>`;
     console.error(msg);
-    for (let promise of Object.values(this.requests)) {
+    for (const promise of Object.values(this.requests)) {
       promise.reject(msg);
     }
     this.requests = {};
@@ -108,10 +108,10 @@ export class WebSocketClient {
       console.error('Failed to parse WebSocket message %o: %o', message, error);
       return;
     }
-    let correlationId = msg.correlationId;
+    const correlationId = msg.correlationId;
     let orphan = true;
     if (correlationId) {
-      let promise = this.requests[correlationId];
+      const promise = this.requests[correlationId];
       if (promise) {
         // Note: request will be automatically removed upon resolving the
         // associated promise.

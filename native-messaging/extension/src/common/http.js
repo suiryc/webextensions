@@ -9,9 +9,9 @@ import { browserInfo, settings } from './settings.js';
 // Checks whether an URL is considered downloadable.
 // Tests the scheme for http(s).
 export function canDownload(url) {
-  let els = url.split(':');
+  const els = url.split(':');
   if (els < 2) return false;
-  let scheme = els[0].toLowerCase();
+  const scheme = els[0].toLowerCase();
   return ((scheme == 'http') || (scheme == 'https'));
 }
 
@@ -22,13 +22,13 @@ export function findHeader(headers, name) {
 }
 
 export function findHeaderValue(headers, name) {
-  let header = findHeader(headers, name)
+  const header = findHeader(headers, name)
   if (header) return header.value;
 }
 
 // Gets cookie for given URL.
 export function getCookie(url) {
-  let search = {url};
+  const search = {url};
   // 'firstPartyDomain' is useful/needed, but only exists in Firefox >= 59.
   // See: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/cookies/getAll
   if (browserInfo.version >= 59) search.firstPartyDomain = null;
@@ -36,14 +36,14 @@ export function getCookie(url) {
     console.error('Failed to get %o cookies: %o', url, error);
     return [];
   }).then(cookies => {
-    let cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    const cookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
     return (cookie || undefined);
   });
 }
 
 export async function http_fetch(msg) {
   try {
-    let r = await fetch(msg.resource, msg.options);
+    const r = await fetch(msg.resource, msg.options);
 
     // IMPORTANT: changes here need to be reflected in the native application
     // too.
@@ -52,12 +52,12 @@ export async function http_fetch(msg) {
     // decode in our messaging implementation).
 
     // Extract headers name/value.
-    let headers = [];
-    for (let [name, value] of r.headers.entries()) {
+    const headers = [];
+    for (const [name, value] of r.headers.entries()) {
       headers.push({name, value});
     }
     // Copy response fields.
-    let response = {
+    const response = {
       headers,
       ok: r.ok,
       redirected: r.redirected,
@@ -82,10 +82,10 @@ export async function http_fetch(msg) {
     //
     // Explicitly get text/json: don't try to be smart and derive one from the
     // other here.
-    let params = msg.params || {};
-    let contentPromises = [];
+    const params = msg.params || {};
+    const contentPromises = [];
     if (params.wantJson) {
-      let promise = new asynchronous.Deferred().promise;
+      const promise = new asynchronous.Deferred().promise;
       r.clone().json().then(v => {
         response.json = v;
         promise.resolve();
@@ -93,7 +93,7 @@ export async function http_fetch(msg) {
       contentPromises.push(promise);
     }
     if (params.wantText) {
-      let promise = new asynchronous.Deferred().promise;
+      const promise = new asynchronous.Deferred().promise;
       r.clone().text().then(v => {
         response.text = v;
         promise.resolve();
@@ -101,7 +101,7 @@ export async function http_fetch(msg) {
       contentPromises.push(promise);
     }
     if (params.wantBlob) {
-      let promise = new asynchronous.Deferred().promise;
+      const promise = new asynchronous.Deferred().promise;
       r.clone().blob().then(v => {
         response.blob = v;
         promise.resolve();
@@ -109,7 +109,7 @@ export async function http_fetch(msg) {
       contentPromises.push(promise);
     }
     if (params.wantBytes) {
-      let promise = new asynchronous.Deferred().promise;
+      const promise = new asynchronous.Deferred().promise;
       r.bytes().then(v => {
         response.bytes = v;
         promise.resolve();
@@ -119,7 +119,7 @@ export async function http_fetch(msg) {
     // Last format to handle: don't clone this one, and ensure original response
     // is consumed.
     if (params.wantArrayBuffer || params.wantBase64) {
-      let promise = new asynchronous.Deferred().promise;
+      const promise = new asynchronous.Deferred().promise;
       r.arrayBuffer().then(v => {
         if (params.wantArrayBuffer) response.arrayBuffer = v;
         if (params.wantBase64) response.base64 = Buffer.from(v).toString('base64');
@@ -189,7 +189,7 @@ export class RequestDetails {
       // Extract status and headers for proper handling.
       statusCode = response.status;
       responseHeaders = [];
-      for (let h of response.headers) {
+      for (const h of response.headers) {
         responseHeaders.push({
           name: h[0],
           value: h[1]
@@ -248,7 +248,7 @@ export class RequestDetails {
 
   parseResponse(interceptSize) {
     const response = this.received;
-    let { statusCode, responseHeaders } = this;
+    const { statusCode, responseHeaders } = this;
 
     let contentLength;
     if (statusCode == 200) {
@@ -257,7 +257,7 @@ export class RequestDetails {
     }
     if (statusCode == 206) {
       // Determine content length through range response.
-      let range = findHeaderValue(responseHeaders, 'Content-Range');
+      const range = findHeaderValue(responseHeaders, 'Content-Range');
       if (range && (range.split(' ').shift().toLowerCase() === 'bytes')) {
         contentLength = range.split('/').pop().trim();
       } else {
@@ -316,10 +316,10 @@ export class RequestDetails {
   // Most would be ignored by browser webextension fetch API, so caller better
   // delegate the qurery to the native app.
   newRequestHeaders() {
-    let headers = {};
+    const headers = {};
 
-    for (let name of ['Cookie', 'Origin', 'Referer', 'Sec-Fetch-Dest', 'Sec-Fetch-Mode', 'Sec-Fetch-Site', 'User-Agent']) {
-      let h = findHeaderValue(this.sent?.requestHeaders, name);
+    for (const name of ['Cookie', 'Origin', 'Referer', 'Sec-Fetch-Dest', 'Sec-Fetch-Mode', 'Sec-Fetch-Site', 'User-Agent']) {
+      const h = findHeaderValue(this.sent?.requestHeaders, name);
       if (h) headers[name] = h;
     }
 
@@ -349,7 +349,7 @@ export class RequestsHandler {
   }
 
   addResponse(response, remove=true) {
-    let requestDetails = this.getRequestDetails(response.requestId).addResponse(response);
+    const requestDetails = this.getRequestDetails(response.requestId).addResponse(response);
     // Remove if request *and* response is not a redirection.
     if (remove && !requestDetails.isRedirection()) {
       this.remove(requestDetails);
@@ -378,7 +378,7 @@ export class RequestsHandler {
 
   janitoring() {
     if (util.getTimestamp() - this.lastJanitoring <= constants.JANITORING_PERIOD) return false;
-    for (let requestDetails of Object.values(this.requestsDetails)) {
+    for (const requestDetails of Object.values(this.requestsDetails)) {
       if (util.getTimestamp() - requestDetails.timeStamp > constants.REQUESTS_TTL) {
         console.warn('Dropping incomplete request %o: TTL reached', requestDetails);
         this.remove(requestDetails);
@@ -429,10 +429,10 @@ export class RequestBuffer {
 
   async replay(target) {
     // Clear us before replaying, so that we could be re-used while replaying.
-    let buffer = this.buffer;
+    const buffer = this.buffer;
     this.clear();
-    for (let buffered of buffer) {
-      let isResponse = !!buffered.responseHeaders;
+    for (const buffered of buffer) {
+      const isResponse = !!buffered.responseHeaders;
       try {
         buffered.replayed = true;
         if (isResponse) await target.onResponse(buffered);
@@ -498,12 +498,12 @@ export class ContentType {
     //  mainType/subType
     //  mainType/subType; param1=value1; param2=value2 ...
     // Note: no 'comment' is expected in the value.
-    let parser = new HeaderParser(this.raw);
+    const parser = new HeaderParser(this.raw);
     this.mimeType = parser.parseMediaType();
     if (!keepParams) this.params = parser.parseParameters(true);
 
     if (!this.mimeType) return;
-    let els = this.mimeType.split('/');
+    const els = this.mimeType.split('/');
     if (els.length != 2) return;
     this.mainType = els[0];
     this.subType = els[1];
@@ -516,11 +516,11 @@ export class ContentType {
   guess(filename, ifNeeded) {
     if (ifNeeded && !this.needGuess()) return;
     if (!filename) return;
-    let extension = util.getFilenameExtension(filename).extension || '';
+    const extension = util.getFilenameExtension(filename).extension || '';
 
     let guessed;
-    mtLoop: for (let [mt, matchers] of Object.entries(mimeTypesExt)) {
-      for (let matcher of matchers) {
+    mtLoop: for (const [mt, matchers] of Object.entries(mimeTypesExt)) {
+      for (const matcher of matchers) {
         if (matcher instanceof RegExp) {
           if (matcher.test(extension)) guessed = mt;
         } else if (matcher == extension) {
@@ -541,9 +541,9 @@ export class ContentType {
   // If mime type corresponds to a known one, and it has a 'string' extension
   // matcher, consider this is the main extension for this mime type.
   getMimeExtension() {
-    for (let [mt, matchers] of Object.entries(mimeTypesExt)) {
+    for (const [mt, matchers] of Object.entries(mimeTypesExt)) {
       if (mt != this.mimeType) continue;
-      for (let matcher of matchers) {
+      for (const matcher of matchers) {
         if (typeof(matcher) === 'string') return matcher;
       }
     }
@@ -590,7 +590,7 @@ export class ContentType {
     // situation, only check the file extension and let caller decide on other
     // criteria.
     //if (!this.is('video', 'mp2t') && !this.is('text', 'plain')) return false;
-    let extension = util.getFilenameExtension(filename).extension || '';
+    const extension = util.getFilenameExtension(filename).extension || '';
     return extension == hlsFileExtension;
   }
 
@@ -625,7 +625,7 @@ export class ContentDisposition {
     //  attachment
     //  inline; param1=value1; param2=value2 ...
     // Note: no 'comment' is expected in the value.
-    let parser = new HeaderParser(this.raw);
+    const parser = new HeaderParser(this.raw);
     this.kind = parser.parseToken();
     // Special case: some servers don't return a disposition type, but only
     // parameters (without leading ';').
@@ -698,7 +698,7 @@ export class HeaderParser {
 
   // Skips (and returns) next char.
   skipChar() {
-    let char = this.value[0];
+    const char = this.value[0];
     this.value = this.value.substring(1);
     return char;
   }
@@ -711,7 +711,7 @@ export class HeaderParser {
   skipFWS() {
     let fws = '';
     if (!this.value) return fws;
-    let match = this.value.match(REGEX_FWS);
+    const match = this.value.match(REGEX_FWS);
     if (match) {
       fws = (match[1].indexOf('\n') >= 0) ? ' ' : match[1];
       this.value = match[2];
@@ -724,7 +724,7 @@ export class HeaderParser {
     let token;
     this.skipFWS();
     if (!this.value) return;
-    let match = this.value.match(REGEX_TOKEN);
+    const match = this.value.match(REGEX_TOKEN);
     if (match && match[1]) {
       this.value = match[2];
       token = match[1];
@@ -743,7 +743,7 @@ export class HeaderParser {
     while (recursiveLevel > 0) {
       string += this.skipFWS();
       if (!this.value) break;
-      let char = this.skipChar();
+      const char = this.skipChar();
       if (char == endChar) {
         recursiveLevel--;
         continue;
@@ -782,7 +782,7 @@ export class HeaderParser {
     if (this.value[0] == '"') {
       string = this.parseEscapedString(true, '"');
       if (endChar && this.value && (this.value[0] != endChar)) {
-        let idx = this.value.indexOf(endChar);
+        const idx = this.value.indexOf(endChar);
         if (idx > 0) {
           string = `${string}${this.value.substring(0, idx).trim()}`;
           this.value = this.value.substring(idx);
@@ -817,9 +817,9 @@ export class HeaderParser {
   // Decodes string according to found character set.
   // Only properly handles UTF-8 and latin1/iso-8859-1.
   decodeString(string) {
-    let els = string.split('\'', 3);
+    const els = string.split('\'', 3);
     if (els.length != 3) return string;
-    let charset = els[0].toLowerCase();
+    const charset = els[0].toLowerCase();
     string = els[2];
     // Value is URL-encoded.
     if (/^utf-?8$/.test(charset)) {
@@ -853,24 +853,24 @@ export class HeaderParser {
     // (MIME) If name contains/ends with '*' followed by an integer, the value
     // is actually split in an array and the integer gives the 0-based index.
     // If name ends with '*', value is encoded.
-    let els = name.split('*');
+    const els = name.split('*');
     if (els.length > 3) return;
     name = els[0];
-    let encoded = ((els.length > 1) && !els[els.length-1]);
+    const encoded = ((els.length > 1) && !els[els.length-1]);
     let section;
     if ((els.length > 1) && els[1]) {
       if (/^[0-9]*$/.test(els[1])) section = parseInt(els[1]);
       else return;
     }
 
-    let parameter = parameters[name] || {};
+    const parameter = parameters[name] || {};
 
     this.skipFWS();
     if (!this.value) return;
     if (this.value[0] != '=') return;
     this.skipChar();
 
-    let value = this.parseValue(noComment);
+    const value = this.parseValue(noComment);
     if (section !== undefined) {
       parameter.sections = parameter.sections || {};
       parameter.sections[section] = {
@@ -887,8 +887,8 @@ export class HeaderParser {
 
   // Parses parameters.
   parseParameters(noComment) {
-    let self = this;
-    let parameters = {};
+    const self = this;
+    const parameters = {};
     this.skipFWS();
     if (!this.value) return parameters;
     if (this.value[0] != ';') return parameters;
@@ -903,7 +903,7 @@ export class HeaderParser {
     // (MIME) Handle any parameter split through continuations.
     // Also only keep parameters values.
     Object.keys(parameters).forEach(key => {
-      let parameter = parameters[key];
+      const parameter = parameters[key];
       if (!parameter.sections) {
         parameters[key] = parameter.value;
         return;
@@ -913,12 +913,12 @@ export class HeaderParser {
       let encoded = false;
       let valueTmp = '';
 
-      let _flush = function() {
+      const _flush = function() {
         value += encoded ? self.decodeString(valueTmp) : valueTmp;
       };
 
       while (true) {
-        let section = parameter.sections[idx++];
+        const section = parameter.sections[idx++];
         if (!section) break;
         if (section.encoded != encoded) {
           _flush();
@@ -938,12 +938,12 @@ export class HeaderParser {
 
   // Parses media type (e.g. in Content-Type header)
   parseMediaType() {
-    let mainType = this.parseToken();
+    const mainType = this.parseToken();
     if (!mainType) return;
     if (!this.value) return;
     if (this.value[0] != '/') return;
     this.skipChar();
-    let subType = this.parseToken();
+    const subType = this.parseToken();
     if (!subType) return;
     return `${mainType}/${subType}`.toLowerCase();
   }
@@ -983,7 +983,7 @@ export class Cookie {
     if (cookie) {
       this.cookies = cookie.split(';').map(s => {
         s = s.trim();
-        let split = s.split('=', 2).map(v => v.trim());
+        const split = s.split('=', 2).map(v => v.trim());
         return ((split.length < 2) || !split[0]) ? ['', this._decodeValue(s)] : [split[0], this._decodeValue(split[1])];
       });
     }
@@ -1001,8 +1001,8 @@ export class Cookie {
     // Rebuild cookie string if necessary.
     if (!this.cookie && this.cookies.length) {
       this.cookie = this.cookies.map(a => {
-        let name = a[0];
-        let value = this._encodeValue(a[1]);
+        const name = a[0];
+        const value = this._encodeValue(a[1]);
         return name ? `${name}=${value}` : value;
       }).join('; ');
     }
@@ -1010,7 +1010,7 @@ export class Cookie {
   }
 
   find(name) {
-    let cookie = this.cookies.find(a => a[0] == name);
+    const cookie = this.cookies.find(a => a[0] == name);
     if (cookie) return cookie[1];
   }
 
@@ -1023,7 +1023,7 @@ export class Cookie {
     let found = false;
     this.cookies = this.cookies.filter(a => {
       if (a[0] != name) return true;
-      let keep = first && found;
+      const keep = first && found;
       found = true;
       return keep;
     });
@@ -1039,7 +1039,7 @@ export class Cookie {
   set(name, value, first) {
     delete(this.cookie);
     let found = false;
-    let cookies = [];
+    const cookies = [];
     this.cookies.forEach(c => {
       if (c[0] != name) {
         cookies.push(c);

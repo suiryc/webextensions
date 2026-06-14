@@ -52,7 +52,7 @@ export class HLSPlaylist extends HLSTagged {
     if (params.debug) console.log(`Parsing HLS content from=<${this.url}>`);
 
     // Split on EOL (LF or CRLF), trim and ignore empty or comment lines.
-    let lines = value.split(/\r?\n/)
+    const lines = value.split(/\r?\n/)
       .map(line => line.trim())
       .filter(line => {
         return line.length && (
@@ -79,7 +79,7 @@ export class HLSPlaylist extends HLSTagged {
         if (params.debug) console.log(`Ignore HLS non-tag line=<${line}>`);
         continue;
       }
-      let tag = HLSPlaylist.parseTag(line);
+      const tag = HLSPlaylist.parseTag(line);
       if (HLSPlaylist.tagNeedsURI(tag) && lines.length) {
         line = lines.shift();
         tag.uri = HLSPlaylist.parseURI(line);
@@ -90,8 +90,8 @@ export class HLSPlaylist extends HLSTagged {
   }
 
   findStreams() {
-    for (let streamInf of this.getTags('EXT-X-STREAM-INF')) {
-      let stream = new HLSStream({
+    for (const streamInf of this.getTags('EXT-X-STREAM-INF')) {
+      const stream = new HLSStream({
         playlist: this,
         tag: streamInf
       });
@@ -114,9 +114,9 @@ export class HLSPlaylist extends HLSTagged {
   }
 
   static parseTag(line) {
-    let parser = new HLSTagParser(line);
+    const parser = new HLSTagParser(line);
 
-    let tag = {
+    const tag = {
       name: parser.parseTagName()
     };
     tag.value = parser.parseTagValue(tag);
@@ -143,7 +143,7 @@ class HLSStream extends HLSTagged {
     super();
     Object.assign(this, params);
     if (!this.uri) this.uri = this.tag?.uri;
-    let codecs = this.tag?.attributes['CODECS'];
+    const codecs = this.tag?.attributes['CODECS'];
     if (codecs) this.codecs = codecs;
     this.determineName();
     this.determineDuration();
@@ -164,7 +164,7 @@ class HLSStream extends HLSTagged {
 
   getKeys() {
     return this.getTags('EXT-X-KEY').map(tag => {
-      let method = tag.attributes['METHOD'];
+      const method = tag.attributes['METHOD'];
       let url;
       if (method != 'NONE') url = new URL(tag.attributes['URI'], this.getURL()).href;
       return {
@@ -176,7 +176,7 @@ class HLSStream extends HLSTagged {
 
   determineName() {
     let name;
-    let tag = this.tag;
+    const tag = this.tag;
     if (tag) {
       name = tag.attributes['NAME'];
       if (!name && tag.attributes['RESOLUTION']) {
@@ -222,7 +222,7 @@ class HLSStream extends HLSTagged {
 
   determineRenditions(kind) {
     if (!this.tag || !this.playlist) return [];
-    let groupId = this.tag.attributes[kind];
+    const groupId = this.tag.attributes[kind];
     if (!groupId) return [];
     return this.playlist.getRenditions(groupId).map(r => new HLSTrack(this, r));
   }
@@ -247,7 +247,7 @@ class HLSTrack {
   }
 
   determineName() {
-    let tag = this.tag;
+    const tag = this.tag;
     let name = tag.attributes['NAME'];
     if (!name) name = tag.attributes['LANGUAGE'];
     this.name = name;
@@ -262,7 +262,7 @@ export class HLSTagParser {
   }
 
   skipOffset(off, skipNext=1) {
-    let v = this.value.substring(0, off).trim();
+    const v = this.value.substring(0, off).trim();
     this.value = this.value.substring(off + skipNext).trim();
     return v;
   }
@@ -271,7 +271,7 @@ export class HLSTagParser {
     let name;
     // Skip leading '#'.
     this.skipOffset(0);
-    let idx = this.value.indexOf(':');
+    const idx = this.value.indexOf(':');
     if (idx < 0) {
       name = this.value;
       this.value = '';
@@ -288,8 +288,8 @@ export class HLSTagParser {
       tagV = '';
       // Tag main value (non-attributes) ends with first ',' unless it actually
       // is an attribute (contains '=').
-      let idxComma = this.value.indexOf(',');
-      let idxEqual = this.value.indexOf('=');
+      const idxComma = this.value.indexOf(',');
+      const idxEqual = this.value.indexOf('=');
       if (idxComma < 0) {
         // At best there is one attribute.
         if (idxEqual < 0) {
@@ -320,13 +320,13 @@ export class HLSTagParser {
   }
 
   parseAttributes(tag) {
-    let attributes = {};
+    const attributes = {};
 
     while (this.value.length) {
       let attName;
       let attValue = '';
-      let idxComma = this.value.indexOf(',');
-      let idxEqual = this.value.indexOf('=');
+      const idxComma = this.value.indexOf(',');
+      const idxEqual = this.value.indexOf('=');
       if (idxComma < 0) {
         if (idxEqual < 0) {
           // value = 'XXX'
@@ -369,7 +369,7 @@ export class HLSTagParser {
   parseAttributeValue() {
     let attValue = this.parseQuotedString();
     if (attValue === undefined) {
-      let idxComma = this.value.indexOf(',');
+      const idxComma = this.value.indexOf(',');
       attValue = this.skipOffset((idxComma < 0) ? this.value.length : idxComma);
     }
     return attValue;
@@ -380,18 +380,18 @@ export class HLSTagParser {
 
     // Quoted string ends on next quote.
     // Note: keep the quotes, caller will handle value type.
-    let idx = this.value.indexOf('"', 1);
+    const idx = this.value.indexOf('"', 1);
     if (idx < 0) {
       // No ending quote.
       // Should not happen: consider remaining text the value.
       return this.skipOffset(this.value.length);
     } else {
-      let s = this.skipOffset(idx + 1, 0);
+      const s = this.skipOffset(idx + 1, 0);
       if (this.value.length) {
         if (this.value[0] != ',') {
           // There are extra data after quote and before next parameter.
           // Should not happen: ignore the extra data.
-          let idxComma = this.value.indexOf(',');
+          const idxComma = this.value.indexOf(',');
           if (idxComma < 0) {
             this.value = '';
           } else {
@@ -419,7 +419,7 @@ export class HLSTagParser {
 
   static parseDecimal(s) {
     try {
-      let v = parseFloat(s);
+      const v = parseFloat(s);
       if (!isNaN(v)) return v;
     } catch { }
     return 0;
@@ -436,12 +436,12 @@ export class HLSTagParser {
   }
 
   static parseResolution(s) {
-    let res = {
+    const res = {
       width: 0,
       height: 0
     };
 
-    let idx = s.indexOf('x');
+    const idx = s.indexOf('x');
     if (idx > 0) {
       res.width = HLSTagParser.parseInteger(s.substring(0, idx));
       res.height = HLSTagParser.parseInteger(s.substring(idx + 1));

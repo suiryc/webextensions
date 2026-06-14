@@ -125,12 +125,12 @@ describe('util', function() {
 
     it('should clone circular recursion', function() {
       // Prepare data with multiple circular recursion.
-      let obj = {};
+      const obj = {};
       obj.circularObj = obj;
       obj.recursion = {
         circularObj: obj
       };
-      let arr = [];
+      const arr = [];
       arr.push(obj);
       arr.push(arr);
       arr.push([arr, obj]);
@@ -138,7 +138,7 @@ describe('util', function() {
       obj.recursion.arr = arr;
 
       let testCircular = function() {
-        let r = util.tryStructuredClone(arr);
+        const r = util.tryStructuredClone(arr);
         // Delete the offending field if any.
         delete(obj['f']);
         // Clone content should be equal.
@@ -167,7 +167,7 @@ describe('util', function() {
 
       // Now do the same when root is an object instead of array.
       testCircular = function() {
-        let r = util.tryStructuredClone(obj);
+        const r = util.tryStructuredClone(obj);
         // Delete the offending field if any.
         delete(obj['f']);
         // Clone content should be equal.
@@ -198,11 +198,11 @@ describe('util', function() {
     testCloning(util.toJSON);
 
     it('should use object.toJSON when present', function() {
-      let obj1 = {
+      const obj1 = {
         b: true,
         s: 'value'
       };
-      let obj2 ={
+      const obj2 ={
         b: false,
         s: 'other value',
         i: -1
@@ -216,14 +216,14 @@ describe('util', function() {
 
     it('should break circular recursion', function() {
       // Prepare data with multiple circular recursion.
-      let obj = {};
+      const obj = {};
       obj.circularObj = obj;
       obj.recursion = {
         circularObj: obj
       };
       // Duplicate reference to an object at the same level.
       obj.recursion2 = obj.recursion;
-      let arr = [];
+      const arr = [];
       arr.push(obj);
       arr.push(arr);
       arr.push([arr, obj]);
@@ -232,7 +232,7 @@ describe('util', function() {
       obj.arr = arr;
       obj.recursion.arr = arr;
 
-      let expectedObj = {};
+      const expectedObj = {};
       expectedObj.circularObj = undefined;
       expectedObj.recursion = {
         circularObj: undefined
@@ -325,15 +325,15 @@ describe('util', function() {
     });
 
     it('should detect recursion and circular recursion object', function() {
-      let a = {};
+      const a = {};
       a.b = {};
       a.b.c = {};
       a.b.c.d = a;
       a.b.c.e = a.b;
       assert.strictEqual(util.formatObject(a), 'Object b=<Object c=<Object d=<(recursive) Object> e=<(recursive) Object>>>');
 
-      let b = [];
-      let c = {b};
+      const b = [];
+      const c = {b};
       b.push(b);
       b.push([b]);
       b.push(c);
@@ -397,9 +397,9 @@ describe('util', function() {
     });
 
     it('should handle functions', function() {
-      let f1 = () => {};
-      let f2 = () => {};
-      let f3 = function () {};
+      const f1 = () => {};
+      const f2 = () => {};
+      const f3 = function () {};
 
       assert.equal(util.deepEqual(f1, f1), true);
       assert.equal(util.deepEqual(f2, f2), true);
@@ -439,7 +439,7 @@ describe('util', function() {
   describe('cleanupFields', function() {
 
     it('should remove undefined and null fields', function() {
-      let obj = {
+      const obj = {
         a: 0,
         b: '',
         c: false,
@@ -448,7 +448,7 @@ describe('util', function() {
         f: {},
         g: []
       };
-      let expected = {
+      const expected = {
         a: 0,
         b: '',
         c: false,
@@ -481,7 +481,7 @@ describe('util', function() {
   describe('parseSiteUrl', function() {
 
     it('should handle full URL', function() {
-      let url = 'https://www.sitename.tld/path/subpath/file.ext?param=value#fragment';
+      const url = 'https://www.sitename.tld/path/subpath/file.ext?param=value#fragment';
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
@@ -495,7 +495,7 @@ describe('util', function() {
     });
 
     it('should handle minimal URL', function() {
-      let url = 'https://sitename';
+      const url = 'https://sitename';
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {
@@ -509,7 +509,7 @@ describe('util', function() {
     });
 
     it('should handle an URL object', function() {
-      let url = new URL('https://www.sitename.tld/path/subpath/file.ext?param=value#fragment');
+      const url = new URL('https://www.sitename.tld/path/subpath/file.ext?param=value#fragment');
       assert.deepStrictEqual(
         util.parseSiteUrl(url),
         {

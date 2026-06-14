@@ -20,7 +20,7 @@ export class Deferred {
     // Inject, or replace, some useful methods in the promise.
     // Note: 'catch' and 'finally' both rely on 'then', so we only need to
     // override the later.
-    for (let f of ['isFulfilled', 'isRejected', 'isCompleted', 'then']) {
+    for (const f of ['isFulfilled', 'isRejected', 'isCompleted', 'then']) {
       if (p[f]) p[`original_${f}`] = p[f].bind(p);
       p[f] = Deferred[`proxied_${f}`].bind(p);
     }
@@ -28,7 +28,7 @@ export class Deferred {
   }
 
   constructor(debug) {
-    let self = this;
+    const self = this;
     // Reminder: function given to Promise constructor is executed before the
     // Promise object is actually built.
     // So: we cannot add fields to the promise object from within, but we are
@@ -38,12 +38,12 @@ export class Deferred {
       self.reject = reject;
     });
     // Inject callbacks in both underlying promise, and deferred.
-    for (let f of ['resolve', 'reject']) {
+    for (const f of ['resolve', 'reject']) {
       self.promise[f] = self[f];
     }
     // Plug useful functions, in case they are called on Deferred instead of
     // our embedded promise.
-    for (let f of ['catch', 'finally', 'then']) {
+    for (const f of ['catch', 'finally', 'then']) {
       // 'finally' implemented in recent browsers only
       if (!self.promise[f]) continue;
       self[f] = self.promise[f].bind(self.promise);
@@ -80,8 +80,8 @@ export class Deferred {
 
 // Creates a Promise that fails after the given time (ms)
 export function timeoutPromise(ms) {
-  let d = new Deferred();
-  let p = d.promise;
+  const d = new Deferred();
+  const p = d.promise;
   p.timeoutId = setTimeout(() => {
     d.reject(`Timeout (${ms}) reached`);
   }, ms);
@@ -90,8 +90,8 @@ export function timeoutPromise(ms) {
 
 // Creates a Promise that is resolved after the given time (ms)
 export function delayPromise(ms) {
-  let d = new Deferred();
-  let p = d.promise;
+  const d = new Deferred();
+  const p = d.promise;
   p.timeoutId = setTimeout(() => {
     d.resolve();
   }, ms);
@@ -111,8 +111,8 @@ export function promiseThen(p, f) {
 
 // Creates a promise that is completed from another one or after a given timeout
 export function promiseOrTimeout(p, ms) {
-  let timeout = timeoutPromise(ms);
-  let timeoutId = timeout.timeoutId;
+  const timeout = timeoutPromise(ms);
+  const timeoutId = timeout.timeoutId;
   // Race for promise/timeout and clear timeout before caller can chain code.
   return promiseThen(Deferred.debugPromise(Promise.race([p, timeout]), p), () => {
     clearTimeout(timeoutId);
@@ -121,7 +121,7 @@ export function promiseOrTimeout(p, ms) {
 
 // Shortcut to defer code for immediate execution:
 //  defer.then(() => ...);
-export let defer = Promise.resolve();
+export const defer = Promise.resolve();
 
 
 // Simple mutex.
@@ -151,7 +151,7 @@ export class Mutex {
     // Caller will have to wait.
     // We remember callers in the order they try to acquire.
     // We attach a timeout to ensure we don't get stuck infinitely.
-    let d = new Deferred(Mutex.#debug);
+    const d = new Deferred(Mutex.#debug);
     this.#waiting.push(d);
     if (timeout < 0) return d.promise;
     return promiseOrTimeout(d.promise, timeout || constants.MUTEX_ACQUIRE_TIMEOUT).catch(error => {
@@ -197,7 +197,7 @@ export class Mutex {
   // parallel (though they will start in the order we were called), but it is
   // guaranteed that callers will be released in the order they arrived.
   async syncEnding(f) {
-    let lock = this.acquire();
+    const lock = this.acquire();
     try {
       return await f();
     } finally {

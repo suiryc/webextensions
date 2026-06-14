@@ -58,15 +58,15 @@ export class VideoSourceNamer {
 
   refreshName() {
     // Use 'mp4' as default extension if none could be determined.
-    let { name, extension } = util.getFilenameExtension(this.filename, 'mp4');
+    const { name, extension } = util.getFilenameExtension(this.filename, 'mp4');
     this.name = name;
     this.extension = extension;
     this.refreshFilename();
   }
 
   async refine() {
-    let source = this.videoSource;
-    let scriptParams = {
+    const source = this.videoSource;
+    const scriptParams = {
       params: {
         videoSource: source,
         namer: this
@@ -89,7 +89,7 @@ export class VideoSourceNamer {
     params = params || {};
     if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
     this.getTitleSeparators(params).forEach(sep => {
-      let idx = this.title.indexOf(sep);
+      const idx = this.title.indexOf(sep);
       if (idx < 0) return;
       let start = this.title.slice(0, idx).trim();
       if (params.withoutSpaces) start = start.replaceAll(/\s+/g, '');
@@ -101,7 +101,7 @@ export class VideoSourceNamer {
   titleStripStartPartRegexp(regexp, params) {
     params = params || {};
     this.getTitleSeparators(params).forEach(sep => {
-      let idx = this.title.indexOf(sep);
+      const idx = this.title.indexOf(sep);
       if (idx < 0) return;
       if (!regexp.test(this.title.slice(0, idx).trim())) return;
       this.title = this.title.slice(idx + sep.length).trim();
@@ -112,7 +112,7 @@ export class VideoSourceNamer {
     params = params || {};
     if (params.withoutSpaces) str = str.replaceAll(/\s+/g, '');
     this.getTitleSeparators(params).forEach(sep => {
-      let idx = this.title.lastIndexOf(sep);
+      const idx = this.title.lastIndexOf(sep);
       if (idx < 0) return;
       let end = this.title.slice(idx + sep.length).trim();
       if (params.withoutSpaces) end = end.replaceAll(/\s+/g, '');
@@ -124,7 +124,7 @@ export class VideoSourceNamer {
   titleStripEndPartRegexp(regexp, params) {
     params = params || {};
     this.getTitleSeparators(params).forEach(sep => {
-      let idx = this.title.lastIndexOf(sep);
+      const idx = this.title.lastIndexOf(sep);
       if (idx < 0) return;
       if (!regexp.test(this.title.slice(idx + sep.length).trim())) return;
       this.title = this.title.slice(0, idx).trim();
@@ -133,11 +133,11 @@ export class VideoSourceNamer {
 
   titleStripRegexp(regexp, params) {
     params = params || {};
-    let matches = this.title.match(regexp);
+    const matches = this.title.match(regexp);
     if (matches) {
-      let idx = this.title.indexOf(matches[0]);
+      const idx = this.title.indexOf(matches[0]);
       let title = this.title.substring(0, idx).trim();
-      for (let captured of matches.slice(1)) {
+      for (const captured of matches.slice(1)) {
         title += ` ${captured.trim()}`;
       }
       title += ` ${this.title.substring(idx + matches[0].length).trim()}`;
@@ -167,7 +167,7 @@ export class VideoSourceNamer {
       this.titleStripStartPart(host.join('.'), params);
       this.titleStripEndPart(host.join('.'), params);
     }
-    for (let name of (params.names || [])) {
+    for (const name of (params.names || [])) {
       this.titleStripStartPart(name, params);
       this.titleStripEndPart(name, params);
     }
@@ -249,7 +249,7 @@ export class VideoSource {
     // Create menu entries helpers, associated to each subtitle and base source.
     // Note: we only expect to have subtitles when enabled.
     this.menuGroup = parent.menuHandler?.addGroup();
-    for (let subtitle of this.subtitles) {
+    for (const subtitle of this.subtitles) {
       this.addSubtitleEntry(subtitle);
     }
     delete(this.subtitles);
@@ -263,7 +263,7 @@ export class VideoSource {
   // the result as a message between the extension components.
   forMessage() {
     // Shallow copy.
-    let r = Object.assign({}, this);
+    const r = Object.assign({}, this);
     // Remove unwanted fields (that would fail message passing anyway).
     delete(r.parent);
     delete(r.webext);
@@ -276,11 +276,11 @@ export class VideoSource {
     r.downloads = this.downloadEntries.map(entryHandler => {
       // Also remove unwanted (may consume memory for nothing) fields.
       // First deep clone.
-      let download = structuredClone(entryHandler.download);
+      const download = structuredClone(entryHandler.download);
       if (download.details.hls) {
         delete(download.details.hls.raw);
         if (download.details.hls.keys) {
-          for (let key of download.details.hls.keys) {
+          for (const key of download.details.hls.keys) {
             delete(key.raw);
           }
         }
@@ -288,7 +288,7 @@ export class VideoSource {
       if (download.details.audio) {
         delete(download.details.audio.raw);
         if (download.details.audio.keys) {
-          for (let key of download.details.audio.keys) {
+          for (const key of download.details.audio.keys) {
             delete(key.raw);
           }
         }
@@ -332,7 +332,7 @@ export class VideoSource {
   }
 
   addUrls(urls) {
-    for (let url of urls) {
+    for (const url of urls) {
       this.addUrl(url);
     }
   }
@@ -344,7 +344,7 @@ export class VideoSource {
   setReferrer(referrer) {
     // Update source referrer, and existing download entries too.
     this.referrer = referrer;
-    for (let entryHandler of this.downloadEntries) {
+    for (const entryHandler of this.downloadEntries) {
       entryHandler.download.details.referrer = this.referrer || this.frameUrl;
     }
   }
@@ -385,10 +385,10 @@ export class VideoSource {
 
   merge(from) {
     // Get our missing fields if any.
-    for (let field of ['cookie', 'etag']) {
+    for (const field of ['cookie', 'etag']) {
       this.mergeField(field, from, false);
     }
-    for (let field of ['filename', 'size']) {
+    for (const field of ['filename', 'size']) {
       this.mergeField(field, from, true);
     }
 
@@ -402,8 +402,8 @@ export class VideoSource {
   }
 
   getFilenameRefining() {
-    let self = this;
-    let setting = settings.video.filenameRefining;
+    const self = this;
+    const setting = settings.video.filenameRefining;
     return self.tabHandler.extensionProperties.get({
       key: setting.getKey(),
       create: tabHandler => new unsafe.CodeExecutor({
@@ -417,7 +417,7 @@ export class VideoSource {
   }
 
   findSubtitle(subtitle) {
-    for (let known of this.subtitleEntries) {
+    for (const known of this.subtitleEntries) {
       if (known.subtitle.url == subtitle.url) return known.subtitle;
     }
   }
@@ -436,7 +436,7 @@ export class VideoSource {
     }
 
     // Replace known one by fresh one.
-    for (let entryHandler of this.subtitleEntries) {
+    for (const entryHandler of this.subtitleEntries) {
       if (entryHandler.subtitle.url == subtitle.url) {
         entryHandler.subtitle = subtitle;
         this.needRefresh = true;
@@ -448,7 +448,7 @@ export class VideoSource {
   addSubtitleEntry(subtitle) {
     if (settings.trace.video) console.log(`Adding tab=<${this.tabId}> frame=<${this.frameId}> video source id=<${this.id}> url=<${this.url}> subtitles:`, subtitle);
 
-    let entryHandler = new VideoSourceEntryHandler(this);
+    const entryHandler = new VideoSourceEntryHandler(this);
     entryHandler.subtitle = subtitle;
     this.subtitleEntries.push(entryHandler);
     // Note: don't add subtitles url to the source urls.
@@ -462,9 +462,9 @@ export class VideoSource {
 
   addSubtitles(subtitles) {
     // Note: we only expect to be called when subtitles are enabled.
-    for (let subtitle of subtitles) {
+    for (const subtitle of subtitles) {
       // Merge if already known.
-      let known = this.findSubtitle(subtitle);
+      const known = this.findSubtitle(subtitle);
       if (known) {
         this.mergeSubtitle(known, subtitle);
         continue;
@@ -500,13 +500,13 @@ export class VideoSource {
     // final modifications.
     // Hence, we use 'syncEnding': callers may run in parallel, we only need
     // them to continue in their initial order.
-    let namer = new VideoSourceNamer(this);
+    const namer = new VideoSourceNamer(this);
     await this.mutex.syncEnding(async () => {
       await namer.refine();
     });
 
     let {name, extension, filename} = namer;
-    let downloadFile = {
+    const downloadFile = {
       name,
       extension,
       filename
@@ -522,7 +522,7 @@ export class VideoSource {
     // handler so that menu entry callback (on click) can access up-to-date
     // download details when we change them, without having to update the
     // menu entry callback function.
-    let download = {
+    const download = {
       source: {
         windowId: this.windowId,
         tabId: this.tabId,
@@ -566,18 +566,18 @@ export class VideoSource {
     }
     // Determine subtitles per priority when applicable.
     let subtitlePriority;
-    let grouped = Object.groupBy(this.subtitleEntries, entryHandler => {
-      let priority = entryHandler.subtitle.priority || 0;
+    const grouped = Object.groupBy(this.subtitleEntries, entryHandler => {
+      const priority = entryHandler.subtitle.priority || 0;
       subtitlePriority = Math.max(subtitlePriority || 0, priority);
       return priority;
     });
     // When there are, keep only subtitles with first priority.
-    let subtitleEntries = grouped[subtitlePriority];
+    const subtitleEntries = grouped[subtitlePriority];
 
     // Remove menu entries created for other subtitles ...
-    for (let [priority, handlers] of Object.entries(grouped)) {
+    for (const [priority, handlers] of Object.entries(grouped)) {
       if (priority === subtitlePriority) continue;
-      for (let entryHandler of handlers) {
+      for (const entryHandler of handlers) {
         if (await entryHandler.removeMenuEntry()) changes = true;
       }
     }
@@ -585,7 +585,7 @@ export class VideoSource {
     if (subtitleEntries && await this.entryHandler.removeMenuEntry()) changes = true;
 
     if (subtitleEntries) {
-      for (let entryHandler of subtitleEntries) {
+      for (const entryHandler of subtitleEntries) {
         // Refine details for these subtitles.
         entryHandler.download = {
           source: Object.assign(structuredClone(download.source), {
@@ -607,7 +607,7 @@ export class VideoSource {
     // We will prefix the download size and extension if possible, except for
     // for HLS.
     // The rest of the title will be the file name (without extension).
-    let title = [];
+    const title = [];
     // Format size if known (with optional qualifier, e.g. for HLS).
     if (download.details.size) {
       title.push(`${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`);
@@ -619,8 +619,8 @@ export class VideoSource {
       name = filename;
     }
 
-    for (let entryHandler of this.downloadEntries) {
-      let subtitle = entryHandler.subtitle;
+    for (const entryHandler of this.downloadEntries) {
+      const subtitle = entryHandler.subtitle;
       let entryTitle = [...title];
       if (this.hls) {
         entryTitle.push(`🎞️${this.hls.name}`);
@@ -673,7 +673,7 @@ export class VideoSource {
     // Get subtitles if needed.
     if (details.subtitle && !details.subtitle.raw) {
       try {
-        let response = await this.webext.fetch({
+        const response = await this.webext.fetch({
           resource: details.subtitle.url,
           options: {
             referrer: details.referrer,
@@ -712,14 +712,14 @@ export class VideoSource {
     // For HLS, pass headers too.
     if (details.hls && !details.headers) {
       details.headers = [];
-      for (let [name, value] of Object.entries(this.newRequestHeaders)) {
+      for (const [name, value] of Object.entries(this.newRequestHeaders)) {
         details.headers.push({name, value});
       }
     }
 
     // Pass HLS stream(s) as array.
     if (details.hls) {
-      let hls = [details.hls];
+      const hls = [details.hls];
       if (details.audio) {
         hls.push(details.audio);
         delete(details.audio);
@@ -731,13 +731,13 @@ export class VideoSource {
   }
 
   async downloadHLSKeys(details, field) {
-    let hlsKeys = this[field]?.getKeys();
+    const hlsKeys = this[field]?.getKeys();
     if (hlsKeys) {
       details[field].keys = hlsKeys;
-      for (let key of hlsKeys) {
+      for (const key of hlsKeys) {
         if (!key.url || key.raw) continue;
         try {
-          let response = await this.webext.fetch({
+          const response = await this.webext.fetch({
             resource: key.url,
             options: {
               referrer: details.referrer,
@@ -749,7 +749,7 @@ export class VideoSource {
           });
           if (response.ok) {
             // See: https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem
-            let rawS = Array.from(
+            const rawS = Array.from(
               response.bytes,
               (byte) => String.fromCodePoint(byte)
             ).join('');
@@ -786,10 +786,10 @@ export class VideoSource {
   // entry is clicked. Only values like 'title' needs to be refreshed when
   // the source is updated.
   async addMenuEntry() {
-    let self = this;
+    const self = this;
     // First re-add our group if needed.
     await self.menuGroup.add();
-    for (let entryHandler of self.downloadEntries) {
+    for (const entryHandler of self.downloadEntries) {
       await entryHandler.addMenuEntry({
         title: entryHandler.title,
         onclick: (data, tab) => {
@@ -807,7 +807,7 @@ export class VideoSource {
     // First remove our group.
     await this.menuGroup.remove();
     // Then remove every menu entry we know.
-    for (let entryHandler of this.subtitleEntries) {
+    for (const entryHandler of this.subtitleEntries) {
       await entryHandler.removeMenuEntry();
     }
     await this.entryHandler.removeMenuEntry();
@@ -867,7 +867,7 @@ export class VideoSource {
 class VideoSourceTabHandler {
 
   constructor(parent, tabHandler) {
-    let self = this;
+    const self = this;
     self.parent = parent;
     self.webext = parent.webext;
     self.tabHandler = tabHandler;
@@ -941,14 +941,14 @@ class VideoSourceTabHandler {
     }
 
     // For debugging purposes, replace promise with result once known.
-    let r = await this.refined;
+    const r = await this.refined;
     this.refined = r;
 
     return r;
   }
 
   async canInterceptVideo() {
-    let refined = await this.refineInterception();
+    const refined = await this.refineInterception();
     return !(refined?.intercept?.disabled ?? false) && (refined?.intercept?.video ?? true);
   }
 
@@ -959,9 +959,9 @@ class VideoSourceTabHandler {
     if (details.tabChanges.title) {
       // Note: do our best to work on expected 'sources' even if they are altered
       // while we work on them.
-      let sources = this.sources.slice();
+      const sources = this.sources.slice();
       r = r.then(async () => {
-        for (let source of sources) {
+        for (const source of sources) {
           source.setTabTitle(details.tabChanges.title);
           await source.refresh();
         }
@@ -983,7 +983,7 @@ class VideoSourceTabHandler {
     // Reset interception refining too.
     this.refined = undefined;
     this.requestsHandler.clear();
-    for (let source of this.sources) {
+    for (const source of this.sources) {
       // Note: there is no need to 'await' for this.
       source.remove();
     }
@@ -997,7 +997,7 @@ class VideoSourceTabHandler {
   janitorBuffered(url, buffered, remove) {
     if (util.getTimestamp() - buffered.timeStamp < constants.REQUESTS_TTL) return false;
     if (settings.debug.video) {
-      for (let b of buffered.buffer) {
+      for (const b of buffered.buffer) {
         console.log('Dropping buffered request/response=<%o>: TTL reached', b);
       }
     }
@@ -1016,7 +1016,7 @@ class VideoSourceTabHandler {
       // Search url in known buffers, as it may be a redirection.
       // Reminder: we can reuse 'buffered', but *NOT* 'url' when looping over
       // entries, as the passed 'url' is needed afterwards.
-      for (let [key, buffered] of Object.entries(this.bufferedRequests)) {
+      for (const [key, buffered] of Object.entries(this.bufferedRequests)) {
         if (this.janitorBuffered(key, buffered, true)) continue;
         if (buffered.hasUrl(url)) return buffered;
       }
@@ -1033,41 +1033,41 @@ class VideoSourceTabHandler {
   }
 
   ignoreUrls(urls) {
-    for (let url of urls) {
+    for (const url of urls) {
       this.ignoreUrl(url);
     }
   }
 
   addMenuEntries() {
-    let sources = this.sources.slice();
+    const sources = this.sources.slice();
     return asynchronous.defer.then(async () => {
-      for (let source of sources) {
+      for (const source of sources) {
         await source.addMenuEntry();
       }
     });
   }
 
   removeMenuEntries() {
-    let sources = this.sources.slice();
+    const sources = this.sources.slice();
     return asynchronous.defer.then(async () => {
-      for (let source of sources) {
+      for (const source of sources) {
         await source.removeMenuEntry();
       }
     });
   }
 
   findSource(url, update) {
-    for (let source of this.sources) {
+    for (const source of this.sources) {
       if (source.hasUrl(url)) {
         // Update some fields if needed.
         if (update) {
-          for (let [field, value] of Object.entries(update)) {
+          for (const [field, value] of Object.entries(update)) {
             if (!source[field] && (value !== undefined) && (value !== null)) {
               // Notes:
               // If source has a 'setXXX' method for the field, call it.
               // None of the fields we (current callers) update here require to
               // refresh the source.
-              let updateMethod = `set${field.charAt(0).toUpperCase()}${field.slice(1)}`;
+              const updateMethod = `set${field.charAt(0).toUpperCase()}${field.slice(1)}`;
               if (updateMethod in source) {
                 source[updateMethod](value);
               } else {
@@ -1084,11 +1084,11 @@ class VideoSourceTabHandler {
   removeSource(url) {
     let found;
     // Consider the url and its normalized form.
-    let normalizedUrl = util.normalizeUrl(url);
+    const normalizedUrl = util.normalizeUrl(url);
     this.sources = this.sources.filter(source => {
       // We only expect to find and remove one element.
       if (found) return true;
-      let match = source.hasUrl(url) || source.hasUrl(normalizedUrl);
+      const match = source.hasUrl(url) || source.hasUrl(normalizedUrl);
       if (match) {
         found = source;
         source.remove();
@@ -1102,7 +1102,7 @@ class VideoSourceTabHandler {
   mergeSources(source) {
     this.sources = this.sources.filter(other => {
       if (other === source) return true;
-      let matches = source.matches(other);
+      const matches = source.matches(other);
       if (matches) {
         if (settings.debug.video) console.log(`Merging old source=<%o> into=<%o>: Match on ${matches}`, util.tryStructuredClone(other), util.tryStructuredClone(source));
         source.merge(other);
@@ -1115,8 +1115,8 @@ class VideoSourceTabHandler {
 
   async pairSubtitles() {
     let needUpdate = false;
-    for (let source of this.sources) {
-      let subtitles = this.subtitles[source.originUrl] || [];
+    for (const source of this.sources) {
+      const subtitles = this.subtitles[source.originUrl] || [];
       if (!subtitles.length) continue;
       source.addSubtitles(this.subtitles[source.originUrl] || []);
       needUpdate = true;
@@ -1130,8 +1130,8 @@ class VideoSourceTabHandler {
     // Wait for actual response.
     if (requestDetails.isRedirection()) return;
 
-    let isHLS = requestDetails.contentType.isHLS();
-    let maybeHLS = !isHLS && requestDetails.contentType.maybeHLS(requestDetails.actualFilename);
+    const isHLS = requestDetails.contentType.isHLS();
+    const maybeHLS = !isHLS && requestDetails.contentType.maybeHLS(requestDetails.actualFilename);
     if (!isHLS && !maybeHLS) return;
 
     // For 'may be' HLS, don't bother if response size is above limit: we
@@ -1147,8 +1147,8 @@ class VideoSourceTabHandler {
     }
 
     let playlist;
-    let requestHeaders = requestDetails.sent?.requestHeaders || [];
-    let newRequestHeaders = requestDetails.newRequestHeaders();
+    const requestHeaders = requestDetails.sent?.requestHeaders || [];
+    const newRequestHeaders = requestDetails.newRequestHeaders();
     try {
       // Notes:
       // The 'only-if-cached' cache mode is not expected to work here.
@@ -1156,7 +1156,7 @@ class VideoSourceTabHandler {
       // Referer must be passed as API parameter: ignored as pure header.
       // To ignore browser extension constraints, delegate request to native
       // application.
-      let response = await this.webext.fetch({
+      const response = await this.webext.fetch({
         resource: requestDetails.url,
         options: {
           referrer: requestDetails.referrer,
@@ -1168,7 +1168,7 @@ class VideoSourceTabHandler {
       });
       if (response.ok) {
         // Check again content size before trying to parse it.
-        let contentLength = response.text.length;
+        const contentLength = response.text.length;
         if (contentLength >= constants.HLS_SIZE_LIMIT) {
           if (settings.debug.video) console.log(`Ignoring maybe-hls url=<${requestDetails.url}> content size=<${contentLength}> above limit:`, requestDetails);
           return;
@@ -1199,12 +1199,12 @@ class VideoSourceTabHandler {
     }
 
     // Add HLS streams as sources.
-    for (let stream of playlist.streams) {
-      let subtitles = [];
+    for (const stream of playlist.streams) {
+      const subtitles = [];
 
-      for (let track of stream.audio.concat(stream.subtitles)) {
+      for (const track of stream.audio.concat(stream.subtitles)) {
         if (!track.uri) continue;
-        let url = track.getURL().href;
+        const url = track.getURL().href;
         // We can also discard tracks URL now.
         this.discardUrl(url);
         // If any track was served as an HLS, remove from sources.
@@ -1214,18 +1214,18 @@ class VideoSourceTabHandler {
       }
 
       let audio;
-      for (let track of stream.audio) {
+      for (const track of stream.audio) {
         if (!track.uri) continue;
-        let url = track.getURL().href;
+        const url = track.getURL().href;
 
         if (audio) {
           console.warn(`Ignoring external HLS audio track url=<${url}>: another track was already used`);
           continue;
         }
-        let contentType = new http.ContentType();
+        const contentType = new http.ContentType();
         contentType.guess(util.getFilename(url));
         if (contentType.isHLS()) {
-          let response = await this.webext.fetch({
+          const response = await this.webext.fetch({
             resource: url,
             options: {
               referrer: requestDetails.referrer,
@@ -1236,12 +1236,12 @@ class VideoSourceTabHandler {
             }
           });
           if (response.ok) {
-            let content = response.text;
-            let playlistStream = new hls.HLSPlaylist(content, {
+            const content = response.text;
+            const playlistStream = new hls.HLSPlaylist(content, {
               url: url,
               debug: settings.debug.video
             });
-            let actualStream = playlistStream.isStream();
+            const actualStream = playlistStream.isStream();
             if (actualStream) {
               console.log(`Using external HLS stream audio track playlist=<${url}>`);
               audio = actualStream;
@@ -1257,18 +1257,18 @@ class VideoSourceTabHandler {
         }
       }
 
-      for (let track of stream.subtitles) {
+      for (const track of stream.subtitles) {
         let url = track.getURL().href;
 
         // Check if this appear to be a true subtitle track, or another HLS
         // stream.
-        let contentType = new http.ContentType();
+        const contentType = new http.ContentType();
         contentType.guess(util.getFilename(url));
         // If we download the subtitles now, and this is not an HLS pointing to
         // another uri, keep the content as-is.
         let raw;
         if (!contentType.isSubtitle() && contentType.isHLS()) {
-          let response = await this.webext.fetch({
+          const response = await this.webext.fetch({
             resource: url,
             options: {
               referrer: requestDetails.referrer,
@@ -1279,16 +1279,16 @@ class VideoSourceTabHandler {
             }
           });
           if (response.ok) {
-            let content = response.text;
-            let playlistStream = new hls.HLSPlaylist(content, {
+            const content = response.text;
+            const playlistStream = new hls.HLSPlaylist(content, {
               url: url,
               debug: settings.debug.video
             });
-            let actualStream = playlistStream.isStream();
+            const actualStream = playlistStream.isStream();
             if (actualStream) {
-              let segments = actualStream.getTags('EXTINF');
+              const segments = actualStream.getTags('EXTINF');
               if ((segments.length == 1) && segments.at(0).uri) {
-                let uri = segments.at(0).uri;
+                const uri = segments.at(0).uri;
                 console.log(`HLS stream subtitles url=<${url}> is actually an HLS segment pointing to uri=<${uri}>`);
                 url = uri;
                 this.discardUrl(url);
@@ -1307,14 +1307,14 @@ class VideoSourceTabHandler {
 
         // Do nothing else if disabled.
         if (!settings.video.subtitles.intercept) continue;
-        let subtitle = {
+        const subtitle = {
           name: track.name,
           lang: track.lang,
           url,
           filename: util.getFilename(url),
           raw
         };
-        let scriptParams = {
+        const scriptParams = {
           params: {
             videoHandler: this,
             requestDetails,
@@ -1327,7 +1327,7 @@ class VideoSourceTabHandler {
         subtitles.push(subtitle);
       }
 
-      let url = stream.getURL().href;
+      const url = stream.getURL().href;
       // Get actual stream content: get everything we can (and is not too much)
       // so that the download application will only need to download the HLS
       // stream playlist segments.
@@ -1335,7 +1335,7 @@ class VideoSourceTabHandler {
       // (HLS keys and subtitles will be downloaded when needed)
       // If we fail, ignore this stream.
       try {
-        let response = await this.webext.fetch({
+        const response = await this.webext.fetch({
           resource: url,
           options: {
             referrer: requestDetails.referrer,
@@ -1346,12 +1346,12 @@ class VideoSourceTabHandler {
           }
         });
         if (response.ok) {
-          let content = response.text;
-          let playlistStream = new hls.HLSPlaylist(content, {
+          const content = response.text;
+          const playlistStream = new hls.HLSPlaylist(content, {
             url: url,
             debug: settings.debug.video
           });
-          let actualStream = playlistStream.isStream();
+          const actualStream = playlistStream.isStream();
           if (!actualStream) {
             console.log(`Ignoring actually non-stream playlist=<${url}>:`, playlistStream);
             continue;
@@ -1387,10 +1387,10 @@ class VideoSourceTabHandler {
     }
 
     // For stream playlist, add as source unless already known.
-    let stream = playlist.isStream();
+    const stream = playlist.isStream();
     if (stream) {
-      let url = stream.getURL().href;
-      let update = {
+      const url = stream.getURL().href;
+      const update = {
         originUrl: requestDetails.originUrl,
         referrer: requestDetails.referrer
       };
@@ -1417,8 +1417,8 @@ class VideoSourceTabHandler {
   }
 
   async download(details, downloadDetails) {
-    for (let source of this.sources) {
-      for (let entryHandler of source.downloadEntries) {
+    for (const source of this.sources) {
+      for (const entryHandler of source.downloadEntries) {
         if (entryHandler.download.source.downloadId == details.downloadId) {
           return await source.download(entryHandler, downloadDetails);
         }
@@ -1427,9 +1427,9 @@ class VideoSourceTabHandler {
   }
 
   async addSource(details) {
-    let tabId = details.tabId;
-    let frameId = details.frameId;
-    let url = details.url;
+    const tabId = details.tabId;
+    const frameId = details.frameId;
+    const url = details.url;
 
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
@@ -1437,7 +1437,7 @@ class VideoSourceTabHandler {
     // Ignore already known source.
     if (this.findSource(url)) return;
 
-    let tabHandler = this.tabHandler;
+    const tabHandler = this.tabHandler;
     // Note: 'ignoreDownload' takes care of buffered requests if any.
 
     // Ensure we received a message from the current tab: either sender as been
@@ -1447,20 +1447,20 @@ class VideoSourceTabHandler {
     // Ignore urls that we can't download.
     if (!http.canDownload(url)) return this.ignoreDownload(details, 'URL not handled');
     // Ignore apparent content types that we don't want to download.
-    let contentType = new http.ContentType();
+    const contentType = new http.ContentType();
     contentType.guess(util.getFilename(url));
-    let reason = checkVideoContentType(contentType);
+    const reason = checkVideoContentType(contentType);
     if (reason) return this.ignoreDownload(details, reason);
 
     details.mimeType = contentType.mimeType;
     details.tabTitle = tabHandler.title;
-    let source = new VideoSource(this, details);
+    const source = new VideoSource(this, details);
     if (settings.debug.video) console.log(`Adding tab=<${tabId}> frame=<${frameId}> hls=<${!!details.hls}> video source id=<${source.id}> url=<${url}>`);
     this.sources.push(source);
 
     // Process buffered requests.
     // Except when source is HLS: we already did process what was needed.
-    let buffered = this.getBufferedRequests(url, true);
+    const buffered = this.getBufferedRequests(url, true);
     if (buffered && !details.hls) await buffered.replay(this);
 
     // Refresh source, then when applicable add menu entry and trigger videos
@@ -1474,19 +1474,19 @@ class VideoSourceTabHandler {
     if (!settings.video.subtitles.intercept) return;
     if (!await this.canInterceptVideo()) return;
 
-    let subtitles = details.subtitles;
+    const subtitles = details.subtitles;
     if (!subtitles || !subtitles.length) return;
 
-    let source = this.findSource(details.url);
+    const source = this.findSource(details.url);
     if (!source) {
       if (settings.debug.video) console.log(`Not adding unknown tab=<${details.tabId}> frame=<${details.frameId}> video url=<${details.url}> subtitles:`, subtitles);
       return;
     }
 
-    for (let subtitle of subtitles) {
+    for (const subtitle of subtitles) {
       // Set filename from URL if needed.
       if (!subtitle.filename) subtitle.filename = util.getFilename(subtitle.url);
-      let scriptParams = {
+      const scriptParams = {
         params: {
           videoHandler: this,
           videoSource: source,
@@ -1503,12 +1503,12 @@ class VideoSourceTabHandler {
   async onRequest(request) {
     if (!await this.canInterceptVideo()) return;
 
-    let url = request.url;
+    const url = request.url;
     // Silently drop previously ignored URLs.
     if (this.ignoredUrls.has(url)) return;
 
     this.requestsHandler.addRequest(request);
-    let source = this.findSource(url, {
+    const source = this.findSource(url, {
       originUrl: request.originUrl,
       referrer: http.findHeaderValue(request.requestHeaders, 'Referer')
     });
@@ -1520,18 +1520,18 @@ class VideoSourceTabHandler {
     source.seenRequest = true;
 
     // Extract useful request details.
-    let cookie = http.findHeaderValue(request.requestHeaders, 'Cookie');
+    const cookie = http.findHeaderValue(request.requestHeaders, 'Cookie');
     if (cookie) source.cookie = cookie;
-    let userAgent = http.findHeaderValue(request.requestHeaders, 'User-Agent');
+    const userAgent = http.findHeaderValue(request.requestHeaders, 'User-Agent');
     if (userAgent) source.userAgent = userAgent;
   }
 
   async onResponse(response) {
     if (!await this.canInterceptVideo()) return;
 
-    let url = response.url;
+    const url = response.url;
     let location;
-    let statusCode = response.statusCode;
+    const statusCode = response.statusCode;
 
     // Extract redirected url when applicable.
     // Note: even though it should have no meaning/purpose in our case, url may
@@ -1546,11 +1546,11 @@ class VideoSourceTabHandler {
       return;
     }
 
-    let requestDetails = this.requestsHandler.addResponse(response);
+    const requestDetails = this.requestsHandler.addResponse(response);
     requestDetails.parseResponse();
 
-    let source = this.findSource(url, {originUrl: response.originUrl});
-    let scriptParams = {
+    const source = this.findSource(url, {originUrl: response.originUrl});
+    const scriptParams = {
       params: {
         videoHandler: this,
         videoSource: source,
@@ -1560,19 +1560,19 @@ class VideoSourceTabHandler {
     };
     if (!source) {
       // Check for possible HLS or subtitle content.
-      let playlist = await this.checkHLS(requestDetails);
+      const playlist = await this.checkHLS(requestDetails);
       let skip = !!playlist;
       if (!skip && settings.video.subtitles.intercept && requestDetails.contentType.isSubtitle()) {
         if (settings.trace.video) console.log('Received subtitle response:', requestDetails);
 
-        let subtitle = {
+        const subtitle = {
           url: requestDetails.url,
           // Try our best to use proper subtitle extension, in case the request
           // points to some kind of API, not the file itself.
           filename: util.filenameWithExtension(requestDetails.actualFilename, requestDetails.actualExtension),
           intercepted: true
         };
-        let scriptParams = {
+        const scriptParams = {
           params: {
             videoHandler: this,
             requestDetails,
@@ -1581,7 +1581,7 @@ class VideoSourceTabHandler {
         };
         await this.subtitlesRefining.execute(scriptParams);
         if (subtitle.name || subtitle.lang) {
-          let originUrl = requestDetails.originUrl;
+          const originUrl = requestDetails.originUrl;
           if (settings.trace.video) console.log(`Adding tab=<${response.tabId}> frame=<${response.frameId}> originUrl=<${originUrl}> subtitles:`, subtitle);
 
           // Remember intercepted subtitles per origin URL.
@@ -1655,7 +1655,7 @@ class VideoSourceTabHandler {
     source.mimeType = requestDetails.contentType.mimeType;
     // Retrieved/actual information may differ from original ones. Check again
     // and ignore content types we don't want to download.
-    let reason = checkVideoContentType(requestDetails.contentType);
+    const reason = checkVideoContentType(requestDetails.contentType);
     if (reason) return this.ignoreDownload(source, response, reason);
 
     // Keep ETag if any.
@@ -1673,7 +1673,7 @@ class VideoSourceTabHandler {
   // http response contain the information we need, so that caller can pass
   // either one.
   ignoreDownload() {
-    let args = [...arguments];
+    const args = [...arguments];
     let source, details, reason;
     if (args[0] instanceof VideoSource) [source, details, reason] = args;
     else [details, reason] = args;
@@ -1688,12 +1688,12 @@ class VideoSourceTabHandler {
     this.ignoreUrl(url);
     // Also drop buffered requests if any, and ignore associated urls: useful
     // when we already received redirection responses.
-    let buffered = this.getBufferedRequests(url, true);
+    const buffered = this.getBufferedRequests(url, true);
     if (buffered) this.ignoreUrls(buffered.getUrls());
   }
 
   updateVideos() {
-    let observer = this.parent.observer;
+    const observer = this.parent.observer;
     if (!observer) return;
     observer.videosUpdated({
       tabHandler: this.tabHandler,
@@ -1717,7 +1717,7 @@ const TAB_EXTENSION_PROPERTY = 'videoSourceTabHandler';
 export class VideoSourceHandler {
 
   constructor(webext, tabsHandler, menuHandler) {
-    let self = this;
+    const self = this;
     self.webext = webext;
     self.tabsHandler = tabsHandler;
     self.menuHandler = menuHandler;
@@ -1756,10 +1756,10 @@ export class VideoSourceHandler {
   }
 
   getTabHandler(details, create) {
-    let self = this;
-    let frameHandler = self.tabsHandler.getFrame(details);
+    const self = this;
+    const frameHandler = self.tabsHandler.getFrame(details);
     if (!frameHandler) return {};
-    let handler = frameHandler.tabHandler.extensionProperties.get({
+    const handler = frameHandler.tabHandler.extensionProperties.get({
       key: TAB_EXTENSION_PROPERTY,
       create: create ? (tabHandler => new VideoSourceTabHandler(self, tabHandler)) : undefined,
       keepOnReset: true
@@ -1774,7 +1774,7 @@ export class VideoSourceHandler {
     if (!sources) {
       tabHandler = tabHandler || this.tabsHandler.focusedTab.handler;
       if (!tabHandler) return [];
-      let handler = tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      const handler = tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (!handler) return [];
       sources = handler.sources;
     }
@@ -1786,7 +1786,7 @@ export class VideoSourceHandler {
   }
 
   async download(details, downloadDetails) {
-    let { handler } = this.getTabHandler(details, false);
+    const { handler } = this.getTabHandler(details, false);
     if (!handler) {
       console.warn(`Cannot download video tab=<${details.tabId}> frame=<${details.frameId}>: Unknown tab frame`);
       return;
@@ -1805,7 +1805,7 @@ export class VideoSourceHandler {
     // If we receive a source, it means the content script is running, and thus
     // this tab/frame *should* be known. If it isn't, we can only assume the
     // tab/frame did change after the information was sent.
-    let { handler, frameUrl } = this.getTabHandler(details, true);
+    const { handler, frameUrl } = this.getTabHandler(details, true);
     if (!handler) {
       // Note: this is the only time we log the csUuid.
       // If we found the frame, then the csUuid matches, and there is no more
@@ -1821,7 +1821,7 @@ export class VideoSourceHandler {
   async addSubtitles(details) {
     details.url = util.normalizeUrl(details.url, settings.debug.video, 'video source');
 
-    let { handler, frameUrl } = this.getTabHandler(details, true);
+    const { handler, frameUrl } = this.getTabHandler(details, true);
     if (!handler) {
       if (settings.debug.video) console.log(`Not handling tab=<${details.tabId}> frame=<${details.frameId}> csUuid=<${details.csUuid}> video url=<${details.url}> subtitles: Unknown tab frame`);
       return;
@@ -1833,9 +1833,9 @@ export class VideoSourceHandler {
 
   setupInterception() {
     // Check whether we now need to intercept anything
-    let interceptVideo = settings.video.intercept;
+    const interceptVideo = settings.video.intercept;
     // Determine whether we were listening.
-    let interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
+    const interceptingVideo = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
     // Add/remove listeners as requested.
     if (interceptVideo && !interceptingVideo) {
       if (settings.debug.video) console.log('Installing video webRequest interception');
@@ -1847,7 +1847,7 @@ export class VideoSourceHandler {
       // Example: https://developer.mozilla.org/fr/docs/Web/HTML/Element/embed
       // For HLS and subtitles, we also need to intercept xmlhttprequest, which
       // is usually done by site/player code.
-      let webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object', 'xmlhttprequest'] };
+      const webRequestFilter = { urls: ['<all_urls>'], types: ['media', 'object', 'xmlhttprequest'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,
         webRequestFilter,
@@ -1872,9 +1872,9 @@ export class VideoSourceHandler {
   async onRequest(request) {
     // Normalize url.
     request.url = util.normalizeUrl(request.url, settings.debug.video, 'request');
-    let tabId = request.tabId;
-    let frameId = request.frameId;
-    let { handler } = this.getTabHandler({
+    const tabId = request.tabId;
+    const frameId = request.frameId;
+    const { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -1889,9 +1889,9 @@ export class VideoSourceHandler {
   async onResponse(response) {
     // Normalize url.
     response.url = util.normalizeUrl(response.url, settings.debug.video, 'response');
-    let tabId = response.tabId;
-    let frameId = response.frameId;
-    let { handler } = this.getTabHandler({
+    const tabId = response.tabId;
+    const frameId = response.frameId;
+    const { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -1906,10 +1906,10 @@ export class VideoSourceHandler {
   // Tab/frame observer
 
   tabUpdated(details) {
-    let self = this;
-    let tabId = details.tabId;
-    let frameId = details.frameId;
-    let { handler } = this.getTabHandler({
+    const self = this;
+    const tabId = details.tabId;
+    const frameId = details.frameId;
+    const { handler } = this.getTabHandler({
       tabId: details.tabId,
       frameId: 0
     }, false);
@@ -1922,19 +1922,19 @@ export class VideoSourceHandler {
     // loaded. As a precaution, only take into account reset when frame is
     // about to change.
     if (!details.beforeNavigate) return;
-    let { handler } = this.getTabHandler(details, false);
+    const { handler } = this.getTabHandler(details, false);
     if (!handler) return;
     handler.tabReset(details);
   }
 
   async frameAdded(details) {
-    let tabId = details.tabId;
-    let frameId = details.frameId;
-    let buffered = this.getBufferedRequests(tabId, frameId, true);
+    const tabId = details.tabId;
+    const frameId = details.frameId;
+    const buffered = this.getBufferedRequests(tabId, frameId, true);
     if (!buffered) return;
     // Process buffered requests.
     // Belt and suspenders: ensure we do know the frame now.
-    let { handler } = this.getTabHandler({
+    const { handler } = this.getTabHandler({
       tabId,
       frameId
     }, true);
@@ -1947,12 +1947,12 @@ export class VideoSourceHandler {
   }
 
   async tabRemoved(details) {
-    let self = this;
+    const self = this;
 
     // To ensure we do remove menu entries even when closing the active tab,
     // to it in both situations if possible (tab handler known).
     if (details.tabHandler) {
-      let handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      const handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) await handler.removeMenuEntries();
     }
 
@@ -1964,7 +1964,7 @@ export class VideoSourceHandler {
   }
 
   frameRemoved(details) {
-    let self = this;
+    const self = this;
     // As a precaution, wait a bit before clearing buffered requests, in case
     // we still receive some in parallel.
     setTimeout(() => {
@@ -1977,13 +1977,13 @@ export class VideoSourceHandler {
     // We still need to (re)apply the newly focused tab, because at the previous
     // change the handler may have been not known yet.
     if ((details.previousTabId !== details.tabId) && details.previousTabHandler) {
-      let handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+      const handler = details.previousTabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
       if (handler) await handler.removeMenuEntries();
     }
 
     // Add entries of new focused tab.
     if (!details.tabHandler) return;
-    let handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
+    const handler = details.tabHandler.extensionProperties.get({key: TAB_EXTENSION_PROPERTY});
     if (handler) await handler.addMenuEntries();
   }
 

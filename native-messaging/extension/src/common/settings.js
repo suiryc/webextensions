@@ -76,7 +76,7 @@ import { _fn } from './unsafe.js';
 async function getStorageValue(key, value) {
   if (!key) return await browser.storage.local.get(null);
 
-  let keys = {};
+  const keys = {};
   keys[key] = value;
   try {
     return (await browser.storage.local.get(keys))[key];
@@ -88,7 +88,7 @@ async function getStorageValue(key, value) {
 async function setStorageValue(key, value) {
   // Note: even though setting undefined value removes it, explicitely do it.
   if ((value === undefined) || (value === null)) return await removeStorageValue(key);
-  let keys = {};
+  const keys = {};
   keys[key] = value;
   return await browser.storage.local.set(keys);
 }
@@ -101,7 +101,7 @@ class SettingsBranch {
 
   constructor(name, parent) {
     if (name) this._key = (parent && parent._key) ? `${parent._key}.${name}` : name;
-    let handler = {
+    const handler = {
       get: this.proxy_get.bind(this)
       , set: this.proxy_set.bind(this)
     };
@@ -119,7 +119,7 @@ class SettingsBranch {
     // while externally the Proxy does hide those instances to give access to
     // virtual primitive fields.
     if (property === 'inner') return target;
-    let field = target[property];
+    const field = target[property];
     if (field instanceof ExtensionSetting) return field.getValue();
     // For functions, bind 'this' to the target.
     if (typeof(field) === 'function') return field.bind(target);
@@ -127,7 +127,7 @@ class SettingsBranch {
   }
 
   proxy_set(target, property, value) {
-    let field = target[property];
+    const field = target[property];
     if (field instanceof ExtensionSetting) {
       field.setValue(value);
       return true;
@@ -158,7 +158,7 @@ class Settings extends SettingsBranch {
   // Note: registering uses the 'settings' variable, hence the need to do it
   // separately from the constructor.
   registerSettings() {
-    let self = this;
+    const self = this;
     // Create settings (auto-registered).
     new ExtensionIntSetting('settingsVersion', 0);
     new ExtensionBooleanSetting('catchLinks', true);
@@ -178,7 +178,7 @@ class Settings extends SettingsBranch {
     new ExtensionBooleanSetting('interceptRequests', true);
     new ExtensionIntSetting('interceptSize', 20 * 1024 * 1024);
     if (globalThis.browser && browser.webRequest) {
-      let requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
+      const requestTypes = new Set(Object.values(browser.webRequest.ResourceType));
       new ExtensionBooleanSetting('intercept.webRequest.onBeforeSendHeaders.enabled', true);
       new ExtensionEnumerationSetting('intercept.webRequest.onBeforeSendHeaders.requestTypes', '', requestTypes, true);
       new ExtensionScriptSetting('intercept.webRequest.onBeforeSendHeaders.script');
@@ -207,9 +207,9 @@ class Settings extends SettingsBranch {
     // 'extension://<extension-internal-id>/_generated_background_page.html'
     // is created.
     // We can thus determine whether we are running in the background script.
-    let href = window.location.href;
-    let backgroundPage = browser.runtime.getManifest().background.page;
-    let isBackgroundScript = backgroundPage
+    const href = window.location.href;
+    const backgroundPage = browser.runtime.getManifest().background.page;
+    const isBackgroundScript = backgroundPage
       ? (href === browser.runtime.getManifest().background.page)
       : href.endsWith('/_generated_background_page.html')
       ;
@@ -222,7 +222,7 @@ class Settings extends SettingsBranch {
       // Other listeners will get notified of storage changes if any.
       if (isBackgroundScript) await self.migrate();
 
-      let promises = [];
+      const promises = [];
       self.forEach(setting => promises.push(setting.initValue(isBackgroundScript)));
       // Knowing the browser is sometimes useful/necessary.
       // browser.runtime.getBrowserInfo exists in Firefox >= 51
@@ -248,9 +248,9 @@ class Settings extends SettingsBranch {
 
   // Loops over declared settings, passing each one to given callback.
   forEach(cb) {
-    let self = this;
+    const self = this;
     Object.keys(self.perKey).forEach(key => {
-      let setting = self.perKey[key];
+      const setting = self.perKey[key];
       if (!(setting instanceof ExtensionSetting)) return;
       cb(setting);
     });
@@ -278,7 +278,7 @@ class Settings extends SettingsBranch {
 
   // Code to rename/drop settings keys.
   async migrateKeys(keys) {
-    for (let key of Object.keys(keys)) {
+    for (const key of Object.keys(keys)) {
       let newKey = keys[key];
       try {
         if (!newKey) {
@@ -286,7 +286,7 @@ class Settings extends SettingsBranch {
           console.log(`Deleted oldKey=<${key}>`);
           continue;
         }
-        let value = await getStorageValue(key);
+        const value = await getStorageValue(key);
         if (value === undefined) {
           console.log(`Not migrating undefined oldKey=<${key}> newKey=<${newKey}>`);
           continue;
@@ -315,8 +315,8 @@ class Settings extends SettingsBranch {
     // Note: we don't refresh all settings now, because only latest version
     // settings are registered, and migration mainly deals with legacy settings
     // which we have to grab explicitely.
-    let setting = this.settingsVersion;
-    let settingsVersion = await setting.initValue();
+    const setting = this.settingsVersion;
+    const settingsVersion = await setting.initValue();
 
     // Only migrate if necessary.
     if (settingsVersion >= this.latestSettingsVersion) return;
@@ -379,9 +379,9 @@ class ExtensionSetting {
     // Automatically register ourself as a setting.
     // Handle subfields recursively.
     let target = settings.inner;
-    let keys = key.split('.');
+    const keys = key.split('.');
     while (keys.length) {
-      let leaf = keys.shift();
+      const leaf = keys.shift();
       if (keys.length) {
         // We will need to access another subfield.
         // Belt and suspenders: ensure we did not accidentally assigned a
@@ -409,7 +409,7 @@ class ExtensionSetting {
 
   // Notifies listeners.
   notifyListeners(oldValue, newValue) {
-    let self = this;
+    const self = this;
     self.listeners.forEach(listener => {
       try {
         listener(self, oldValue, newValue);
@@ -438,7 +438,7 @@ class ExtensionSetting {
   // up-to-date (e.g. it reads it) and we only need to take it into account.
   async setValue(v, updated) {
     if (v === undefined) v = this.defaultValue;
-    let oldValue = this.value;
+    const oldValue = this.value;
     // Nothing to do if value is not changed.
     if (util.deepEqual(v, oldValue)) return;
     // Update value.
@@ -465,8 +465,8 @@ class ExtensionSetting {
   // Tracks associated field.
   // Retrieves the field from the document, and refreshes its value.
   trackField() {
-    let self = this;
-    let field = self.field = document.getElementById(self.key);
+    const self = this;
+    const field = self.field = document.getElementById(self.key);
     if (!field) return false;
 
     // Setup field:
@@ -480,7 +480,7 @@ class ExtensionSetting {
     // without us having to explicitely take care of it (e.g. by scheduling
     // value change after some time).
     field.addEventListener('change', () => self.validateField(true));
-    let fieldType = (field.type || field.tagName).toLowerCase();
+    const fieldType = (field.type || field.tagName).toLowerCase();
     if (fieldType =='checkbox') {
       self.getFieldValue = function() { return this.field.checked; }
     } else if ((fieldType == 'text') || (fieldType == 'textarea')) {
@@ -502,7 +502,7 @@ class ExtensionSetting {
   // When requested, setting value is only changed if valid.
   validateField(update) {
     try {
-      let v = this.validateValue(this.getFieldValue());
+      const v = this.validateValue(this.getFieldValue());
       if (update) this.setValue(v);
       this.field.removeAttribute('title');
       this.field.classList.toggle('field-error', false);
@@ -527,7 +527,7 @@ class ExtensionSetting {
     // anything (and initializing the value is part of this).
     // We must not save to storage (since we retrieved the value from it), but
     // still wish to notify listeners.
-    let value = await getStorageValue(this.key);
+    const value = await getStorageValue(this.key);
     if (isBackgroundScript && (value !== undefined) && (util.deepEqual(value, this.defaultValue))) {
       // The storage contains this setting with default value: remove it.
       // (only do it once, from background script)
@@ -573,7 +573,7 @@ class ExtensionIntSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    let f = parseFloat(v);
+    const f = parseFloat(v);
     if (isNaN(v) || !Number.isInteger(f)) throw new Error('Not an integer value');
     return f;
   }
@@ -596,7 +596,7 @@ class ExtensionEnumerationSetting extends ExtensionSetting {
   }
 
   validateValue(v) {
-    let self = this;
+    const self = this;
     if (self.getValues(v).some(v => !self.allowed.has(v))) throw new Error(`Allowed values: ${[...self.allowed].join(', ')}`);
     return v;
   }
@@ -618,7 +618,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
   }
 
   updateField() {
-    let value = this.getValue();
+    const value = this.getValue();
     if (!value) this.field.value = '';
     else this.field.value = value;
   }
@@ -631,7 +631,7 @@ class ExtensionScriptSetting extends ExtensionSetting {
 }
 
 // The settings.
-export let settings = new Settings().proxy;
+export const settings = new Settings().proxy;
 settings.registerSettings();
 
 export let browserInfo = {};
@@ -645,8 +645,8 @@ export function trackFields() {
 // Note: check 'browser' exists (unit tests don't have it).
 if (globalThis.browser) browser.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
-  for (let key of Object.keys(changes)) {
-    let setting = settings.inner.perKey[key];
+  for (const key of Object.keys(changes)) {
+    const setting = settings.inner.perKey[key];
     if (!(setting instanceof ExtensionSetting)) return;
     setting.setValue(changes[key].newValue, true);
   }

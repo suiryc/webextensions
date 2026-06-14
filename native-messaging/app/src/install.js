@@ -11,7 +11,7 @@ import yargs from 'yargs';
 
 // Creates manifest file
 function createManifest(dir, filename, command) {
-  let manifestPath = path.join(dir, filename);
+  const manifestPath = path.join(dir, filename);
   console.log('');
   console.log('>> Creating manifest');
   console.log(`>>> File: ${manifestPath}`);
@@ -27,12 +27,12 @@ function createManifest(dir, filename, command) {
   });
 }
 
-let appFolder = process.cwd();
+const appFolder = process.cwd();
 let manifestFolder = appFolder;
 let manifestFile = 'manifest-firefox.json';
 let manifestCommand;
-let nodeCommand = process.argv[0];
-let params = yargs.argv;
+const nodeCommand = process.argv[0];
+const params = yargs.argv;
 let appCommand;
 
 // We expect the following CLI parameters:
@@ -74,7 +74,7 @@ switch (os.platform()) {
     appCommand = 'run.sh';
     manifestCommand = path.join(appFolder, appCommand);
     console.log(`>>> Application: ${appCommand}`);
-    let appCommandContent = `#!/bin/bash\n\n${nodeCommand} app.js\n`;
+    const appCommandContent = `#!/bin/bash\n\n${nodeCommand} app.js\n`;
     f = fse.writeFile(appCommand, appCommandContent).then(() => {
       // Script needs to be executable
       return fse.chmod(appCommand, 0o755);
@@ -88,7 +88,7 @@ switch (os.platform()) {
     // We store it alongside the application script.
     manifestCommand = appCommand = 'run.cmd';
     console.log(`>>> Application: ${appCommand}`);
-    let appCommandContent = `@echo off\r\n\r\n"${nodeCommand}" "%~dp0app.js"\r\n`;
+    const appCommandContent = `@echo off\r\n\r\n"${nodeCommand}" "%~dp0app.js"\r\n`;
     f = fse.writeFile(appCommand, appCommandContent).then(() => {
       console.log('');
       console.log('>> Creating Firefox registry entry');
@@ -105,7 +105,7 @@ switch (os.platform()) {
 f.then(() => {
   console.log('');
   console.log('>> Creating settings.js');
-  let settingsContent = `'use strict';
+  const settingsContent = `'use strict';
 
 export const dlMngrInterpreter = ${JSON.stringify(params.dlMngrInterpreter)};
 export const dlMngrPath = ${JSON.stringify(params.dlMngrPath)};

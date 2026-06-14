@@ -100,8 +100,8 @@ export const constants = {
 
 };
 
-for (let key of Object.keys(constants).filter(key => key.startsWith('EVENT_'))) {
-  let category = `EVENTS_${key.split('_')[1]}`;
+for (const key of Object.keys(constants).filter(key => key.startsWith('EVENT_'))) {
+  const category = `EVENTS_${key.split('_')[1]}`;
   if (!constants[category]) constants[category] = new Set();
   constants[category].add(constants[key]);
 }

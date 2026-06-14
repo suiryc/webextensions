@@ -149,7 +149,7 @@ class MenuEntry extends MenuElement {
   // API: update this entry.
   async update(details) {
     // Update the details we know.
-    for (let [key, value] of Object.entries(details)) {
+    for (const [key, value] of Object.entries(details)) {
       if ((value !== undefined) && (value !== null)) this.details[key] = value;
       else delete(this.details[key]);
     }
@@ -185,7 +185,7 @@ class MenuGroup extends MenuElement {
     let r = false;
 
     // Empty known entries.
-    for (let entry of this.entries) {
+    for (const entry of this.entries) {
       r |= await entry.remove();
     }
 
@@ -225,7 +225,7 @@ class MenuGroup extends MenuElement {
 
   // API: add new entry.
   async addEntry(details) {
-    let entry = (details instanceof MenuElement) ? details : new MenuEntry(this, details);
+    const entry = (details instanceof MenuElement) ? details : new MenuEntry(this, details);
     this.entries.push(entry);
     entry.attached = true;
     await this.rebuild();
@@ -234,14 +234,14 @@ class MenuGroup extends MenuElement {
 
   // API: remove given entries.
   async removeEntries() {
-    let entries = new Set([...arguments]);
+    const entries = new Set([...arguments]);
     this.entries = this.entries.filter(el => !entries.has(el));
     await this.rebuild();
   }
 
   // API: add group in entries.
   addGroup() {
-    let group = new MenuGroup(this);
+    const group = new MenuGroup(this);
     this.entries.push(group);
     return group;
   }
@@ -261,12 +261,12 @@ export class MenuHandler extends MenuGroup {
   }
 
   async setup() {
-    let self = this;
+    const self = this;
 
     await settings.ready;
 
     // Root menu, initially invisible.
-    for (let id of [ID_ROOT, ID_ROOT_LINK]) {
+    for (const id of [ID_ROOT, ID_ROOT_LINK]) {
       await self.createEntry({
         id: id,
         visible: false
@@ -280,10 +280,10 @@ export class MenuHandler extends MenuGroup {
   }
 
   async onShown(data, tab) {
-    let self = this;
+    const self = this;
 
     let isLink = false;
-    for (let ctx of data.contexts) {
+    for (const ctx of data.contexts) {
       if (DL_CONTEXTS.includes(ctx)) {
         isLink = true;
         break;
@@ -299,11 +299,11 @@ export class MenuHandler extends MenuGroup {
     }
 
     // Entry to download target link (may be video/audio element).
-    let dlLinkDetails = {
+    const dlLinkDetails = {
       title: 'Download link',
       onclick: self.requestsHandler.manageClick.bind(self.requestsHandler)
     };
-    let entriesCount = self.countMenuEntries();
+    const entriesCount = self.countMenuEntries();
     if (!entriesCount && isLink) {
       // Target link without other entries.
       // We don't need/want to show 'Unload tab' in this specific case.
@@ -335,7 +335,7 @@ export class MenuHandler extends MenuGroup {
     await self.createEntries();
 
     // 'Unload tab' entry.
-    let unloadDetails = {
+    const unloadDetails = {
       title: 'Unload tab',
       onclick: function(data, tab) {
         if (settings.debug.tabs.successor) console.log.apply(console, [`tab.unload`, ...arguments]);
@@ -357,14 +357,14 @@ export class MenuHandler extends MenuGroup {
   async onHidden() {
     this.shown = undefined;
     // Remove created entries.
-    for (let id of this.ids) {
+    for (const id of this.ids) {
       await browser.contextMenus.remove(id);
     }
     this.ids = [];
     // Hide root nodes.
-    for (let id of [ID_ROOT, ID_ROOT_LINK]) {
+    for (const id of [ID_ROOT, ID_ROOT_LINK]) {
       await this.updateRoot({
-        id: id,
+        id,
         visible: false
       });
     }
@@ -380,16 +380,16 @@ export class MenuHandler extends MenuGroup {
   }
 
   async createEntries(entry) {
-    let list = [];
+    const list = [];
     function loop(menu) {
-      for (let entry of (menu.entries || [])) {
+      for (const entry of (menu.entries || [])) {
         if (entry.details) list.push(entry.details);
         loop(entry);
       }
     }
     loop(this);
 
-    for (let details of list) {
+    for (const details of list) {
       await this.createEntry(details);
     }
   }
@@ -402,11 +402,11 @@ export class MenuHandler extends MenuGroup {
     let id = details['id'];
     if (id === undefined) id = util.uuidv4();
     // Use base entry if applicable.
-    let base = ENTRIES_BASE[id];
+    const base = ENTRIES_BASE[id];
     if (base !== undefined) details = Object.assign({}, base, details);
     // Complete details.
     details = Object.assign({
-      id: id,
+      id,
       icons: { '16': '/resources/icon.svg' },
       contexts: ['all']
     }, details);
@@ -423,13 +423,13 @@ export class MenuHandler extends MenuGroup {
       type: 'separator',
       contexts: ['all']
     }, details);
-    let id = await browser.contextMenus.create(details);
+    const id = await browser.contextMenus.create(details);
     this.ids.push(id);
     return details;
   }
 
   async rebuild() {
-    let shown = this.shown;
+    const shown = this.shown;
     if (!shown) return;
     // Behaves as if hiding and showing again the menu: this cleanly updates
     // and rebuilds all needed entries.

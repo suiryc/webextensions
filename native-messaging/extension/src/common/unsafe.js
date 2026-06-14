@@ -10,12 +10,12 @@ import { settings } from './settings.js';
 
 // Declare AsyncFunction for usage.
 // Share declaration to limit code inspection warnings to the bare minimum.
-export let _fn = async function () {}.constructor;
+export const _fn = async function () {}.constructor;
 
 export class CodeExecutor {
 
   constructor(params) {
-    let self = this;
+    const self = this;
     self.webext = params.webext;
     self.notifDefaults = params.notifDefaults;
     self.scriptName = params.name;
@@ -47,7 +47,7 @@ export class CodeExecutor {
       });
       return;
     }
-    let enabled = setting.inner.enabled;
+    const enabled = setting.inner.enabled;
     if (enabled) {
       // Setting that can switch on/off script.
       if (!params.once) enabled.addListener(() => {
@@ -80,8 +80,8 @@ export class CodeExecutor {
 
   async execute(args) {
     if (!this.f) return {};
-    let argValues = [];
-    let notif = this.getNotif();
+    const argValues = [];
+    const notif = this.getNotif();
     // Pass useful helpers automatically.
     // REMINDER: name must match with 'constructor' code!
     args = Object.assign({
@@ -93,11 +93,11 @@ export class CodeExecutor {
       webext: this.webext,
       settings
     }, args || {});
-    for (let arg of this.argNames) {
+    for (const arg of this.argNames) {
       argValues.push(args[arg]);
     }
     try {
-      let r = await Promise.resolve(this.f.apply(null, argValues));
+      const r = await Promise.resolve(this.f.apply(null, argValues));
       return r || {};
     } catch (error) {
       notif.error({
@@ -117,6 +117,6 @@ export class CodeExecutor {
 // Executes script code.
 export async function executeCode(params) {
   if (!params.args) params.args = {};
-  let executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
+  const executor = new CodeExecutor(Object.assign({}, params, {args: Object.keys(params.args), once: true}));
   return await executor.execute(params.args);
 }

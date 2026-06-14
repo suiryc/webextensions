@@ -59,7 +59,7 @@ function cs_allowCopyPaste(msg) {
 
 // Extension handler
 // (also save it in globalThis so that scripts can use it directly)
-let webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
+const webext = globalThis.webext = new WebExtension({ target: constants.TARGET_CONTENT_SCRIPT, onMessage });
 (async function() {
   // All scripts actually want to wait, at one point or another, for settings
   // to be ready. It is also better to wait for it before using 'webext'.

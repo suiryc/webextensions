@@ -11,7 +11,7 @@ export async function run() {
 
   await util.waitForDocument();
 
-  let link = document.createElement('link');
+  const link = document.createElement('link');
   link.href = browser.runtime.getURL('/resources/content-script-links-catcher.css');
   link.type = 'text/css';
   link.rel = 'stylesheet';
@@ -22,7 +22,7 @@ export async function run() {
 
 
 // Extension parameters, not important enough to be managed as stored settings.
-let extParams = {
+const extParams = {
   'debug': {
     'excluded': new Set(/*['mousemove', 'scroll']*/),
     // Samples debugging settings
@@ -122,7 +122,7 @@ function getNodeRect(node) {
 }
 
 function getNodeRects(node) {
-  let rects = [];
+  const rects = [];
   for (let rect of node.getClientRects()) {
     // Take into account scroll position
     rect = new DOMRect(rect.x + window.scrollX, rect.y + window.scrollY, rect.width, rect.height);
@@ -158,10 +158,10 @@ function mergeRects(rect1, rect2) {
   }
 
   if (merge) {
-    let left = Math.min(rect1.left, rect2.left);
-    let top = Math.min(rect1.top, rect2.top);
-    let right = Math.max(rect1.right, rect2.right);
-    let bottom = Math.max(rect1.bottom, rect2.bottom);
+    const left = Math.min(rect1.left, rect2.left);
+    const top = Math.min(rect1.top, rect2.top);
+    const right = Math.max(rect1.right, rect2.right);
+    const bottom = Math.max(rect1.bottom, rect2.bottom);
     return new DOMRect(left, top, right - left, bottom - top);
   }
 }
@@ -169,10 +169,10 @@ function mergeRects(rect1, rect2) {
 function debugSample(kind) {
   if (!settings.debug.linksCatcher || extParams.debug.excluded.has(kind)) return FUNCTION_NOOP;
 
-  let samples = extParams.debug.samples.kinds[kind];
+  const samples = extParams.debug.samples.kinds[kind];
   if (!samples) return debug;
 
-  let now = util.epoch();
+  const now = util.epoch();
   if (samples.mark != now) {
     samples.mark = now;
     if (samples.skipped > 0) {
@@ -232,10 +232,10 @@ class LinkHandler {
     // A solution would be to determine 'center' of a node and check the element
     // at this position ('elementFromPoint') is the node itself or a child.
     // Unfortunately it only works for points in the current viewport.
-    let style = getComputedStyle(this.link);
+    const style = getComputedStyle(this.link);
     if ((style.display == 'none') || (style.visibility == 'hidden')) return false;
 
-    let rect = getNodeRect(this.link);
+    const rect = getNodeRect(this.link);
     this.hint = rect;
     this.refreshPosition(rect);
     return !!this.rects.length;
@@ -246,7 +246,7 @@ class LinkHandler {
     let modified = false;
     if (!rect) {
       rect = getNodeRect(this.link);
-      let hint = this.hint;
+      const hint = this.hint;
       this.hint = rect;
       modified = (rect.top != hint.top) || (rect.bottom != hint.bottom) || (rect.left != hint.left) || (rect.right != hint.right);
       if (!modified) return modified;
@@ -257,8 +257,8 @@ class LinkHandler {
     let useLink = true;
     if (this.link.childElementCount) {
       // If one child does not fit the link, use the children.
-      for (let child of this.link.children) {
-        let childRect = getNodeRect(child);
+      for (const child of this.link.children) {
+        const childRect = getNodeRect(child);
         if ((childRect.top < rect.top) || (childRect.bottom > rect.bottom) || (childRect.left < rect.left) || (childRect.right > rect.right)) {
           useLink = false;
           break;
@@ -269,14 +269,14 @@ class LinkHandler {
     if (useLink) {
       rects = getNodeRects(this.link);
     } else {
-      for (let child of this.link.children) {
+      for (const child of this.link.children) {
         rects = rects.concat(getNodeRects(child));
       }
     }
     for (rect of rects) {
       let merged;
       if (rect.width || rect.height) {
-        for (let rect0 of this.rects) {
+        for (const rect0 of this.rects) {
           merged = mergeRects(rect0, rect);
           if (merged) {
             this.rects.splice(this.rects.indexOf(rect0), 1);
@@ -319,7 +319,7 @@ class LinkHandler {
 
   // Resets handler
   reset() {
-    for (let node of this.highlights) {
+    for (const node of this.highlights) {
       node.parentNode.removeChild(node);
     }
     this.highlights = [];
@@ -329,8 +329,8 @@ class LinkHandler {
   catch(catchZone) {
     let intersect = false;
     // Update position if needed and applicable.
-    let updated = this.refresh && this.refreshPosition();
-    for (let rect of this.rects) {
+    const updated = this.refresh && this.refreshPosition();
+    for (const rect of this.rects) {
       intersect = intersect || ((rect.right > catchZone.left) && (rect.left < catchZone.right) &&
         (rect.bottom > catchZone.top) && (rect.top < catchZone.bottom));
       if (intersect) break;
@@ -348,13 +348,13 @@ class LinkHandler {
     // better visual result.
     // The zones where to create highlighting have been given as argument, or
     // none to reset highlighting.
-    let wasCaught = this.isCaught();
-    let caught = !!rects;
+    const wasCaught = this.isCaught();
+    const caught = !!rects;
     // Force redrawing link highlight when caught and its position was updated.
     if (caught && updated) this.reset();
     if (caught && (updated || !wasCaught)) {
-      for (let rect of rects) {
-        let node = document.createElement('div');
+      for (const rect of rects) {
+        const node = document.createElement('div');
         this.highlights.push(node);
         node.classList.add('linksCatcher_highlight');
         node.style.left = `${rect.x}px`;
@@ -385,7 +385,7 @@ class LinkHandler {
 class LinksHandler {
 
   constructor(catcher) {
-    let self = this;
+    const self = this;
     self.catcher = catcher;
     // Handled links.
     self.handlers = [];
@@ -398,7 +398,7 @@ class LinksHandler {
 
     // Mutation observer
     self.mutationObserver = new MutationObserver(function(mutations, observer) {
-      for (let mutation of mutations) {
+      for (const mutation of mutations) {
         self.handleMutation(mutation);
       }
     });
@@ -406,7 +406,7 @@ class LinksHandler {
 
   // Resets caught links
   reset() {
-    for (let handler of this.handlers) {
+    for (const handler of this.handlers) {
       handler.reset();
     }
     this.distincts = {};
@@ -431,7 +431,7 @@ class LinksHandler {
 
   // Handles link
   handle(link) {
-    let handler = new LinkHandler(link);
+    const handler = new LinkHandler(link);
     if (!handler.canCatch()) return 0;
     handler.install();
     this.handlers.push(handler);
@@ -440,21 +440,21 @@ class LinksHandler {
 
   // Detects all links in current document
   detect() {
-    for (let node of searchLinks(document.body)) {
+    for (const node of searchLinks(document.body)) {
       this.handle(node);
     }
   }
 
   // Catches links in catch zone
   catch() {
-    for (let handler of this.handlers) {
+    for (const handler of this.handlers) {
       this.check(handler);
     }
   }
 
   refresh(fast) {
     let updated = false;
-    for (let handler of this.handlers) {
+    for (const handler of this.handlers) {
       // Upon fast refresh, skip if link was not previously caught.
       if (fast && !handler.isCaught()) continue;
       handler.refresh = true;
@@ -469,12 +469,12 @@ class LinksHandler {
 
   updatedLink(handler, diff) {
     this.caught += diff;
-    let href = handler.link.href;
+    const href = handler.link.href;
     if (diff > 0) {
       if (!(href in this.distincts)) this.distincts[href] = new Set();
       this.distincts[href].add(handler);
     } else if (diff < 0) {
-      let set = this.distincts[href] || new Set();
+      const set = this.distincts[href] || new Set();
       set.delete(handler);
       if (!set.size) delete(this.distincts[href]);
     }
@@ -484,17 +484,17 @@ class LinksHandler {
   handleMutation(mutation) {
     // Handle new links
     if (mutation.addedNodes.length) {
-      for (let node of mutation.addedNodes) {
-        for (let link of searchLinks(node)) {
+      for (const node of mutation.addedNodes) {
+        for (const link of searchLinks(node)) {
           this.handle(link);
         }
       }
     }
     // Handle old links
     if (mutation.removedNodes.length) {
-      for (let node of mutation.removedNodes) {
-        for (let link of searchLinks(node)) {
-          let handler = link.linksCatcher_handler;
+      for (const node of mutation.removedNodes) {
+        for (const link of searchLinks(node)) {
+          const handler = link.linksCatcher_handler;
           if (this.handlers.includes(handler)) {
             this.handlers.splice(this.handlers.indexOf(handler), 1);
             if (handler.isCaught()) this.updatedLink(handler, -1);
@@ -511,7 +511,7 @@ class LinksHandler {
 class LinksCatcher {
 
   constructor() {
-    let self = this;
+    const self = this;
 
     // Don't initialize us before being needed
     document.addEventListener('mousedown', function handler(ev) {
@@ -528,13 +528,13 @@ class LinksCatcher {
 
   // Initializes the catcher
   init() {
-    let self = this;
+    const self = this;
 
     if (self.catchZone) return;
     debug('[LinksCatcher] Initializing');
 
     // Cleanup previous nodes if any (useful when reloading extension)
-    for (let node of document.querySelectorAll('.linksCatcher_catchZone, .linksCatcher_linksCount')) {
+    for (const node of document.querySelectorAll('.linksCatcher_catchZone, .linksCatcher_linksCount')) {
       document.body.removeChild(node);
     }
 
@@ -579,7 +579,7 @@ class LinksCatcher {
       // Hence it is better/easier to use 'forEach' than 'for...in'.
       // To iterate over keys, 'Object.keys(...)' is then necessary.
       Object.keys(self.eventHandlers).forEach(function(kind) {
-        let handler = self.eventHandlers[kind];
+        const handler = self.eventHandlers[kind];
         self.eventHandlers[kind] = function(ev) {
           debugSample(ev.type)('[LinksCatcher] Event =', ev);
           handler(ev);
@@ -616,13 +616,13 @@ class LinksCatcher {
 
   // Updates catch zone: after mouse event etc.
   updateCatchZone() {
-    let ev = this.lastMouseEvent;
-    let startPos = this.catchZone.pos.start;
+    const ev = this.lastMouseEvent;
+    const startPos = this.catchZone.pos.start;
 
     // Page size.
     // See: http://ryanve.com/lab/dimensions/
-    let pageWidth = document.documentElement.scrollWidth
-    let pageHeight = document.documentElement.scrollHeight
+    const pageWidth = document.documentElement.scrollWidth
+    const pageHeight = document.documentElement.scrollHeight
 
     // Compute zone. Don't go beyond the page borders.
     let endPos;
@@ -684,8 +684,8 @@ class LinksCatcher {
     if (!ev) return;
     // Check if we need to scroll (when the mouse is outside the view or near the screen edge).
     // Note: requesting scrolling when page edge has been reached is harmless.
-    let screenWidth = window.screen.width;
-    let screenHeight = window.screen.height;
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
 
     let scrollX = 0;
     if (ev.clientX < 0) {
@@ -719,14 +719,14 @@ class LinksCatcher {
   // Updates displayed caught links count.
   updateLinksCount() {
     if (this.catchZone.enabled) {
-      let endPos = this.catchZone.pos.end;
-      let { viewWidth } = getViewportSize();
-      let distincts = Object.keys(this.linksHandler.distincts).length;
-      let caught = this.linksHandler.caught;
+      const endPos = this.catchZone.pos.end;
+      const { viewWidth } = getViewportSize();
+      const distincts = Object.keys(this.linksHandler.distincts).length;
+      const caught = this.linksHandler.caught;
       let text = `${caught}`;
       if (distincts != caught) text = `${distincts}/${caught}`;
       this.linksCountNode.textContent = text;
-      let rect = getNodeRect(this.linksCountNode);
+      const rect = getNodeRect(this.linksCountNode);
       let left = endPos.x + LINKS_COUNT_MARGIN;
       let top = endPos.y - LINKS_COUNT_MARGIN - rect.height;
       if (left + rect.width + LINKS_COUNT_MARGIN > window.scrollX + viewWidth) {
@@ -747,8 +747,8 @@ class LinksCatcher {
   // For uncaught links, ensure a minimal delay between two refresh: prevents
   // consuming too much CPU/time when there are hundreds of links in the page.
   refreshLinksPosition() {
-    let self = this;
-    let now = util.getTimestamp();
+    const self = this;
+    const now = util.getTimestamp();
     if (now - self.linksRefresh.last >= LINKS_REFRESH_DELAY) {
       self._refreshLinksPosition(false);
       return;
@@ -776,28 +776,28 @@ class LinksCatcher {
 
   // Processes caught links
   processLinks() {
-    let handlers = [];
-    let caught = [];
+    const handlers = [];
+    const caught = [];
     // Keep caught links.
-    for (let handler of this.linksHandler.handlers) {
+    for (const handler of this.linksHandler.handlers) {
       if (handler.isCaught()) handlers.push(handler);
     }
     // Sort links depending on catch zone direction (from top or bottom, and
     // from left or right).
-    let topToBottom = this.catchZone.topToBottom;
-    let leftToRight = this.catchZone.leftToRight;
+    const topToBottom = this.catchZone.topToBottom;
+    const leftToRight = this.catchZone.leftToRight;
     handlers.sort((h1, h2) => {
-      let vertical = topToBottom ? (h1.rect.top - h2.rect.top) : (h2.rect.bottom - h1.rect.bottom);
+      const vertical = topToBottom ? (h1.rect.top - h2.rect.top) : (h2.rect.bottom - h1.rect.bottom);
       if (vertical != 0) return vertical;
-      let horizontal = leftToRight ? (h1.rect.left - h2.rect.left) : (h2.rect.right - h1.rect.right);
+      const horizontal = leftToRight ? (h1.rect.left - h2.rect.left) : (h2.rect.right - h1.rect.right);
       if (horizontal != 0) return horizontal;
     });
     // Keep unique links.
-    for (let handler of handlers) {
+    for (const handler of handlers) {
       if (!caught.includes(handler.link.href)) caught.push(handler.link.href);
     }
     // Determine system-dependent newline.
-    let newline = (navigator.appVersion.indexOf('Win') >= 0) ? '\r\n' : '\n';
+    const newline = (navigator.appVersion.indexOf('Win') >= 0) ? '\r\n' : '\n';
     if (caught.length) navigator.clipboard.writeText(`${caught.join(newline)}${newline}`);
   }
 
@@ -855,7 +855,7 @@ class LinksCatcher {
 
   // Adds event listener
   listenEvent(kind) {
-    let handler = this.eventHandlers[kind];
+    const handler = this.eventHandlers[kind];
     if (handler) {
       debug(`[LinksCatcher] Listen event=<${kind}>`);
       document.addEventListener(kind, handler, true);
@@ -866,7 +866,7 @@ class LinksCatcher {
 
   // Removes event listener
   unlistenEvent(kind) {
-    let handler = this.eventHandlers[kind];
+    const handler = this.eventHandlers[kind];
     if (handler) {
       debug(`[LinksCatcher] Unlisten event=<${kind}>`);
       document.removeEventListener(kind, handler, true);

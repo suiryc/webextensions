@@ -23,14 +23,14 @@ function maybePageContent(url) {
   // dynamic (e.g. javascript/php/...) it may trigger another request that would
   // be a real content to download.
   // We first get the leaf path name.
-  let pathname = util.getFilename(url);
+  const pathname = util.getFilename(url);
   // If it's empty (that is the URL ends with a slash '/'), we assume the URL is
   // *not* for a content to download; most likely it's the 'index' page of the
   // site or one of its paths.
   if (!pathname) return 'empty leaf path';
   // Otherwise we get the 'extension' (considering path as a filename).
-  let split = pathname.split(/\./);
-  let extension = (split.length > 1) ? split.pop().toLowerCase() : '';
+  const split = pathname.split(/\./);
+  const extension = (split.length > 1) ? split.pop().toLowerCase() : '';
   // We assume we got the name of a page to display, and not the name of a file
   // to download, it either:
   //  - there is no extension
@@ -51,7 +51,7 @@ class DlMngrClient {
   }
 
   async download(details, params) {
-    let self = this;
+    const self = this;
 
     params = params || {};
     if (params.notify && settings.notifyDownload) {
@@ -101,8 +101,8 @@ class DlMngrClient {
 
     function handleError(r) {
       if (r.error) {
-        let url = details.url;
-        let filename = details.file;
+        const url = details.url;
+        const filename = details.file;
         self.webext.notify({
           title: 'Failed to download',
           level: 'error',
@@ -131,10 +131,10 @@ class DlMngrClient {
     if (!self.wsPort) return await postNative();
 
     // Otherwise try WebSocket, and fallback to native request upon issue.
-    let wsClient = new WebSocketClient(`ws://127.0.0.1:${self.wsPort}/`);
+    const wsClient = new WebSocketClient(`ws://127.0.0.1:${self.wsPort}/`);
     try {
       await wsClient.connect();
-      let r = await wsClient.postRequest(details);
+      const r = await wsClient.postRequest(details);
       // If WebSocket returns non-0 code, log it. It is useless to fallback to
       // the native application, since the same should happen (except we don't
       // wait for its return code). Better return a proper error.
@@ -158,7 +158,7 @@ class DlMngrClient {
 }
 
 // Background script will set it up.
-export let dlMngr = new DlMngrClient();
+export const dlMngr = new DlMngrClient();
 
 export class RequestsHandler extends http.RequestsHandler {
 
@@ -217,7 +217,7 @@ export class RequestsHandler extends http.RequestsHandler {
 
   constructor(webext) {
     super({ RequestDetails });
-    let self = this;
+    const self = this;
     self.webext = webext;
     self.unintercepted = {};
     self.requestsCompleted = {};
@@ -248,14 +248,14 @@ export class RequestsHandler extends http.RequestsHandler {
     // Determine whether we were listening.
     // Note: alternatively we could get 'this.interceptRequests' etc before
     // changing the value, but here we emphasize the use of our listeners.
-    let interceptingRequests = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
-    let interceptingDownloads = browser.downloads.onCreated.hasListener(this.listeners.onDownload);
+    const interceptingRequests = browser.webRequest.onSendHeaders.hasListener(this.listeners.onRequest);
+    const interceptingDownloads = browser.downloads.onCreated.hasListener(this.listeners.onDownload);
     // Add/remove listeners as requested.
     if (this.interceptRequests && !interceptingRequests) {
       if (settings.debug.downloads) console.log('Installing downloads webRequest interception');
       // Note: we only need to intercept frames requests (no need for media
       // or websocket for example).
-      let webRequestFilter = { urls: ['<all_urls>'], types: ['main_frame', 'sub_frame'] };
+      const webRequestFilter = { urls: ['<all_urls>'], types: ['main_frame', 'sub_frame'] };
       browser.webRequest.onSendHeaders.addListener(
         this.listeners.onRequest,
         webRequestFilter,
@@ -303,7 +303,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   ignoreNext(ttl) {
-    let self = this;
+    const self = this;
     // Cancel if requested.
     if (!ttl) {
       self.cancelIgnoreNext();
@@ -312,7 +312,7 @@ export class RequestsHandler extends http.RequestsHandler {
     // Nothing to do if we already are ignoring.
     if (self.ignoringNext) return;
     console.log(`Ignoring next interception with ttl=<${ttl}>`);
-    let ttlStep = 1000;
+    const ttlStep = 1000;
     // Start TTL ('+ ttlStep' to reuse the function to decrement the TTL).
     self.ignoringNext = {
       ttl: ttl + ttlStep
@@ -362,16 +362,16 @@ export class RequestsHandler extends http.RequestsHandler {
 
   addToBase(base, requestDetails) {
     if (!requestDetails) return;
-    let key = requestDetails.url;
-    let entries = base[key] || [];
+    const key = requestDetails.url;
+    const entries = base[key] || [];
     entries.push(requestDetails);
     base[key] = entries;
   }
 
   removeFromBase(base, key) {
-    let entries = base[key];
+    const entries = base[key];
     if (!entries) return;
-    let removed = entries.shift();
+    const removed = entries.shift();
     if (!entries.length) delete(base[key]);
     else base[key] = entries;
     return removed;
@@ -388,7 +388,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   cleanupUnintercepted() {
-    for (let [key, unintercepted] of Object.entries(this.unintercepted)) {
+    for (const [key, unintercepted] of Object.entries(this.unintercepted)) {
       while (unintercepted.length && (util.getTimestamp() - unintercepted[0].timeStamp > constants.REQUESTS_TTL)) {
         console.warn('Dropping incomplete unintercepted download %o: TTL reached', unintercepted[0]);
         this.removeUnintercepted(key);
@@ -408,7 +408,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   cleanupCompletedRequests() {
-    for (let [key, completed] of Object.entries(this.requestsCompleted)) {
+    for (const [key, completed] of Object.entries(this.requestsCompleted)) {
       while (completed.length && (util.getTimestamp() - completed[0].timeStamp > constants.REQUESTS_TTL)) {
         if (settings.debug.downloads) console.log('Dropping completed request %o: TTL reached', completed[0]);
         this.removeCompletedRequest(key);
@@ -451,13 +451,13 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   onResponse(response) {
-    let requestDetails = this.addResponse(response);
+    const requestDetails = this.addResponse(response);
     // Delegate decision to dedicated class.
     return requestDetails.manage(this);
   }
 
   async manageRequest(requestDetails, intercept, reason) {
-    let self = this;
+    const self = this;
     if (intercept && self.checkIgnoreNext()) {
       intercept = false;
       reason = `ignoring (initial interception reason: ${reason})`;
@@ -470,7 +470,7 @@ export class RequestsHandler extends http.RequestsHandler {
     delete(requestDetails.remember);
     console.info(`Intercepting request %o: ${reason}`, requestDetails);
 
-    let url = requestDetails.url;
+    const url = requestDetails.url;
     if (settings.notifyDownload) {
       util.browserNotification({
         'type': 'basic',
@@ -481,11 +481,11 @@ export class RequestsHandler extends http.RequestsHandler {
 
     let tabTitle;
     try {
-      let tab = await browser.tabs.get(requestDetails.sent.tabId);
+      const tab = await browser.tabs.get(requestDetails.sent.tabId);
       tabTitle = tab.title;
     } catch (error) {
     }
-    let r = await dlMngr.download({
+    const r = await dlMngr.download({
       url,
       referrer: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Referer'),
       cookie: http.findHeaderValue(requestDetails.sent.requestHeaders, 'Cookie'),
@@ -503,7 +503,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   onDownload(download) {
-    let self = this;
+    const self = this;
     if (!http.canDownload(download.url)) return self.manageDownload(download, false, 'URL not handled');
     if (self.removeUnintercepted(download.url)) return self.manageDownload(download, false, 'Matching unintercepted request');
     if (self.removeCompletedRequest(download.url)) return self.manageDownload(download, false, 'Matching completed request');
@@ -519,7 +519,7 @@ export class RequestsHandler extends http.RequestsHandler {
       // Catch any error to return the initial state.
       return [download];
     }).then(r => {
-      let d = r.find(d => d.id == download.id);
+      const d = r.find(d => d.id == download.id);
       if (d) download = d;
 
       // Don't process completed downloads.
@@ -533,13 +533,13 @@ export class RequestsHandler extends http.RequestsHandler {
       // Do not intercept if corresponding request would not have been.
 
       // Don't intercept 'too small' download
-      let totalBytes = Number.isInteger(download.totalBytes) ? download.totalBytes : -1;
-      let bytesReceived = ((totalBytes > 0) && Number.isInteger(download.bytesReceived)) ? download.bytesReceived : 0;
-      let remaining = totalBytes - bytesReceived;
+      const totalBytes = Number.isInteger(download.totalBytes) ? download.totalBytes : -1;
+      const bytesReceived = ((totalBytes > 0) && Number.isInteger(download.bytesReceived)) ? download.bytesReceived : 0;
+      const remaining = totalBytes - bytesReceived;
       if ((remaining >= 0) && (remaining < settings.interceptSize)) return self.manageDownload(download, false, `Remaining length=<${remaining}> below limit`);
 
       // Don't intercept text or images if size is unknown.
-      let contentType = new http.ContentType(download.mime);
+      const contentType = new http.ContentType(download.mime);
       contentType.guess(download.filename, false);
       if (remaining < 0) {
         if (contentType.maybeText()) return self.manageDownload(download, false, 'Text with unknown size');
@@ -577,7 +577,7 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   async manageDownload(download, intercept, reason) {
-    let self = this;
+    const self = this;
     if (intercept && self.checkIgnoreNext()) {
       intercept = false;
       reason = `ignoring (initial interception reason: ${reason})`;
@@ -661,12 +661,12 @@ export class RequestsHandler extends http.RequestsHandler {
   }
 
   async manageClick(info, tab) {
-    let self = this;
+    const self = this;
     // If mediaType is defined (e.g. 'video', 'audio' or 'image'), user clicked
     // on this kind of HTML element, instead of a plain link. In this case
     // srcUrl is the 'src' value of the element (while linkUrl is the URL target
     // link otherwise).
-    let url = info.mediaType ? info.srcUrl : info.linkUrl;
+    const url = info.mediaType ? info.srcUrl : info.linkUrl;
 
     if (!http.canDownload(url)) {
       if (settings.notifyDownload) {
@@ -733,7 +733,7 @@ class RequestDetails extends http.RequestDetails {
     // *do not* remember as 'unintercepted'.
     // Note: the requestId being re-used, the new HTTP request will replace the
     // original one in our 'requests'.
-    let statusCode = this.statusCode;
+    const statusCode = this.statusCode;
     if (this.isRedirection()) return handler.manageRequest(this, false, `Skip intermediate response code=<${statusCode}>`);
 
     // This request shall be remembered if not intercepted.
@@ -748,7 +748,7 @@ class RequestDetails extends http.RequestDetails {
     //  - ip is not present (Firefox 56) or null (Firefox 62)
     // We don't want/need to intercept download if data has already been fetched
     // by the browser.
-    let fromCache = response.fromCache || !('ip' in response) || !response.ip;
+    const fromCache = response.fromCache || !('ip' in response) || !response.ip;
     if (fromCache) return handler.manageRequest(this, false, 'Response cached');
 
     // Only process standard success code. This filters out errors, redirects,
@@ -798,7 +798,7 @@ class RequestDetails extends http.RequestDetails {
     //  - content has no explicit filename (non-explicit attachment ?)
     //  - URL path is compatible with a page content (name/extension)
     if (!this.hasFilename()) {
-      let reason = maybePageContent(this.url);
+      const reason = maybePageContent(this.url);
       if (reason) return handler.manageRequest(this, false, `Maybe page content; ${reason}`);
     }
 

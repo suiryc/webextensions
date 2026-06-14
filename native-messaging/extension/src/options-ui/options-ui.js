@@ -30,17 +30,17 @@ function unhandledMessage(msg, sender) {
 }
 
 // Extension handler
-let webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage });
+const webext = new WebExtension({ target: constants.TARGET_OPTIONS_UI, onMessage });
 
-let exportButton = document.querySelector('#export');
-let importButton = document.querySelector('#import');
-let importFile = document.querySelector('#import-file');
-let resetButton = document.querySelector('#reset');
+const exportButton = document.querySelector('#export');
+const importButton = document.querySelector('#import');
+const importFile = document.querySelector('#import-file');
+const resetButton = document.querySelector('#reset');
 
 function downloadDone(url, id) {
   // Remove download entry when applicable.
   // (id starts at 1, at least in Firefox)
-  let p = id ? browser.downloads.erase({id}) : asynchronous.defer;
+  const p = id ? browser.downloads.erase({id}) : asynchronous.defer;
   p.catch(() => {}).then(() => {
     URL.revokeObjectURL(url);
   });
@@ -50,7 +50,7 @@ function revokeDownloadURL(url, id) {
   browser.downloads.search({id}).then(r => {
     let ok = !r;
     if (!ok) {
-      let state = r[0].state;
+      const state = r[0].state;
       ok = (state !== browser.downloads.State.IN_PROGRESS);
     }
     if (ok) downloadDone(url, id);
@@ -67,7 +67,7 @@ exportButton.addEventListener('click', () => {
   browser.storage.local.get(null).then(options => {
     // Quick trick to sort object keys.
     options = Object.fromEntries(Object.entries(options).sort());
-    let json = JSON.stringify(options, undefined, 2);
+    const json = JSON.stringify(options, undefined, 2);
     // Add comment lines with all settings, which makes it easier to track
     // changes in multi-line string values.
     // Notes:
@@ -78,8 +78,8 @@ exportButton.addEventListener('click', () => {
       if ((v === undefined) || (v === null)) {
         v = 'null';
       } else if (Array.isArray(v)) {
-        let arr = [];
-        for (let v2 of v) {
+        const arr = [];
+        for (const v2 of v) {
           arr.push(stringify(v2, '').split('\n').join('\n  '));
         }
         if (!arr.length) {
@@ -97,8 +97,8 @@ exportButton.addEventListener('click', () => {
     }
     function toComment(obj) {
       let s = [];
-      for (let key of Object.keys(obj)) {
-        let v = stringify(obj[key], '  ').split('\n');
+      for (const key of Object.keys(obj)) {
+        const v = stringify(obj[key], '  ').split('\n');
         if (v.length == 1) {
           s.push(`${key}: ${v[0]}`);
         } else {
@@ -108,8 +108,8 @@ exportButton.addEventListener('click', () => {
       }
       return `// ${s.join('\n// ')}\n`;
     }
-    let blob = new Blob([toComment(options) + json], { type: 'application/json' });
-    let url = URL.createObjectURL(blob);
+    const blob = new Blob([toComment(options) + json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     browser.downloads.download({
       url,
       filename: 'settings.json',
@@ -140,8 +140,8 @@ importButton.addEventListener('click', () => {
 
 // Once file to import has been selected, handle it.
 importFile.addEventListener('change', function() {
-  let myFile = this.files[0];
-  let reader = new FileReader();
+  const myFile = this.files[0];
+  const reader = new FileReader();
 
   function failed(error) {
     webext.notify({
@@ -155,8 +155,8 @@ importFile.addEventListener('change', function() {
     if (event.target.readyState == FileReader.DONE) {
       try {
         // Remove comment lines we add upon exporting.
-        let json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');
-        let options = JSON.parse(json);
+        const json = event.target.result.split('\n').filter(s => !s.startsWith('//')).join('\n');
+        const options = JSON.parse(json);
         // First get current options, then replace them.
         // Upon issue, revert original settings.
         // Notes:

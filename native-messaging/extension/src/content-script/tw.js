@@ -61,7 +61,7 @@ export async function run() {
   });
 
   // Inject our CSS.
-  let link = document.createElement('link');
+  const link = document.createElement('link');
   link.href = browser.runtime.getURL('/resources/content-script-tw.css');
   link.type = 'text/css';
   link.rel = 'stylesheet';
@@ -108,10 +108,10 @@ export async function run() {
 // See: https://www.w3schools.com/howto/howto_css_modals.asp
 function displayModal(title, params) {
   // The modal node
-  let modal = util.htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
-  let modalHeader = modal.getElementsByClassName('modal-header')[0];
-  let modalClose = modal.getElementsByClassName('modal-close')[0];
-  let modalBody = modal.getElementsByClassName('modal-body')[0];
+  const modal = util.htmlToElement('<div class="modal"><div class="modal-content"><div class="modal-header"><span class="modal-close">&times;</span></div><div class="modal-body"></div></div></div>');
+  const modalHeader = modal.getElementsByClassName('modal-header')[0];
+  const modalClose = modal.getElementsByClassName('modal-close')[0];
+  const modalBody = modal.getElementsByClassName('modal-body')[0];
 
   // Fill the title (header) part
   let titleNode = title;
@@ -127,7 +127,7 @@ function displayModal(title, params) {
   if (typeof(params.body) !== 'object') {
     bodyNode = document.createElement('p');
     let first = true;
-    for (let line of params.body.split('\n')) {
+    for (const line of params.body.split('\n')) {
       if (first) first = false;
       else bodyNode.appendChild(document.createElement('br'));
       bodyNode.appendChild(document.createTextNode(line));
@@ -150,7 +150,7 @@ function displayModal(title, params) {
 // Gets whether this is a TW5 document
 function isTW5() {
   // TW5 has a <meta name="application-name" content="TiddlyWiki" /> header
-  for (let meta of document.getElementsByTagName('meta')) {
+  for (const meta of document.getElementsByTagName('meta')) {
     if ((meta.name === 'application-name') && (meta.content === 'TiddlyWiki')) return true;
   }
   return false;
@@ -230,7 +230,7 @@ function injectMessageBox() {
   // Inject the message box
   let messageBox = document.getElementById('tiddlyfox-message-box');
   if (messageBox) {
-    let otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
+    const otherExtension = messageBox.getAttribute('data-message-box-creator') || null;
     // Note: when developing and reloading extension, we may see our previous
     // injected element, so filter us.
     if (otherExtension && (otherExtension != constants.EXTENSION_ID)) {
@@ -257,9 +257,9 @@ function injectMessageBox() {
   // Attach the event handler
   messageBox.addEventListener('tiddlyfox-save-file', event => {
     // Get the details
-    let message = event.target;
-    let path = getSavePath(message);
-    let content = message.getAttribute('data-tiddlyfox-content');
+    const message = event.target;
+    const path = getSavePath(message);
+    const content = message.getAttribute('data-tiddlyfox-content');
 
     // Save the file
     webext.postMessage({
@@ -273,7 +273,7 @@ function injectMessageBox() {
       // Error are notified though the response 'error' field
       if (r.error) throw r.error;
       // Notify TiddlyWiki saving is done
-      let ev = document.createEvent('Events');
+      const ev = document.createEvent('Events');
       ev.initEvent('tiddlyfox-have-saved-file', true, false);
       message.dispatchEvent(ev);
 

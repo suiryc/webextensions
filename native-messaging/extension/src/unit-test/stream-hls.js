@@ -268,7 +268,7 @@ http://media.example.com/third.ts
         }]
       });
       let buildStream = function(idx, name) {
-        let tag = playlist.tags['EXT-X-STREAM-INF'][idx];
+        const tag = playlist.tags['EXT-X-STREAM-INF'][idx];
         return {
           tag,
           tags: {},
@@ -380,7 +380,7 @@ main/english-audio.m3u8
           uri: 'main/english-audio.m3u8'
         }]
       });
-      let buildTrack = function(tag) {
+      const buildTrack = function(tag) {
         return {
           tag,
           uri: tag.attributes['URI'],
@@ -389,7 +389,7 @@ main/english-audio.m3u8
         };
       };
       buildStream = function(idx, name) {
-        let tag = playlist.tags['EXT-X-STREAM-INF'][idx];
+        const tag = playlist.tags['EXT-X-STREAM-INF'][idx];
         return {
           tag,
           tags: {},
@@ -407,7 +407,7 @@ main/english-audio.m3u8
       };
       assert.deepEqual(util.tryStructuredClone(playlist.streams).map(s => {
         delete(s['playlist']);
-        for (let track of s.audio) {
+        for (const track of s.audio) {
           delete(track['stream']);
         }
         return s;
@@ -424,7 +424,7 @@ main/english-audio.m3u8
       assert.strictEqual(playlist.streams[0].getURL().href, 'https://example.com/full-path/stream.m3u8');
       assert.strictEqual(playlist.streams[1].getURL().href, 'https://domain.net/absolute-path/stream.m3u8');
       assert.strictEqual(playlist.streams[2].getURL().href, 'https://domain.net/relative-path/stream.m3u8');
-      for (let stream of playlist.streams) {
+      for (const stream of playlist.streams) {
         assert.strictEqual(stream.audio[0].getURL().href, 'https://example.com/full-path/audio.m3u8');
         assert.strictEqual(stream.audio[1].getURL().href, 'https://domain.net/absolute-path/audio.m3u8');
         assert.strictEqual(stream.audio[2].getURL().href, 'https://domain.net/relative-path/audio.m3u8');
@@ -434,7 +434,7 @@ main/english-audio.m3u8
       assert.strictEqual(playlist.streams[0].getURL().href, 'https://example.com/full-path/stream.m3u8');
       assert.strictEqual(playlist.streams[1].getURL().href, 'https://domain.net/absolute-path/stream.m3u8');
       assert.strictEqual(playlist.streams[2].getURL().href, 'https://domain.net/some/relative-path/stream.m3u8');
-      for (let stream of playlist.streams) {
+      for (const stream of playlist.streams) {
         assert.strictEqual(stream.audio[0].getURL().href, 'https://example.com/full-path/audio.m3u8');
         assert.strictEqual(stream.audio[1].getURL().href, 'https://domain.net/absolute-path/audio.m3u8');
         assert.strictEqual(stream.audio[2].getURL().href, 'https://domain.net/some/relative-path/audio.m3u8');
@@ -444,7 +444,7 @@ main/english-audio.m3u8
       assert.strictEqual(playlist.streams[0].getURL().href, 'https://example.com/full-path/stream.m3u8');
       assert.strictEqual(playlist.streams[1].getURL().href, 'https://domain.net/absolute-path/stream.m3u8');
       assert.strictEqual(playlist.streams[2].getURL().href, 'https://domain.net/some/subpath/relative-path/stream.m3u8');
-      for (let stream of playlist.streams) {
+      for (const stream of playlist.streams) {
         assert.strictEqual(stream.audio[0].getURL().href, 'https://example.com/full-path/audio.m3u8');
         assert.strictEqual(stream.audio[1].getURL().href, 'https://domain.net/absolute-path/audio.m3u8');
         assert.strictEqual(stream.audio[2].getURL().href, 'https://domain.net/some/subpath/relative-path/audio.m3u8');
@@ -452,13 +452,13 @@ main/english-audio.m3u8
     });
 
     it('should handle tags', function() {
-      let playlist = new hls.HLSPlaylist(RAW_STREAM_EX1);
+      const playlist = new hls.HLSPlaylist(RAW_STREAM_EX1);
       assert.deepEqual(playlist.getTag('EXTINF'), TAGS_STREAM_EX1['EXTINF'][0]);
       assert.deepEqual(playlist.getTags('EXTINF'), TAGS_STREAM_EX1['EXTINF']);
     });
 
     it('should handle unknown tags', function() {
-      let playlist = new hls.HLSPlaylist(`
+      const playlist = new hls.HLSPlaylist(`
 #EXTM3U
 #EXT-UNKNOWN:BANDWIDTH=123456,RESOLUTION=1920x1080,FRAME-RATE=23.976
 `);
@@ -476,7 +476,7 @@ main/english-audio.m3u8
     });
 
     it('should handle comma in quoted string', function() {
-      let playlist = new hls.HLSPlaylist(`
+      const playlist = new hls.HLSPlaylist(`
 #EXTM3U
 #EXT-UNKNOWN:NAME="v1,v2",BANDWIDTH=123456,RESOLUTION=1920x1080,FRAME-RATE=23.976
 #EXT-UNKNOWN:NAME="v1,v2"extra
@@ -538,7 +538,7 @@ file.m3u8
     });
 
     it('should handle non-value tags', function() {
-      let playlist = new hls.HLSPlaylist(`
+      const playlist = new hls.HLSPlaylist(`
 #EXTM3U
 #EXT-UNKNOWN:K=V,K2,K3
 `);
@@ -556,7 +556,7 @@ file.m3u8
     });
 
     it('should ignore comments and unexpected non-tag lines', function() {
-      let playlist = new hls.HLSPlaylist(`
+      const playlist = new hls.HLSPlaylist(`
 # some comment
 #EXTM3U
 some-value
@@ -593,7 +593,7 @@ some-value
       assert.strictEqual(playlist.isStream(), undefined);
 
       playlist = new hls.HLSPlaylist(RAW_STREAM_EX1, {url: 'https://domain.net/some/file.m3u8'});
-      let stream = playlist.isStream();
+      const stream = playlist.isStream();
       assert.deepEqual(stream, {
         raw: RAW_STREAM_EX1,
         tags: TAGS_STREAM_EX1,
@@ -614,7 +614,7 @@ some-value
   describe('HLSStream', function() {
 
     it('should handle being assigned actual stream', function() {
-      let playlist = new hls.HLSPlaylist(RAW_MASTER_EX1);
+      const playlist = new hls.HLSPlaylist(RAW_MASTER_EX1);
       let stream = playlist.streams[0];
       let actualStream = new hls.HLSPlaylist(RAW_STREAM_EX1, {url: 'https://domain.net/some/file.m3u8'}).isStream();
       stream.merge(actualStream);
@@ -671,7 +671,7 @@ some-value
     });
 
     it('should handle keys', function() {
-      let stream = new hls.HLSPlaylist(`
+      const stream = new hls.HLSPlaylist(`
 #EXTM3U
 #EXT-X-TARGETDURATION:10
 #EXT-X-VERSION:3

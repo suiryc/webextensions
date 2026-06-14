@@ -352,8 +352,8 @@ const iconInfoCircle = document.querySelector('#icon-info-circle');
 const listItemNode = document.querySelector('#list-item');
 
 // Extension handler
-let webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
-let tabsObserver = new TabsObserver(webext);
+const webext = new WebExtension({ target: constants.TARGET_BROWSER_ACTION, onMessage });
+const tabsObserver = new TabsObserver(webext);
 
 function cloneNode(node) {
   const cloned = node.cloneNode(true);
@@ -474,7 +474,7 @@ function updateMessagesBadges() {
 
   const messagesCount = activeMessagesCount + otherMessagesCount;
   if (messagesCount > 0) {
-    const sumupBadge = `${activeMessagesCount}`;
+    let sumupBadge = `${activeMessagesCount}`;
     if (otherMessagesCount) sumupBadge = `${sumupBadge}+${otherMessagesCount}`
     messagesItemNode.setAttribute('data-badge', sumupBadge);
   } else {
