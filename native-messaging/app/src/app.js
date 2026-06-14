@@ -264,8 +264,8 @@ async function http_fetch(app, msg) {
     // is consumed.
     if (params.wantArrayBuffer || params.wantBlob || params.wantBytes || params.wantBase64) {
       const promise = new util.Deferred().promise;
-      r.arrayBuffer().then(v => {
-        response.base64 = Buffer.from(v).toString('base64');
+      r.bytes().then(v => {
+        response.base64 = v.toBase64();
         promise.resolve();
       });
       contentPromises.push(promise);

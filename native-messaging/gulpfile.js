@@ -2,7 +2,7 @@
 
 import gulp from 'gulp';
 import os from 'os';
-import glob from 'glob';
+import { glob } from 'glob';
 import path from 'path';
 import fse from 'fs-extra';
 import rename from 'gulp-rename';
@@ -172,12 +172,7 @@ async function buildExt_prod() {
 }
 
 export async function unitTestExt() {
-  const deferred = new util.Deferred();
-  glob(path.posix.join('src', 'unit-test', '**', '*.js'), { cwd: extensionPath }, (err, files) => {
-    if (err) deferred.reject(err);
-    else deferred.resolve(files);
-  });
-  const files = await deferred;
+  const files = await glob(path.posix.join('src', 'unit-test', '**', '*.js'), { cwd: extensionPath });
   await util.spawn('node',
     [path.join(__dirname, 'node_modules', 'mocha', 'bin', 'mocha')].concat(files),
     { cwd: extensionPath });

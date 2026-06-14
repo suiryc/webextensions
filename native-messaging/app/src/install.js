@@ -7,6 +7,7 @@ import os from 'os';
 import path from 'path';
 import * as util from './util.js';
 import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
 
 
 // Creates manifest file
@@ -32,7 +33,7 @@ let manifestFolder = appFolder;
 let manifestFile = 'manifest-firefox.json';
 let manifestCommand;
 const nodeCommand = process.argv[0];
-const params = yargs.argv;
+const params = yargs(hideBin(process.argv)).argv;
 let appCommand;
 
 // We expect the following CLI parameters:
