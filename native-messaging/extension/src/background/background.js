@@ -150,7 +150,11 @@ function unhandledMessage(msg, sender) {
 
 // Checks whether native application is ok.
 function ext_checkNativeApp(msg) {
-  return nativeApp.postRequest({});
+  return nativeApp.postRequest({
+    _routing: {
+      kind: constants.KIND_PING
+    }
+  });
 }
 
 // Checks whether TiddlyWiki file (URL) is open in more than one tab/window.

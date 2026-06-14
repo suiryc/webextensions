@@ -214,10 +214,13 @@ export class WebExtension {
       if (msg.sender.live) tab.url = frameHandler.tabHandler.url;
     }
 
+    // Handle some messages internally.
+    // Reminder: if returning non-array, no need to wrap upon 'broadcast'.
     switch (_routing.kind) {
+      case constants.KIND_PING:
+        return Promise.resolve({});
+
       case constants.KIND_ECHO:
-        // Handle 'echo' message internally.
-        // Note: an object, so no need to wrap in array upon 'broadcast'.
         return Promise.resolve({
           msg,
           sender: actualSender
@@ -977,6 +980,7 @@ export class NativeApplication extends PortHandler {
   // Enforce 'request' mode for native application messaging (we call this
   // method directly, and do not want to make 'request' mandatory to set there).
   postRequest(msg) {
+    msg._routing ||= {};
     msg._routing.request = true;
     return super.postRequest(msg);
   }

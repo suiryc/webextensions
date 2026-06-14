@@ -24,6 +24,9 @@ async function onMessage(app, msg) {
     case constants.KIND_HTTP_FETCH:
       return http_fetch(app, msg);
 
+    case constants.KIND_PING:
+      return {};
+
     case constants.KIND_SPECS:
       return app_specs(app, msg);
 
@@ -31,9 +34,7 @@ async function onMessage(app, msg) {
       return tw_save(app, msg);
 
     default:
-      // Special case: empty message is a PING.
-      if ((Object.getOwnPropertyNames(msg).length == 1) && _routing && (Object.getOwnPropertyNames(_routing).length == 1) && _routing.hasOwnProperty('correlationId')) return {};
-      else return unhandledMessage(msg);
+      return unhandledMessage(msg);
   }
 }
 

@@ -70,6 +70,7 @@ export const constants = {
   KIND_GET_EXT_MESSAGES: 'getExtMessages',
   KIND_HTTP_FETCH: 'http-fetch',
   KIND_NOTIFICATION: 'notification',
+  KIND_PING: 'ping',
   KIND_REGISTER_PORT: 'registerPort',
   KIND_REGISTER_TABS_EVENTS: 'registerTabsEvents',
   KIND_SPECS: 'specs',
