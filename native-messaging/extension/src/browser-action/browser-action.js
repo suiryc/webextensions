@@ -85,6 +85,75 @@ const TEXT_LIMIT_POPUP = 400;
 
 let textForClipboard = undefined;
 
+class PopupHandler {
+
+  constructor(node, title) {
+    this.node = node;
+    this.title = util.textToHtml(title);
+    this.subtitle = [];
+    this.clipboard = [];
+
+    this.clipboard.push(title);
+
+    this._setup();
+  }
+
+  pushLine(s) {
+    // HTML content: no <br> after <hr>
+    if (this.subtitle.length && (this.subtitle.at(-1) !== '<hr>')) this.subtitle.push('<br>');
+    this.subtitle.push(s);
+
+    // Clipboard content: insert empty line after title.
+    if (this.clipboard.length === 1) this.clipboard.push('');
+    this.clipboard.push(util.htmlToText(s));
+  }
+
+  newSection() {
+    this.subtitle.push('<hr>');
+    this.clipboard.push('---');
+  }
+
+  _setup() {
+    const self = this;
+
+    self.node.addEventListener('mouseenter', () => {
+      textForClipboard = self.clipboard.join('\n');
+
+      const rect = self.node.getBoundingClientRect();
+      // IMPORTANT: mozInnerScreenX/Y is needeed for proper positioning.
+      // See the content script for details.
+      const containerTop = window.mozInnerScreenY;
+      const itemTop = containerTop + rect.top;
+      const pos = {
+        containerLeft: window.mozInnerScreenX,
+        itemTop,
+        itemMiddle: itemTop + (rect.height / 2)
+      };
+
+      // Show popup in webpage.
+      webext.postMessage({
+        _routing: {
+          target: constants.TARGET_CONTENT_SCRIPT,
+          targetDetails: {
+            windowId,
+            tabId: activeTabId,
+            id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
+          },
+          kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE
+        },
+        action: 'show',
+        data: {
+          title: self.title,
+          subtitle: self.subtitle.join('')
+        },
+        pos
+      });
+    });
+    self.node.addEventListener('mouseleave', cs_hidePopup);
+  }
+
+}
+
 function setupDownloadEntry(source, download) {
   const node = cloneNode(listItemNode);
   node.classList.add('clickable');
@@ -93,25 +162,12 @@ function setupDownloadEntry(source, download) {
   const videoSubtitle = download.details.subtitle;
   let subtitle = [];
   const tooltip = [];
-  let popupSubtitle = [];
-  let entryClipboard = [];
 
   // Note: a default extension was chosen when applicable.
   const { name, extension } = util.getFilenameExtension(download.details.file);
   util.setHtml(node.querySelector('.list-item-title'), util.textToHtml(name));
-  entryClipboard.push(name);
-  entryClipboard.push('');
 
-  function popupSubtitle_pushLine(s) {
-    if (popupSubtitle.length && (popupSubtitle.at(-1) !== '<hr>')) popupSubtitle.push('<br>');
-    popupSubtitle.push(s);
-    entryClipboard.push(util.htmlToText(s));
-  }
-
-  function popupSubtitle_newSection() {
-    popupSubtitle.push('<hr>');
-    entryClipboard.push('---');
-  }
+  const popupHandler = new PopupHandler(node, name);
 
   // Use source size, and extension (unless HLS).
   // Note: for HLS we may have information only in download details, but for
@@ -122,13 +178,13 @@ function setupDownloadEntry(source, download) {
     hadSize = true;
     const s = util.getSizeText(source.size);
     subtitle.push(s);
-    popupSubtitle_pushLine(util.textToHtml(`Size: ${s}`));
+    popupHandler.pushLine(util.textToHtml(`Size: ${s}`));
   } else if (download.details.size) {
     // Size hint known.
     hadSize = true;
     const s = `${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`;
     subtitle.push(s);
-    popupSubtitle_pushLine(util.textToHtml(`Size (hint): ${s}`));
+    popupHandler.pushLine(util.textToHtml(`Size (hint): ${s}`));
   }
   const hasHLSKey = !!source.hls?.tags?.['EXT-X-KEY'];
   if (source.hls) {
@@ -138,20 +194,20 @@ function setupDownloadEntry(source, download) {
     s += source.hls.name;
     subtitle.push(s);
     const tag = source.hls.tag;
-    if (source.hls.codecs) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
-    if (tag?.attributes['RESOLUTION']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
-    if (tag?.attributes['FRAME-RATE']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
-    if (source.hls.duration) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
+    if (source.hls.codecs) popupHandler.pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
+    if (tag?.attributes['RESOLUTION']) popupHandler.pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
+    if (tag?.attributes['FRAME-RATE']) popupHandler.pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
+    if (source.hls.duration) popupHandler.pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
     if (!hadSize) {
       // We did not have a size, but maybe there are bandwidth information.
-      if (tag?.attributes['AVERAGE-BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
-      if (tag?.attributes['BANDWIDTH']) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
+      if (tag?.attributes['AVERAGE-BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
+      if (tag?.attributes['BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
     }
-    popupSubtitle_pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
+    popupHandler.pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
   } else {
     if (extension) {
       subtitle.push(extension);
-      popupSubtitle_pushLine(util.textToHtml(`Extension: ${extension}`));
+      popupHandler.pushLine(util.textToHtml(`Extension: ${extension}`));
     }
   }
   if (source.hls) {
@@ -159,23 +215,23 @@ function setupDownloadEntry(source, download) {
     if (hasHLSKey) s += '🔑';
     if (audio) s += '🔊';
     if (videoSubtitle) s += '💬';
-    if (s) popupSubtitle_pushLine(util.textToHtml(`🎞️HLS features: 🎞️${s}`));
+    if (s) popupHandler.pushLine(util.textToHtml(`🎞️HLS features: 🎞️${s}`));
   }
   if (videoSubtitle) {
     subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
-    if (videoSubtitle.lang) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles lang: ${videoSubtitle.lang}`));
-    if (videoSubtitle.name) popupSubtitle_pushLine(util.textToHtml(`💬Subtitles name: ${videoSubtitle.name}`));
+    if (videoSubtitle.lang) popupHandler.pushLine(util.textToHtml(`💬Subtitles lang: ${videoSubtitle.lang}`));
+    if (videoSubtitle.name) popupHandler.pushLine(util.textToHtml(`💬Subtitles name: ${videoSubtitle.name}`));
   }
   const hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
   subtitle.push(hostname);
   if (!source.hls) {
-    popupSubtitle_newSection();
-    if (download.params.mimeFilename) popupSubtitle_pushLine(util.textToHtml(`MIME filename: ${download.params.mimeFilename}`));
-    if (download.params.mimeType) popupSubtitle_pushLine(util.textToHtml(`MIME type: ${download.params.mimeType}`));
-    popupSubtitle_pushLine(util.textToHtml(`URL filename: ${util.getFilename(download.details.url)}`));
+    popupHandler.newSection();
+    if (download.params.mimeFilename) popupHandler.pushLine(util.textToHtml(`MIME filename: ${download.params.mimeFilename}`));
+    if (download.params.mimeType) popupHandler.pushLine(util.textToHtml(`MIME type: ${download.params.mimeType}`));
+    popupHandler.pushLine(util.textToHtml(`URL filename: ${util.getFilename(download.details.url)}`));
   }
-  popupSubtitle_newSection();
-  popupSubtitle_pushLine(`URL: <span class='url'>${util.textToHtml(util.limitText(source.url, TEXT_LIMIT_POPUP))}</span>`);
+  popupHandler.newSection();
+  popupHandler.pushLine(`URL: <span class='url'>${util.textToHtml(util.limitText(source.url, TEXT_LIMIT_POPUP))}</span>`);
   tooltip.push(util.limitText(source.url, TEXT_LIMIT_TOOLTIP));
   subtitle = subtitle.join(' - ');
   if (source.actualUrl) {
@@ -184,7 +240,7 @@ function setupDownloadEntry(source, download) {
       subtitle = `${subtitle}\nActual host: ${actualHostname}`;
     }
     tooltip.push(util.limitText(source.actualUrl, TEXT_LIMIT_TOOLTIP));
-    popupSubtitle_pushLine(`Actual URL: <span class='url'>${util.textToHtml(util.limitText(source.actualUrl, TEXT_LIMIT_POPUP))}</span>`);
+    popupHandler.pushLine(`Actual URL: <span class='url'>${util.textToHtml(util.limitText(source.actualUrl, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (source.forceUrl) {
     const actualHostname = (new URL(source.forceUrl).hostname).split('.').slice(-3).join('.');
@@ -192,19 +248,17 @@ function setupDownloadEntry(source, download) {
       subtitle = `${subtitle}\nForced host: ${actualHostname}`;
     }
     tooltip.push(util.limitText(source.forceUrl, TEXT_LIMIT_TOOLTIP));
-    popupSubtitle_pushLine(`Forced URL: <span class='url'>${util.textToHtml(util.limitText(source.forceUrl, TEXT_LIMIT_POPUP))}</span>`);
+    popupHandler.pushLine(`Forced URL: <span class='url'>${util.textToHtml(util.limitText(source.forceUrl, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (audio) {
     tooltip.push(util.limitText(`🔊${audio.url}`, TEXT_LIMIT_TOOLTIP));
-    popupSubtitle_pushLine(`🔊Audio URL: <span class='url'>${util.textToHtml(util.limitText(audio.url, TEXT_LIMIT_POPUP))}</span>`);
+    popupHandler.pushLine(`🔊Audio URL: <span class='url'>${util.textToHtml(util.limitText(audio.url, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (videoSubtitle) {
     tooltip.push(util.limitText(`💬${videoSubtitle.url}`, TEXT_LIMIT_TOOLTIP));
-    popupSubtitle_pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</span>`);
+    popupHandler.pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</span>`);
   }
 
-  popupSubtitle = popupSubtitle.join('');
-  entryClipboard = entryClipboard.join('\n');
   util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
   // Don't use a CSS tooltip, as it would likely not be displayed correctly
   // (if at all) in the browser action popup view. Instead use some simple
@@ -234,41 +288,6 @@ function setupDownloadEntry(source, download) {
     // Close the browser action page.
     window.close();
   });
-
-  node.addEventListener('mouseenter', () => {
-    textForClipboard = entryClipboard;
-
-    const rect = node.getBoundingClientRect();
-    // IMPORTANT: mozInnerScreenX/Y is needeed for proper positioning.
-    // See the content script for details.
-    const containerTop = window.mozInnerScreenY;
-    const itemTop = containerTop + rect.top;
-    const pos = {
-      containerLeft: window.mozInnerScreenX,
-      itemTop,
-      itemMiddle: itemTop + (rect.height / 2)
-    };
-
-    // Show popup in webpage.
-    webext.postMessage({
-      _routing: {
-        target: constants.TARGET_CONTENT_SCRIPT,
-        targetDetails: {
-          windowId,
-          tabId: activeTabId,
-          id: constants.TARGET_ID_CONTENT_SCRIPT_BROWSER_ACTION_POPUP
-        },
-        kind: constants.KIND_CS_BROWSER_ACTION_POPUP_UPDATE
-      },
-      action: 'show',
-      data: {
-        title: util.textToHtml(name),
-        subtitle: popupSubtitle
-      },
-      pos
-    });
-  });
-  node.addEventListener('mouseleave', cs_hidePopup);
 
   videosNode.appendChild(node);
 }
@@ -384,11 +403,26 @@ function addMessage(details) {
   message = (details.html ? message : util.textToHtml(message));
   util.setHtml(node.querySelector('.list-item-content'), message);
   const tabHandler = (tabsObserver.tabs[tabId] || {}).tabHandler;
+
   const tooltip = [];
-  if (details.source) tooltip.push(`Source: ${details.source}`);
-  if (tabHandler) {
-    if (tabHandler.title) tooltip.push(tabHandler.title);
-    if (tabHandler.url) tooltip.push(tabHandler.url);
+  const popupHandler = new PopupHandler(node, details.title || details.source);
+
+  popupHandler.pushLine(message);
+  if (details.source) {
+    popupHandler.newSection();
+    tooltip.push(`Source: ${details.source}`);
+    popupHandler.pushLine(util.textToHtml(`Source: ${details.source}`));
+  }
+  if (tabHandler && (tabHandler.title || tabHandler.url)) {
+    popupHandler.newSection();
+    if (tabHandler.title) {
+      tooltip.push(tabHandler.title);
+      popupHandler.pushLine(util.textToHtml(`Tab title: ${tabHandler.title}`));
+    }
+    if (tabHandler.url) {
+      tooltip.push(tabHandler.url);
+      popupHandler.pushLine(`Tab URL: <span class='url'>${util.textToHtml(tabHandler.url)}</span>`);
+    }
   }
   if (tooltip.length) node.setAttribute('title', tooltip.join('\n'));
 
