@@ -333,10 +333,49 @@ export class WebExtension {
     const targets = this.targets[target] || [];
     targets.push(handler);
     this.targets[target] = targets;
+    this.deduplicatePort(handler);
     return handler;
   }
 
+  deduplicatePort(handler) {
+    // When site does navigate between pages, previous ports may remain while
+    // new content scripts are injected, and new ports (for the same tab main
+    // frame) are created.
+    // Nothing happens if we post a message on these ports, and if we are waiting
+    // for a response, we will simply timeout.
+    // These ports usually are only disconnected when the tab is closed.
+    //
+    // As a workaround, expect only one connection for a specific tab+frame,
+    // and remember only the last one.
+
+    function getKey(handler) {
+      if (!handler.port.sender || !handler.port.sender.tab) return;
+      if (!handler.params.target) return;
+
+      return {
+        windowId: handler.port.sender.tab.windowId,
+        tabId: handler.port.sender.tab.id,
+        frameId: handler.port.sender.frameId,
+        target: handler.params.target,
+        targetId: handler.params.targetId
+      };
+    }
+
+    const key = getKey(handler);
+    if (!key) return;
+
+    const knownPortHandlers = this.targets[key.target] || [];
+    for (const portHandler of knownPortHandlers) {
+      if (portHandler === handler) continue;
+      if (util.deepEqual(key, getKey(portHandler))) {
+        if (settings.debug.misc) console.log('Found duplicate key=<%o> port=<%o> handler=<%o>', key, portHandler.port, portHandler);
+        this.unregisterPort(portHandler.port, portHandler);
+      }
+    }
+  }
+
   unregisterPort(port, handler) {
+    if (settings.debug.misc) console.log('Unregister port=<%o> handler=<%o>', port, handler);
     this.unregisterTabsEvents(handler);
     const target = handler.params.target;
     // Note: explicitly delete because if we don't know the target, we have
@@ -733,6 +772,7 @@ class PortHandler {
     if (port.error == null) delete(port.error);
     const error = port.error;
     if (error) console.warn('Extension port %o disconnected: %o', port, error);
+    else if (!self.autoReconnect && settings.debug.misc) console.log('Extension port %o disconnected', port);
     delete(self.port);
     // Wipe out current requests; reject any pending Promise.
     // Parent will either wipe us out (background script), or we should not
