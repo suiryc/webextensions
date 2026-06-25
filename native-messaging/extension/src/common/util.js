@@ -417,6 +417,17 @@ export function filenameWithExtension(filename, extension) {
   return buildFilename(getFilenameExtension(filename).name, extension);
 }
 
+export function parseHex(s) {
+  if (s == null) return NaN;
+
+  try {
+    if (!s.startsWith('0x')) s = `0x${s}`;
+    return Number(s);
+  } catch {
+    return NaN;
+  }
+}
+
 // Round number to the requested precision (3 digits by default).
 export function roundNumber(num, dec, precision) {
   if (num === 0) return 0;

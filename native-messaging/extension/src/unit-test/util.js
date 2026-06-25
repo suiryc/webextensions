@@ -636,6 +636,36 @@ describe('util', function() {
 
   });
 
+  describe('parseHex', function() {
+
+    it('should parse valid non-prefixed value', function() {
+      assert.strictEqual(util.parseHex('0'), 0);
+      assert.strictEqual(util.parseHex('00'), 0);
+      assert.strictEqual(util.parseHex('9'), 9);
+      assert.strictEqual(util.parseHex('a'), 10);
+      assert.strictEqual(util.parseHex('FF'), 255);
+      assert.strictEqual(util.parseHex('0FF'), 255);
+      assert.strictEqual(util.parseHex('fFfF'), 65535);
+    });
+
+    it('should parse valid prefixed value', function() {
+      assert.strictEqual(util.parseHex('0x0'), 0);
+      assert.strictEqual(util.parseHex('0x00'), 0);
+      assert.strictEqual(util.parseHex('0x9'), 9);
+      assert.strictEqual(util.parseHex('0xa'), 10);
+      assert.strictEqual(util.parseHex('0xFF'), 255);
+      assert.strictEqual(util.parseHex('0x0FF'), 255);
+      assert.strictEqual(util.parseHex('0xfFfF'), 65535);
+    });
+
+    it('should parse invalid value', function() {
+      [undefined, '', 'xx', '0x', '0xXX', '-1', -1].forEach(s => {
+        assert.strictEqual(util.parseHex(s), NaN);
+      });
+    });
+
+  });
+
   describe('roundNumber', function() {
 
     it('should round number', function() {
