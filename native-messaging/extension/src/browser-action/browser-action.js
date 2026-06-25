@@ -5,6 +5,7 @@ import * as util from '../common/util.js';
 import * as asynchronous from '../common/asynchronous.js';
 import { settings, trackFields } from '../common/settings.js';
 import { WebExtension } from '../common/messaging.js';
+import * as codecs from '../common/stream-codecs.js';
 
 
 // Wait for settings to be ready, then track fields changes (to persist settings).
@@ -185,19 +186,22 @@ function setupDownloadEntry(source, download) {
   }
   const hasHLSKey = !!source.hls?.tags?.['EXT-X-KEY'];
   if (source.hls) {
-    let s = '🎞️';
+    let s = codecs.STREAM_KIND_VIDEO;
     if (hasHLSKey) s += '🔑';
-    if (audio) s += '🔊';
+    if (audio) s += codecs.STREAM_KIND_AUDIO;
     s += source.hls.name;
     subtitle.push(s);
     const tag = source.hls.tag;
-    if (source.hls.codecs) popupHandler.pushLine(util.textToHtml(`🎞️HLS codecs: ${source.hls.codecs}`));
-    if (tag?.attributes['RESOLUTION']) popupHandler.pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
-    if (tag?.attributes['FRAME-RATE']) popupHandler.pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
-    if (source.hls.duration) popupHandler.pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
-    if (tag?.attributes['AVERAGE-BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
-    if (tag?.attributes['BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
-    popupHandler.pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
+    if (source.hls.codecs) {
+      const descs = source.hls.codecs.split(',').map(v => codecs.StreamCodec.parse(v.trim()).desc()).join(', ');
+      popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS codecs: ${descs}`));
+    }
+    if (tag?.attributes['RESOLUTION']) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
+    if (tag?.attributes['FRAME-RATE']) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS framerate: ${tag.attributes['FRAME-RATE']}`));
+    if (source.hls.duration) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
+    if (tag?.attributes['AVERAGE-BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
+    if (tag?.attributes['BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
+    popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS name: ${source.hls.name}`));
   } else {
     if (extension) {
       subtitle.push(extension);
@@ -207,14 +211,14 @@ function setupDownloadEntry(source, download) {
   if (source.hls) {
     let s = '';
     if (hasHLSKey) s += '🔑';
-    if (audio) s += '🔊';
-    if (videoSubtitle) s += '💬';
-    if (s) popupHandler.pushLine(util.textToHtml(`🎞️HLS features: 🎞️${s}`));
+    if (audio) s += codecs.STREAM_KIND_AUDIO;
+    if (videoSubtitle) s += codecs.STREAM_KIND_SUBTITLES;
+    if (s) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_VIDEO}HLS features: ${codecs.STREAM_KIND_VIDEO}${s}`));
   }
   if (videoSubtitle) {
-    subtitle.push(`💬${videoSubtitle.lang || videoSubtitle.name}`);
-    if (videoSubtitle.lang) popupHandler.pushLine(util.textToHtml(`💬Subtitles lang: ${videoSubtitle.lang}`));
-    if (videoSubtitle.name) popupHandler.pushLine(util.textToHtml(`💬Subtitles name: ${videoSubtitle.name}`));
+    subtitle.push(`${codecs.STREAM_KIND_SUBTITLES}${videoSubtitle.lang || videoSubtitle.name}`);
+    if (videoSubtitle.lang) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_SUBTITLES}Subtitles lang: ${videoSubtitle.lang}`));
+    if (videoSubtitle.name) popupHandler.pushLine(util.textToHtml(`${codecs.STREAM_KIND_SUBTITLES}Subtitles name: ${videoSubtitle.name}`));
   }
   const hostname = (new URL(source.url).hostname).split('.').slice(-3).join('.');
   subtitle.push(hostname);
@@ -245,12 +249,12 @@ function setupDownloadEntry(source, download) {
     popupHandler.pushLine(`Forced URL: <span class='url'>${util.textToHtml(util.limitText(source.forceUrl, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (audio) {
-    tooltip.push(util.limitText(`🔊${audio.url}`, TEXT_LIMIT_TOOLTIP));
-    popupHandler.pushLine(`🔊Audio URL: <span class='url'>${util.textToHtml(util.limitText(audio.url, TEXT_LIMIT_POPUP))}</span>`);
+    tooltip.push(util.limitText(`${codecs.STREAM_KIND_AUDIO}${audio.url}`, TEXT_LIMIT_TOOLTIP));
+    popupHandler.pushLine(`${codecs.STREAM_KIND_AUDIO}Audio URL: <span class='url'>${util.textToHtml(util.limitText(audio.url, TEXT_LIMIT_POPUP))}</span>`);
   }
   if (videoSubtitle) {
-    tooltip.push(util.limitText(`💬${videoSubtitle.url}`, TEXT_LIMIT_TOOLTIP));
-    popupHandler.pushLine(`💬Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</span>`);
+    tooltip.push(util.limitText(`${codecs.STREAM_KIND_SUBTITLES}${videoSubtitle.url}`, TEXT_LIMIT_TOOLTIP));
+    popupHandler.pushLine(`${codecs.STREAM_KIND_SUBTITLES}Subtitles URL: <span class='url'>${util.textToHtml(util.limitText(videoSubtitle.url, TEXT_LIMIT_POPUP))}</span>`);
   }
 
   util.setHtml(node.querySelector('.list-item-subtitle'), util.textToHtml(subtitle));
