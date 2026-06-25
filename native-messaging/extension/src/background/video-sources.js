@@ -5,7 +5,7 @@ import * as util from '../common/util.js';
 import * as asynchronous from '../common/asynchronous.js';
 import * as unsafe from '../common/unsafe.js';
 import * as http from '../common/http.js';
-import * as hls from './stream-hls.js';
+import * as hls from '../common/stream-hls.js';
 import { dlMngr } from './downloads.js';
 import { settings } from '../common/settings.js';
 

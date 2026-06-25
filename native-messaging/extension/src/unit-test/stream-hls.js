@@ -2,7 +2,7 @@
 
 import * as assert from 'assert';
 import * as util from '../common/util.js';
-import * as hls from '../background/stream-hls.js';
+import * as hls from '../common/stream-hls.js';
 
 
 describe('hls', function() {
