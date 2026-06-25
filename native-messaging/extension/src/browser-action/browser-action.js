@@ -172,16 +172,13 @@ function setupDownloadEntry(source, download) {
   // Use source size, and extension (unless HLS).
   // Note: for HLS we may have information only in download details, but for
   // direct download, we also have the size in the source.
-  let hadSize = false;
   if ('size' in source) {
     // Exact size known.
-    hadSize = true;
     const s = util.getSizeText(source.size);
     subtitle.push(s);
     popupHandler.pushLine(util.textToHtml(`Size: ${s}`));
   } else if (download.details.size) {
     // Size hint known.
-    hadSize = true;
     const s = `${download.details.sizeQualifier || ''}${util.getSizeText(download.details.size)}`;
     subtitle.push(s);
     popupHandler.pushLine(util.textToHtml(`Size (hint): ${s}`));
@@ -198,11 +195,8 @@ function setupDownloadEntry(source, download) {
     if (tag?.attributes['RESOLUTION']) popupHandler.pushLine(util.textToHtml(`🎞️HLS resolution: ${tag.attributes['RESOLUTION'].width}x${tag.attributes['RESOLUTION'].height}`));
     if (tag?.attributes['FRAME-RATE']) popupHandler.pushLine(util.textToHtml(`🎞️HLS framerate: ${tag.attributes['FRAME-RATE']}`));
     if (source.hls.duration) popupHandler.pushLine(util.textToHtml(`🎞️HLS duration: ${util.getTimeText(source.hls.duration)} (${source.hls.duration})`));
-    if (!hadSize) {
-      // We did not have a size, but maybe there are bandwidth information.
-      if (tag?.attributes['AVERAGE-BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
-      if (tag?.attributes['BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
-    }
+    if (tag?.attributes['AVERAGE-BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS average bandwidth: ≈${util.getSizeText(tag.attributes['AVERAGE-BANDWIDTH'])}bps`));
+    if (tag?.attributes['BANDWIDTH']) popupHandler.pushLine(util.textToHtml(`🎞️HLS bandwidth: ≤${util.getSizeText(tag.attributes['BANDWIDTH'])}bps`));
     popupHandler.pushLine(util.textToHtml(`🎞️HLS name: ${source.hls.name}`));
   } else {
     if (extension) {
